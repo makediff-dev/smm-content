@@ -1,0 +1,43 @@
+"use client";
+
+import { useQueueStore } from "@/stores/queue-store";
+import { useProjectsStore } from "@/stores/projects-store";
+import { PrototypeDisclaimer } from "@/components/shared/prototype-disclaimer";
+import { Clock } from "@phosphor-icons/react";
+import styles from "./top-bar.module.css";
+
+interface TopBarProps {
+  projectId?: string;
+  breadcrumb?: string;
+}
+
+export function TopBar({ projectId, breadcrumb }: TopBarProps) {
+  const queuedCount = useQueueStore((s) => s.getQueuedCount());
+  const project = useProjectsStore((s) =>
+    projectId ? s.getProject(projectId) : undefined
+  );
+
+  return (
+    <header className={styles.header}>
+      <div className={styles.left}>
+        {project && (
+          <span className={styles.projectName}>{project.name}</span>
+        )}
+        {breadcrumb && (
+          <span className={styles.breadcrumb}>{breadcrumb}</span>
+        )}
+      </div>
+      <div className={styles.center}>
+        <PrototypeDisclaimer />
+      </div>
+      <div className={styles.right}>
+        {queuedCount > 0 && (
+          <span className={styles.indicator}>
+            <Clock size={14} weight="bold" />
+            {queuedCount} в очереди
+          </span>
+        )}
+      </div>
+    </header>
+  );
+}

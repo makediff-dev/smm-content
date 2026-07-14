@@ -1,0 +1,48 @@
+.log {
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--bg-white);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.entry {
+  display: flex;
+  gap: 16px;
+  padding: 12px 16px;
+  font-size: 13px;
+}
+
+.entry + .entry {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.time {
+  color: var(--text-light);
+  white-space: nowrap;
+  min-width: 130px;
+  font-size: 12px;
+}
+
+.action {
+  flex: 1;
+  color: var(--text);
+}
+
+.user {
+  display: inline-flex;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.empty {
+  padding: 20px;
+  color: var(--text-light);
+  font-size: 13px;
+  text-align: center;
+}

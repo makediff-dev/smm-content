@@ -1,0 +1,55 @@
+.header {
+  height: var(--header-height);
+  min-height: var(--header-height);
+  background: var(--bg-white);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  box-shadow: 0 1px 0 var(--border-subtle);
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.projectName {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.breadcrumb {
+  font-size: 13px;
+  color: var(--text-light);
+}
+
+.center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 0 20px;
+  min-width: 0;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--accent);
+  padding: 5px 12px;
+  background: var(--accent-muted);
+  border-radius: var(--radius-pill);
+  font-weight: 500;
+}

@@ -1,0 +1,106 @@
+.pageHeader {
+  margin-bottom: 28px;
+}
+
+.pageTitle {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.pageDescription {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.settingsSection {
+  margin-bottom: 32px;
+  background: var(--bg-white);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.settingsSectionTitle {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  letter-spacing: -0.02em;
+}
+
+.settingsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.membersHeader {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.membersList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--bg-white);
+  box-shadow: var(--shadow-sm);
+}
+
+.memberName {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.memberRole {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 2px;
+}
+
+.memberTag {
+  display: inline-flex;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  background: var(--bg-soft);
+  color: var(--text-muted);
+}
+
+.logoPlaceholder {
+  width: 64px;
+  height: 64px;
+  background: var(--bg-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-radius: var(--radius-lg);
+}
+
+.saveBar {
+  margin-top: 8px;
+}
+
+.savedMessage {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-left: 12px;
+}

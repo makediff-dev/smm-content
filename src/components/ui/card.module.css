@@ -1,0 +1,39 @@
+.card {
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--bg-white);
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+}
+
+.header {
+  margin-bottom: 16px;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.description {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.muted {
+  background: var(--bg-soft);
+  box-shadow: none;
+}
+
+.interactive {
+  cursor: pointer;
+  transition: box-shadow 0.18s ease, transform 0.12s ease;
+}
+
+.interactive:hover {
+  box-shadow: var(--shadow-md);
+}

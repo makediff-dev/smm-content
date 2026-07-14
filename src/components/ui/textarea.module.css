@@ -1,0 +1,33 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.textarea {
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+  color: var(--text);
+  outline: none;
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.55;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.textarea:focus {
+  background: var(--bg-white);
+  box-shadow: inset 0 0 0 1.5px var(--border-accent);
+}
+
+.textarea::placeholder {
+  color: var(--text-light);
+}

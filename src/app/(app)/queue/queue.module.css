@@ -1,0 +1,16 @@
+.pageHeader {
+  margin-bottom: 32px;
+}
+
+.pageTitle {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.pageDescription {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
