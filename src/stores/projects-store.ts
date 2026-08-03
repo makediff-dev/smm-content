@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ContentUnit, Project } from "@/types";
 import { SEED_CONTENT, SEED_PROJECTS } from "@/data/seed";
+import { mergeSeedContentUnits, mergeSeedProjects } from "@/lib/seed-sync";
 import { generateId } from "@/lib/simulate-generation";
 
 interface ProjectsState {
@@ -12,7 +13,7 @@ interface ProjectsState {
   createProject: (data: { name: string; description: string }) => string;
   updateProject: (id: string, data: Partial<Project>) => void;
   getProject: (id: string) => Project | undefined;
-  getProjectsForUser: (userId: string, isAdmin: boolean) => Project[];
+  getProjectsForUser: (userId: string, isAdmin: boolean, projectIds?: string[]) => Project[];
   getContentForProject: (projectId: string) => ContentUnit[];
   createContentUnit: (projectId: string, data?: Partial<ContentUnit>) => string;
   updateContentUnit: (id: string, data: Partial<ContentUnit>) => void;
@@ -23,6 +24,15 @@ interface ProjectsState {
     user: string
   ) => void;
   resetData: () => void;
+}
+
+function syncProjectsState(
+  state: Pick<ProjectsState, "projects" | "contentUnits">
+) {
+  return {
+    projects: mergeSeedProjects(state.projects),
+    contentUnits: mergeSeedContentUnits(state.contentUnits),
+  };
 }
 
 export const useProjectsStore = create<ProjectsState>()(
@@ -61,8 +71,11 @@ export const useProjectsStore = create<ProjectsState>()(
 
       getProject: (id) => get().projects.find((p) => p.id === id),
 
-      getProjectsForUser: (userId, isAdmin) => {
+      getProjectsForUser: (userId, isAdmin, projectIds = []) => {
         if (isAdmin) return get().projects;
+        if (projectIds.length > 0) {
+          return get().projects.filter((p) => projectIds.includes(p.id));
+        }
         return get().projects.filter((p) => p.managerIds.includes(userId));
       },
 
@@ -77,7 +90,9 @@ export const useProjectsStore = create<ProjectsState>()(
           title: data?.title ?? "Новый контент",
           format: data?.format ?? "gallery",
           formatConfirmed: data?.formatConfirmed ?? false,
+          sourceType: data?.sourceType ?? "url",
           sourceUrl: data?.sourceUrl ?? "",
+          sourceFileName: data?.sourceFileName ?? "",
           status: "draft",
           createdAt: new Date().toISOString(),
           cards: data?.cards ?? [],
@@ -151,6 +166,22 @@ export const useProjectsStore = create<ProjectsState>()(
       resetData: () =>
         set({ projects: SEED_PROJECTS, contentUnits: SEED_CONTENT }),
     }),
-    { name: "smm-projects" }
+    {
+      name: "smm-projects",
+      version: 1,
+      migrate: (persistedState) => {
+        const state = persistedState as Pick<
+          ProjectsState,
+          "projects" | "contentUnits"
+        >;
+        return syncProjectsState(state);
+      },
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        const synced = syncProjectsState(state);
+        state.projects = synced.projects;
+        state.contentUnits = synced.contentUnits;
+      },
+    }
   )
 );

@@ -1,0 +1,201 @@
+.calendar {
+  background: var(--bg-white);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-sm);
+}
+
+.calendarCompact {
+  padding: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--border);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.headerCompact {
+  margin-bottom: 14px;
+  justify-content: center;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.monthNav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.monthLabel {
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 140px;
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.navButton {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.navButton:hover {
+  background: var(--bg-muted);
+  color: var(--text);
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.weekday {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-light);
+  text-align: center;
+  padding: 4px 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.day {
+  position: relative;
+  min-height: 44px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dayCompact {
+  min-height: 38px;
+}
+
+.day:hover {
+  background: var(--bg-soft);
+}
+
+.dayMuted {
+  opacity: 0.35;
+}
+
+.dayToday .dayNumber {
+  font-weight: 700;
+}
+
+.dayWithTasks .dayNumber {
+  font-weight: 600;
+}
+
+.daySelected {
+  background: var(--accent-muted);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.dayNumber {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.taskDot {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.calendarCompact .footer {
+  margin-top: 12px;
+  padding-top: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.footerText {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.clearButton {
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.clearButton:hover {
+  color: var(--accent-hover);
+}
+
+@media (max-width: 900px) {
+  .header {
+    flex-direction: column;
+  }
+
+  .footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

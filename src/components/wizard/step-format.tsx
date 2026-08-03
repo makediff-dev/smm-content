@@ -2,39 +2,30 @@
 
 import { useWizardStore } from "@/stores/content-wizard-store";
 import { useProjectsStore } from "@/stores/projects-store";
-import { Button } from "@/components/ui/button";
 import { formatIconMap } from "@/lib/format-icons";
 import {
   FORMAT_DESCRIPTIONS,
   FORMAT_LABELS,
   type ContentFormat,
 } from "@/types";
+import { useWizardStepDisabled } from "@/components/wizard/wizard-step-context";
 import styles from "./wizard.module.css";
 
 const FORMAT_OPTIONS: ContentFormat[] = ["text", "gallery", "slideshow"];
 
-interface StepFormatProps {
-  onNext: () => void;
-}
-
-export function StepFormat({ onNext }: StepFormatProps) {
+export function StepFormat() {
   const updateContentUnit = useProjectsStore((s) => s.updateContentUnit);
   const format = useWizardStore((s) => s.format);
   const contentId = useWizardStore((s) => s.contentId);
   const setField = useWizardStore((s) => s.setField);
+  const stepDisabled = useWizardStepDisabled();
 
   const handleSelect = (nextFormat: ContentFormat) => {
+    if (stepDisabled) return;
     setField("format", nextFormat);
     if (contentId) {
       updateContentUnit(contentId, { format: nextFormat });
     }
-  };
-
-  const handleContinue = () => {
-    if (!contentId) return;
-    updateContentUnit(contentId, { format, formatConfirmed: true });
-    setField("formatConfirmed", true);
-    onNext();
   };
 
   return (
@@ -57,6 +48,7 @@ export function StepFormat({ onNext }: StepFormatProps) {
               type="button"
               className={`${styles.formatCard} ${isActive ? styles.formatCardActive : ""}`}
               onClick={() => handleSelect(option)}
+              disabled={stepDisabled}
             >
               <div className={styles.formatCardIcon}>
                 <Icon size={28} weight={isActive ? "fill" : "regular"} />
@@ -68,10 +60,6 @@ export function StepFormat({ onNext }: StepFormatProps) {
             </button>
           );
         })}
-      </div>
-
-      <div className={styles.actions} style={{ marginTop: 24 }}>
-        <Button onClick={handleContinue}>Продолжить</Button>
       </div>
     </div>
   );

@@ -1,5 +1,16 @@
 .pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 32px;
+}
+
+.pageHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .pageTitle {
@@ -36,6 +47,13 @@
   font-size: 13px;
   color: var(--text-muted);
   margin-top: 3px;
+}
+
+.skillTools {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .promptActions {

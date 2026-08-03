@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
+import {
+  canAccessUsersAndAiModels,
+} from "@/lib/roles";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -46,13 +49,13 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
     if (!hydrated) return;
     if (!currentUser) {
       router.replace("/login");
-    } else if (currentUser.role !== "admin") {
+    } else if (!canAccessUsersAndAiModels(currentUser.role)) {
       router.replace("/projects");
     }
   }, [hydrated, currentUser, router]);
 
   if (!hydrated) return null;
-  if (!currentUser || currentUser.role !== "admin") return null;
+  if (!currentUser || !canAccessUsersAndAiModels(currentUser.role)) return null;
 
   return <>{children}</>;
 }

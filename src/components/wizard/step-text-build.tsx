@@ -9,13 +9,20 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { simulateTask } from "@/lib/simulate-generation";
 import { countChars } from "@/lib/mock-text-generation";
+import { useWorkflowStore } from "@/stores/workflow-store";
+import { canUserUseBuildCapability } from "@/lib/workflow-access";
+import { useWizardStepDisabled } from "@/components/wizard/wizard-step-context";
 import styles from "./wizard.module.css";
 
 interface StepTextBuildProps {
   onComplete: () => void;
+  confirmBeforeAction?: (action: () => void) => void;
 }
 
-export function StepTextBuild({ onComplete }: StepTextBuildProps) {
+export function StepTextBuild({
+  onComplete,
+  confirmBeforeAction,
+}: StepTextBuildProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const addActionLog = useProjectsStore((s) => s.addActionLog);
   const updateContentUnit = useProjectsStore((s) => s.updateContentUnit);
@@ -28,7 +35,18 @@ export function StepTextBuild({ onComplete }: StepTextBuildProps) {
   const isBuilding = useWizardStore((s) => s.isBuilding);
   const contentId = useWizardStore((s) => s.contentId);
   const projectId = useWizardStore((s) => s.projectId);
+  const format = useWizardStore((s) => s.format);
   const setField = useWizardStore((s) => s.setField);
+  const stepDisabled = useWizardStepDisabled();
+  const task = useWorkflowStore((s) =>
+    contentId ? s.getTaskByContentId(contentId) : undefined
+  );
+  const canFinalize = canUserUseBuildCapability(
+    currentUser,
+    task,
+    format,
+    "assembly"
+  );
 
   const previewText = [
     postText,
@@ -124,7 +142,12 @@ export function StepTextBuild({ onComplete }: StepTextBuildProps) {
         />
       </div>
 
-      <Button onClick={handleFinalize} disabled={isBuilding || !postText.trim()}>
+      <Button
+        onClick={() =>
+          confirmBeforeAction ? confirmBeforeAction(handleFinalize) : handleFinalize()
+        }
+        disabled={!canFinalize || stepDisabled || isBuilding || !postText.trim()}
+      >
         {isBuilding ? "Финализация..." : "Завершить и сохранить"}
       </Button>
 

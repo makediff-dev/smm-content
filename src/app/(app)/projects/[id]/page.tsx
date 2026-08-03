@@ -1,12 +1,14 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useQueueStore } from "@/stores/queue-store";
 import { useWizardStore } from "@/stores/content-wizard-store";
+import { useCreateContentWithWorkflow } from "@/hooks/use-create-content-with-workflow";
 import { AppShell } from "@/components/layout/app-shell";
+import { useSearch } from "@/components/layout/search-context";
 import { Tabs } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -14,14 +16,17 @@ import { Select } from "@/components/ui/select";
 import { ContentUnitCard } from "@/components/projects/content-unit-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
+import { PageSearchBar } from "@/components/shared/page-search-bar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableColumn } from "@/components/ui/table";
 import { tableStyles } from "@/components/ui/table";
 import { LogoUploadSection } from "@/components/projects/logo-upload-section";
 import type { LogoAsset, QueueTask, ContentFormat } from "@/types";
-import { QUEUE_TYPE_LABELS } from "@/types";
+import { FORMAT_LABELS, QUEUE_TYPE_LABELS, STATUS_LABELS } from "@/types";
 import { formatDate } from "@/lib/simulate-generation";
+import { matchesSearch, normalizeSearchQuery } from "@/lib/search";
+import { getRoleLabel } from "@/lib/roles";
 import Link from "next/link";
 import { ListBullets, SquaresFour } from "@phosphor-icons/react";
 import styles from "./project.module.css";
@@ -54,11 +59,11 @@ export default function ProjectPage({
   const updateUser = useAuthStore((s) => s.updateUser);
   const project = useProjectsStore((s) => s.getProject(projectId));
   const getContentForProject = useProjectsStore((s) => s.getContentForProject);
-  const createContentUnit = useProjectsStore((s) => s.createContentUnit);
   const updateProject = useProjectsStore((s) => s.updateProject);
   const getTasksForProject = useQueueStore((s) => s.getTasksForProject);
   const retryTask = useQueueStore((s) => s.retryTask);
   const initWizard = useWizardStore((s) => s.initWizard);
+  const createContentWithWorkflow = useCreateContentWithWorkflow(projectId);
 
   const [activeTab, setActiveTab] = useState("content");
   const [formatFilter, setFormatFilter] = useState<ContentFormat | "all">("all");
@@ -66,6 +71,7 @@ export default function ProjectPage({
   const [saved, setSaved] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState("");
+  const { query } = useSearch();
 
   const [logoAssets, setLogoAssets] = useState<LogoAsset[]>(
     project?.logoAssets ?? []
@@ -80,6 +86,80 @@ export default function ProjectPage({
     imageRules: project?.imageRules ?? "",
     formattingRules: project?.formattingRules ?? "",
   });
+
+  const allProjectContent = project ? getContentForProject(projectId) : [];
+  const queueTasks = project ? getTasksForProject(projectId) : [];
+
+  const contentUnits = useMemo(() => {
+    return allProjectContent.filter((c) => {
+      if (formatFilter !== "all" && c.format !== formatFilter) return false;
+      return matchesSearch(
+        query,
+        c.title,
+        FORMAT_LABELS[c.format],
+        STATUS_LABELS[c.status]
+      );
+    });
+  }, [allProjectContent, formatFilter, query]);
+
+  const formatCounts = FORMAT_TABS.reduce(
+    (acc, tab) => {
+      acc[tab.id] =
+        tab.id === "all"
+          ? allProjectContent.length
+          : allProjectContent.filter((c) => c.format === tab.id).length;
+      return acc;
+    },
+    {} as Record<ContentFormat | "all", number>
+  );
+
+  const filteredQueueTasks = useMemo(() => {
+    return queueTasks.filter((task) =>
+      matchesSearch(
+        query,
+        task.label,
+        QUEUE_TYPE_LABELS[task.type],
+        STATUS_LABELS[task.status],
+        formatDate(task.createdAt)
+      )
+    );
+  }, [queueTasks, query]);
+
+  const filteredMemberIds = useMemo(() => {
+    if (!project) return [];
+    return project.managerIds.filter((managerId) => {
+      const user = users.find((u) => u.id === managerId);
+      if (!user) return false;
+      return matchesSearch(
+        query,
+        user.name,
+        user.email,
+        getRoleLabel(user.role)
+      );
+    });
+  }, [project, users, query]);
+
+  const settingsSections = useMemo(
+    () => [
+      { id: "main", title: "Основное", keywords: ["название", "описание", "логотип"] },
+      { id: "brand", title: "Фирменный стиль", keywords: ["оформление", "шрифты", "цвета"] },
+      { id: "templates", title: "Шаблоны карточек", keywords: ["шаблоны", "карточки"] },
+      { id: "copyright", title: "Копирайты / подписи источника", keywords: ["подпись", "источник"] },
+      {
+        id: "images",
+        title: "Правила обработки изображений",
+        keywords: ["изображения", "форматирование", "водяные знаки"],
+      },
+    ],
+    []
+  );
+
+  const visibleSettingsSections = useMemo(() => {
+    if (!normalizeSearchQuery(query)) return settingsSections;
+    return settingsSections.filter((section) =>
+      matchesSearch(query, section.title, section.keywords.join(" "))
+    );
+  }, [query, settingsSections]);
 
   if (!project || !currentUser) return null;
 
@@ -112,28 +192,8 @@ export default function ProjectPage({
     setSelectedMemberId("");
   };
 
-  const allProjectContent = getContentForProject(projectId);
-
-  const contentUnits = allProjectContent.filter((c) => {
-    if (formatFilter !== "all" && c.format !== formatFilter) return false;
-    return true;
-  });
-
-  const formatCounts = FORMAT_TABS.reduce(
-    (acc, tab) => {
-      acc[tab.id] =
-        tab.id === "all"
-          ? allProjectContent.length
-          : allProjectContent.filter((c) => c.format === tab.id).length;
-      return acc;
-    },
-    {} as Record<ContentFormat | "all", number>
-  );
-
-  const queueTasks = getTasksForProject(projectId);
-
   const handleCreateContent = () => {
-    const contentId = createContentUnit(projectId);
+    const contentId = createContentWithWorkflow();
     initWizard(projectId, contentId);
     router.push(`/projects/${projectId}/content/${contentId}/wizard/format`);
   };
@@ -192,8 +252,13 @@ export default function ProjectPage({
   return (
     <AppShell projectId={projectId} breadcrumb="Контент проекта">
       <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>{project.name}</h1>
-        <p className={styles.pageDescription}>{project.description}</p>
+        <div>
+          <h1 className={styles.pageTitle}>{project.name}</h1>
+          <p className={styles.pageDescription}>{project.description}</p>
+        </div>
+        <div className={styles.pageHeaderTools}>
+          <PageSearchBar />
+        </div>
       </div>
 
       <Tabs tabs={PROJECT_TABS} activeTab={activeTab} onChange={setActiveTab} />
@@ -265,10 +330,20 @@ export default function ProjectPage({
 
           {contentUnits.length === 0 ? (
             <EmptyState
-              title="Контент не найден"
-              description="Создайте первую контент-единицу для этого проекта"
+              title={
+                normalizeSearchQuery(query)
+                  ? "Ничего не найдено"
+                  : "Контент не найден"
+              }
+              description={
+                normalizeSearchQuery(query)
+                  ? "Попробуйте изменить запрос"
+                  : "Создайте первую контент-единицу для этого проекта"
+              }
               action={
-                <Button onClick={handleCreateContent}>Создать контент</Button>
+                !normalizeSearchQuery(query) ? (
+                  <Button onClick={handleCreateContent}>Создать контент</Button>
+                ) : undefined
               }
             />
           ) : (
@@ -293,112 +368,140 @@ export default function ProjectPage({
       {activeTab === "queue" && (
         queueTasks.length === 0 ? (
           <EmptyState title="Очередь пуста" description="Нет задач для этого проекта" />
+        ) : filteredQueueTasks.length === 0 ? (
+          <EmptyState
+            title="Ничего не найдено"
+            description="Попробуйте изменить запрос"
+          />
         ) : (
-          <Table columns={queueColumns} data={queueTasks} keyField="id" />
+          <Table columns={queueColumns} data={filteredQueueTasks} keyField="id" />
         )
       )}
 
       {activeTab === "settings" && (
         <div>
-          <div className={styles.settingsSection}>
-            <h3 className={styles.settingsSectionTitle}>Основное</h3>
-            <div className={styles.settingsGrid}>
-              <Input
-                label="Название проекта"
-                value={settings.name}
-                onChange={(e) =>
-                  setSettings((s) => ({ ...s, name: e.target.value }))
-                }
-                placeholder="Например: HubAgency"
-              />
-              <Textarea
-                label="Описание"
-                value={settings.description}
-                onChange={(e) =>
-                  setSettings((s) => ({ ...s, description: e.target.value }))
-                }
-                rows={3}
-                placeholder="Кратко опишите нишу и тип контента проекта"
-              />
-            </div>
-            <LogoUploadSection
-              placeholder={project.logoPlaceholder}
-              assets={logoAssets}
-              onChange={(assets) => {
-                setLogoAssets(assets);
-                updateProject(projectId, { logoAssets: assets });
-              }}
+          {visibleSettingsSections.length === 0 ? (
+            <EmptyState
+              title="Ничего не найдено"
+              description="Попробуйте изменить запрос"
             />
-          </div>
+          ) : (
+            <>
+              {visibleSettingsSections.some((section) => section.id === "main") && (
+                <div className={styles.settingsSection}>
+                  <h3 className={styles.settingsSectionTitle}>Основное</h3>
+                  <div className={styles.settingsGrid}>
+                    <Input
+                      label="Название проекта"
+                      value={settings.name}
+                      onChange={(e) =>
+                        setSettings((s) => ({ ...s, name: e.target.value }))
+                      }
+                      placeholder="Например: HubAgency"
+                    />
+                    <Textarea
+                      label="Описание"
+                      value={settings.description}
+                      onChange={(e) =>
+                        setSettings((s) => ({ ...s, description: e.target.value }))
+                      }
+                      rows={3}
+                      placeholder="Кратко опишите нишу и тип контента проекта"
+                    />
+                  </div>
+                  <LogoUploadSection
+                    placeholder={project.logoPlaceholder}
+                    assets={logoAssets}
+                    onChange={(assets) => {
+                      setLogoAssets(assets);
+                      updateProject(projectId, { logoAssets: assets });
+                    }}
+                  />
+                </div>
+              )}
 
-          <div className={styles.settingsSection}>
-            <h3 className={styles.settingsSectionTitle}>Фирменный стиль</h3>
-            <Textarea
-              label="Правила оформления"
-              value={settings.brandStyle}
-              onChange={(e) =>
-                setSettings((s) => ({ ...s, brandStyle: e.target.value }))
-              }
-              placeholder="Шрифты, цвета, тон коммуникации, визуальные ограничения..."
-            />
-          </div>
+              {visibleSettingsSections.some((section) => section.id === "brand") && (
+                <div className={styles.settingsSection}>
+                  <h3 className={styles.settingsSectionTitle}>Фирменный стиль</h3>
+                  <Textarea
+                    label="Правила оформления"
+                    value={settings.brandStyle}
+                    onChange={(e) =>
+                      setSettings((s) => ({ ...s, brandStyle: e.target.value }))
+                    }
+                    placeholder="Шрифты, цвета, тон коммуникации, визуальные ограничения..."
+                  />
+                </div>
+              )}
 
-          <div className={styles.settingsSection}>
-            <h3 className={styles.settingsSectionTitle}>Шаблоны карточек</h3>
-            <Textarea
-              label="Шаблоны"
-              value={settings.cardTemplates}
-              onChange={(e) =>
-                setSettings((s) => ({ ...s, cardTemplates: e.target.value }))
-              }
-              placeholder="Формат карточек, расположение текста, отступы..."
-            />
-          </div>
+              {visibleSettingsSections.some((section) => section.id === "templates") && (
+                <div className={styles.settingsSection}>
+                  <h3 className={styles.settingsSectionTitle}>Шаблоны карточек</h3>
+                  <Textarea
+                    label="Шаблоны"
+                    value={settings.cardTemplates}
+                    onChange={(e) =>
+                      setSettings((s) => ({ ...s, cardTemplates: e.target.value }))
+                    }
+                    placeholder="Формат карточек, расположение текста, отступы..."
+                  />
+                </div>
+              )}
 
-          <div className={styles.settingsSection}>
-            <h3 className={styles.settingsSectionTitle}>Копирайты / подписи источника</h3>
-            <Input
-              label="Подпись источника по умолчанию"
-              value={settings.defaultCopyright}
-              onChange={(e) =>
-                setSettings((s) => ({
-                  ...s,
-                  defaultCopyright: e.target.value,
-                }))
-              }
-              placeholder="Источник: example.com"
-            />
-          </div>
+              {visibleSettingsSections.some((section) => section.id === "copyright") && (
+                <div className={styles.settingsSection}>
+                  <h3 className={styles.settingsSectionTitle}>
+                    Копирайты / подписи источника
+                  </h3>
+                  <Input
+                    label="Подпись источника по умолчанию"
+                    value={settings.defaultCopyright}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        defaultCopyright: e.target.value,
+                      }))
+                    }
+                    placeholder="Источник: example.com"
+                  />
+                </div>
+              )}
 
-          <div className={styles.settingsSection}>
-            <h3 className={styles.settingsSectionTitle}>Правила обработки изображений</h3>
-            <Textarea
-              label="Правила"
-              value={settings.imageRules}
-              onChange={(e) =>
-                setSettings((s) => ({ ...s, imageRules: e.target.value }))
-              }
-              placeholder="Кадрирование, удаление водяных знаков, цветокоррекция..."
-            />
-            <Textarea
-              label="Правила форматирования"
-              value={settings.formattingRules}
-              onChange={(e) =>
-                setSettings((s) => ({
-                  ...s,
-                  formattingRules: e.target.value,
-                }))
-              }
-              placeholder="Логотип, подписи, хештеги, расположение элементов..."
-            />
-          </div>
+              {visibleSettingsSections.some((section) => section.id === "images") && (
+                <div className={styles.settingsSection}>
+                  <h3 className={styles.settingsSectionTitle}>
+                    Правила обработки изображений
+                  </h3>
+                  <Textarea
+                    label="Правила"
+                    value={settings.imageRules}
+                    onChange={(e) =>
+                      setSettings((s) => ({ ...s, imageRules: e.target.value }))
+                    }
+                    placeholder="Кадрирование, удаление водяных знаков, цветокоррекция..."
+                  />
+                  <Textarea
+                    label="Правила форматирования"
+                    value={settings.formattingRules}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        formattingRules: e.target.value,
+                      }))
+                    }
+                    placeholder="Логотип, подписи, хештеги, расположение элементов..."
+                  />
+                </div>
+              )}
 
-          <div className={styles.saveBar}>
-            <Button onClick={handleSaveSettings}>Сохранить</Button>
-            {saved && (
-              <span className={styles.savedMessage}>Настройки сохранены</span>
-            )}
-          </div>
+              <div className={styles.saveBar}>
+                <Button onClick={handleSaveSettings}>Сохранить</Button>
+                {saved && (
+                  <span className={styles.savedMessage}>Настройки сохранены</span>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -414,7 +517,7 @@ export default function ProjectPage({
           </div>
 
           <div className={styles.membersList}>
-            {project.managerIds.map((managerId) => {
+            {filteredMemberIds.map((managerId) => {
               const user = users.find((u) => u.id === managerId);
               if (!user) return null;
               return (
@@ -422,19 +525,24 @@ export default function ProjectPage({
                   <div>
                     <div className={styles.memberName}>{user.name}</div>
                     <div className={styles.memberRole}>
-                      {user.role === "admin" ? "Администратор" : "Менеджер"}
+                      {getRoleLabel(user.role)}
                     </div>
                   </div>
                   <span className={styles.memberTag}>{user.email}</span>
                 </div>
               );
             })}
-            {project.managerIds.length === 0 && (
+            {project.managerIds.length === 0 ? (
               <EmptyState
                 title="Нет участников"
                 description="Добавьте менеджера или администратора в проект"
               />
-            )}
+            ) : filteredMemberIds.length === 0 ? (
+              <EmptyState
+                title="Ничего не найдено"
+                description="Попробуйте изменить запрос"
+              />
+            ) : null}
           </div>
 
           <Modal

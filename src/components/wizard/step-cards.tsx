@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useWizardStore } from "@/stores/content-wizard-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useAuthStore } from "@/stores/auth-store";
+import { useWorkflowStore } from "@/stores/workflow-store";
+import { canUserEditCardsPhase } from "@/lib/workflow-access";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlaceholderImage } from "@/components/shared/placeholder-image";
@@ -13,13 +15,17 @@ import { getMockCards, getMockCardsRegenerated } from "@/lib/mock-wizard-data";
 import {
   ArrowRight,
   ArrowsClockwise,
+  CaretDown,
+  CaretUp,
   Crop,
   Eraser,
+  LinkSimple,
   Palette,
   Plus,
   Sparkle,
   Swap,
   Trash,
+  UploadSimple,
 } from "@phosphor-icons/react";
 import {
   CARDS_PHASE_LABELS,
@@ -27,6 +33,7 @@ import {
   type Card,
   type CardsPhase,
 } from "@/types";
+import { useWizardStepDisabled } from "@/components/wizard/wizard-step-context";
 import styles from "./wizard.module.css";
 
 const PHASE_HINTS: Record<CardsPhase, string> = {
@@ -97,6 +104,21 @@ export function StepCards() {
 
   const [regenerateOpen, setRegenerateOpen] = useState(false);
   const [regeneratePrompt, setRegeneratePrompt] = useState("");
+  const [imageUrlInput, setImageUrlInput] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const stepDisabled = useWizardStepDisabled();
+  const task = useWorkflowStore((s) =>
+    contentId ? s.getTaskByContentId(contentId) : undefined
+  );
+  const canEditPhrases = canUserEditCardsPhase(
+    currentUser,
+    task,
+    format,
+    cardsPhase === "edit" ? "edit" : "phrases"
+  );
+  const canEditImages = canUserEditCardsPhase(currentUser, task, format, "images");
+  const phrasesDisabled = stepDisabled || !canEditPhrases;
+  const imagesDisabled = stepDisabled || !canEditImages;
 
   const updateCards = (newCards: Card[]) => {
     setField("cards", newCards);
@@ -178,6 +200,45 @@ export function StepCards() {
     setField("selectedCardId", newCard.id);
   };
 
+  const handleMoveCard = (cardId: string, direction: "up" | "down") => {
+    const index = cards.findIndex((card) => card.id === cardId);
+    if (index === -1) return;
+
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= cards.length) return;
+
+    const nextCards = [...cards];
+    [nextCards[index], nextCards[targetIndex]] = [nextCards[targetIndex], nextCards[index]];
+    updateCards(nextCards);
+  };
+
+  const handleReplaceImage = (cardId: string, label: string) => {
+    const nextCards = cards.map((card) =>
+      card.id === cardId
+        ? { ...card, imageUrl: label, status: "ready" as const }
+        : card
+    );
+    updateCards(nextCards);
+
+    if (contentId && currentUser) {
+      addActionLog(contentId, "Загрузка изображения для карточки", currentUser.name);
+    }
+  };
+
+  const handleUploadImageFile = (cardId: string, file?: File) => {
+    if (!file) return;
+    handleReplaceImage(cardId, file.name);
+  };
+
+  const handleUploadImageFromUrl = (cardId: string) => {
+    const url = imageUrlInput.trim();
+    if (!url) return;
+
+    const label = url.replace(/^https?:\/\//, "").slice(0, 48);
+    handleReplaceImage(cardId, label);
+    setImageUrlInput("");
+  };
+
   const handleProceedToImages = () => {
     setField("cardsPhase", "images");
   };
@@ -209,12 +270,37 @@ export function StepCards() {
           className={`${styles.cardListItem} ${
             selectedCardId === card.id ? styles.cardListItemActive : ""
           }`}
-          onClick={() => setField("selectedCardId", card.id)}
         >
-          <div>
-            #{index + 1} {card.shortText.slice(0, 30)}
+          <button
+            type="button"
+            className={styles.cardListMain}
+            onClick={() => setField("selectedCardId", card.id)}
+          >
+            <div>
+              #{index + 1} {card.shortText.slice(0, 30)}
+            </div>
+            <StatusBadge status={card.status} />
+          </button>
+          <div className={styles.cardListReorder}>
+            <button
+              type="button"
+              className={styles.reorderButton}
+              onClick={() => handleMoveCard(card.id, "up")}
+              disabled={imagesDisabled || index === 0}
+              aria-label="Переместить выше"
+            >
+              <CaretUp size={14} />
+            </button>
+            <button
+              type="button"
+              className={styles.reorderButton}
+              onClick={() => handleMoveCard(card.id, "down")}
+              disabled={imagesDisabled || index === cards.length - 1}
+              aria-label="Переместить ниже"
+            >
+              <CaretDown size={14} />
+            </button>
           </div>
-          <StatusBadge status={card.status} />
         </div>
       ))}
     </div>
@@ -245,18 +331,38 @@ export function StepCards() {
               size="small"
               className={styles.dangerAction}
               onClick={() => handleDeleteCardById(card.id)}
-              disabled={cards.length === 1}
+              disabled={phrasesDisabled || cards.length === 1}
             >
               <Trash size={16} aria-hidden />
               Удалить
             </Button>
+            <div className={styles.cardPhraseReorder}>
+              <button
+                type="button"
+                className={styles.reorderButton}
+                onClick={() => handleMoveCard(card.id, "up")}
+                disabled={phrasesDisabled || index === 0}
+                aria-label="Переместить выше"
+              >
+                <CaretUp size={14} />
+              </button>
+              <button
+                type="button"
+                className={styles.reorderButton}
+                onClick={() => handleMoveCard(card.id, "down")}
+                disabled={phrasesDisabled || index === cards.length - 1}
+                aria-label="Переместить ниже"
+              >
+                <CaretDown size={14} />
+              </button>
+            </div>
           </div>
         ))}
       </div>
 
       <div className={styles.cardActionsBar}>
         <div className={styles.cardActionsGroup}>
-          <Button variant="secondary" onClick={handleAddCard}>
+          <Button variant="secondary" onClick={handleAddCard} disabled={phrasesDisabled}>
             <Plus size={16} weight="bold" aria-hidden />
             Добавить карточку
           </Button>
@@ -270,11 +376,14 @@ export function StepCards() {
                   autoFocus
                 />
               </div>
-              <Button onClick={handleConfirmRegenerate} disabled={isGeneratingCardPhrases}>
+              <Button
+                onClick={handleConfirmRegenerate}
+                disabled={phrasesDisabled || isGeneratingCardPhrases}
+              >
                 <ArrowsClockwise size={16} aria-hidden />
                 {isGeneratingCardPhrases ? "Генерация..." : "Перегенерировать"}
               </Button>
-              <Button variant="ghost" onClick={handleCancelRegenerate}>
+              <Button variant="ghost" onClick={handleCancelRegenerate} disabled={phrasesDisabled}>
                 Отмена
               </Button>
             </div>
@@ -282,14 +391,17 @@ export function StepCards() {
             <Button
               variant="ghost"
               onClick={handleOpenRegenerate}
-              disabled={isGeneratingCardPhrases}
+              disabled={phrasesDisabled || isGeneratingCardPhrases}
             >
               <ArrowsClockwise size={16} aria-hidden />
               Перегенерировать все
             </Button>
           )}
         </div>
-        <Button onClick={handleProceedToImages} disabled={cards.length === 0}>
+        <Button
+          onClick={handleProceedToImages}
+          disabled={phrasesDisabled || cards.length === 0}
+        >
           Перейти к фотографиям
           <ArrowRight size={16} weight="bold" aria-hidden />
         </Button>
@@ -322,7 +434,10 @@ export function StepCards() {
 
           {cards.length === 0 ? (
             <div className={styles.cardActionsBar}>
-              <Button onClick={() => handleGeneratePhrases()} disabled={isGeneratingCardPhrases}>
+              <Button
+                onClick={() => handleGeneratePhrases()}
+                disabled={phrasesDisabled || isGeneratingCardPhrases}
+              >
                 <Sparkle size={16} weight="fill" aria-hidden />
                 {isGeneratingCardPhrases
                   ? "Генерация..."
@@ -347,7 +462,7 @@ export function StepCards() {
               <div className={styles.cardActionsBar}>
                 <Button
                   onClick={handleGenerateImages}
-                  disabled={isGeneratingCardImages || cards.length === 0}
+                  disabled={imagesDisabled || isGeneratingCardImages || cards.length === 0}
                 >
                   <Sparkle size={16} weight="fill" aria-hidden />
                   {isGeneratingCardImages
@@ -385,24 +500,76 @@ export function StepCards() {
 
               <div className={styles.cardActionsBar}>
                 <div className={styles.cardActionsGroup}>
-                  <Button variant="ghost" size="small" onClick={() => {}}>
-                    <Swap size={16} aria-hidden />
-                    Заменить изображение
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className={styles.fileInputHidden}
+                    onChange={(e) => {
+                      if (selectedCard) {
+                        handleUploadImageFile(selectedCard.id, e.target.files?.[0]);
+                      }
+                      e.target.value = "";
+                    }}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="small"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={imagesDisabled || !selectedCard}
+                  >
+                    <UploadSimple size={16} aria-hidden />
+                    С компьютера
                   </Button>
-                  <Button variant="ghost" size="small" onClick={() => {}}>
+                  <Button
+                    variant="ghost"
+                    size="small"
+                    onClick={() => {}}
+                    disabled={imagesDisabled || !selectedCard}
+                  >
+                    <Swap size={16} aria-hidden />
+                    Заменить
+                  </Button>
+                  <Button variant="ghost" size="small" onClick={() => {}} disabled={imagesDisabled}>
                     <Crop size={16} aria-hidden />
                     Обрезать
                   </Button>
-                  <Button variant="ghost" size="small" onClick={() => {}}>
+                  <Button variant="ghost" size="small" onClick={() => {}} disabled={imagesDisabled}>
                     <Eraser size={16} aria-hidden />
                     Удалить область
                   </Button>
-                  <Button variant="ghost" size="small" onClick={() => {}}>
+                  <Button variant="ghost" size="small" onClick={() => {}} disabled={imagesDisabled}>
                     <Palette size={16} aria-hidden />
                     Фирменный стиль
                   </Button>
                 </div>
               </div>
+
+              {selectedCard && (
+                <div className={styles.imageUploadPanel}>
+                  <div className={styles.imageUploadTitle}>
+                    <LinkSimple size={16} />
+                    Загрузить изображение по ссылке
+                  </div>
+                  <div className={styles.imageUploadRow}>
+                    <Input
+                      value={imageUrlInput}
+                      onChange={(e) => setImageUrlInput(e.target.value)}
+                      placeholder="https://example.com/image.jpg"
+                    />
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleUploadImageFromUrl(selectedCard.id)}
+                      disabled={imagesDisabled || !imageUrlInput.trim()}
+                    >
+                      Применить
+                    </Button>
+                  </div>
+                  <p className={styles.sectionHint}>
+                    Можно менять порядок карточек, их количество и источник изображений.
+                  </p>
+                </div>
+              )}
             </>
           )}
         </>

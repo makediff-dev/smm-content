@@ -1,15 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { AppShell } from "@/components/layout/app-shell";
+import { useSearch } from "@/components/layout/search-context";
 import { Table, TableColumn, tableStyles } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { EmptyState } from "@/components/shared/empty-state";
+import { PageSearchBar } from "@/components/shared/page-search-bar";
 import type { User, UserRole } from "@/types";
+import { matchesSearch } from "@/lib/search";
+import { ADMIN_ROLE_OPTIONS, getRoleLabel } from "@/lib/roles";
 import styles from "../admin.module.css";
 
 export default function UsersPage() {
@@ -25,13 +30,30 @@ export default function UsersPage() {
     name: "",
     email: "",
     password: "demo",
-    role: "manager" as UserRole,
+    role: "copywriter" as UserRole,
     projectIds: [] as string[],
   });
+  const { query } = useSearch();
+
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      const projectNames = user.projectIds
+        .map((id) => projects.find((p) => p.id === id)?.name ?? "")
+        .join(" ");
+
+      return matchesSearch(
+        query,
+        user.name,
+        user.email,
+        getRoleLabel(user.role),
+        projectNames
+      );
+    });
+  }, [users, projects, query]);
 
   const openAdd = () => {
     setEditUser(null);
-    setForm({ name: "", email: "", password: "demo", role: "manager", projectIds: [] });
+    setForm({ name: "", email: "", password: "demo", role: "copywriter", projectIds: [] });
     setModalOpen(true);
   };
 
@@ -71,7 +93,7 @@ export default function UsersPage() {
     {
       key: "role",
       header: "Роль",
-      render: (r) => (r.role === "admin" ? "Администратор" : "Менеджер"),
+      render: (r) => getRoleLabel(r.role),
     },
     {
       key: "projects",
@@ -105,12 +127,22 @@ export default function UsersPage() {
 
   return (
     <AppShell breadcrumb="Пользователи и роли">
-      <div className={styles.pageHeader} style={{ display: "flex", justifyContent: "space-between" }}>
+      <div className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>Пользователи и роли</h1>
-        <Button onClick={openAdd}>Добавить пользователя</Button>
+        <div className={styles.pageHeaderActions}>
+          <PageSearchBar />
+          <Button onClick={openAdd}>Добавить пользователя</Button>
+        </div>
       </div>
 
-      <Table columns={columns} data={users} keyField="id" />
+      {filteredUsers.length === 0 ? (
+        <EmptyState
+          title="Ничего не найдено"
+          description="Попробуйте изменить запрос"
+        />
+      ) : (
+        <Table columns={columns} data={filteredUsers} keyField="id" />
+      )}
 
       <Modal
         title={editUser ? "Изменить доступ" : "Добавить пользователя"}
@@ -148,10 +180,7 @@ export default function UsersPage() {
           />
           <Select
             label="Роль"
-            options={[
-              { value: "admin", label: "Администратор" },
-              { value: "manager", label: "Менеджер" },
-            ]}
+            options={ADMIN_ROLE_OPTIONS}
             value={form.role}
             onChange={(e) =>
               setForm((f) => ({ ...f, role: e.target.value as UserRole }))

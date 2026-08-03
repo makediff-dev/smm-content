@@ -1,0 +1,10 @@
+.bar {
+  width: 280px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .bar {
+    width: 100%;
+  }
+}

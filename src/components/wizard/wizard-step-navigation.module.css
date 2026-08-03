@@ -1,0 +1,16 @@
+.stepNav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 640px) {
+  .stepNav {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+}

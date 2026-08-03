@@ -4,6 +4,12 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { User } from "@/types";
 import { SEED_USERS } from "@/data/seed";
+import {
+  findDemoUser,
+  mergeSeedUsers,
+  normalizeDemoEmail,
+  resolveStoredUser,
+} from "@/lib/demo-users";
 
 interface AuthState {
   currentUser: User | null;
@@ -16,6 +22,12 @@ interface AuthState {
   resetUsers: () => void;
 }
 
+function syncAuthState(state: Pick<AuthState, "users" | "currentUser">) {
+  const users = mergeSeedUsers(state.users);
+  const currentUser = resolveStoredUser(users, state.currentUser);
+  return { users, currentUser };
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -23,11 +35,16 @@ export const useAuthStore = create<AuthState>()(
       users: SEED_USERS,
 
       login: (email, password) => {
-        const user = get().users.find(
-          (u) => u.email === email && u.password === password
-        );
+        const normalizedEmail = normalizeDemoEmail(email);
+        const users = mergeSeedUsers(get().users);
+        const user =
+          users.find(
+            (item) =>
+              item.email === normalizedEmail && item.password === password
+          ) ?? findDemoUser(email, password);
+
         if (user) {
-          set({ currentUser: user });
+          set({ currentUser: user, users: mergeSeedUsers([...users, user]) });
           return true;
         }
         return false;
@@ -40,17 +57,20 @@ export const useAuthStore = create<AuthState>()(
           ...userData,
           id: `user-${Date.now()}`,
         };
-        set((s) => ({ users: [...s.users, newUser] }));
+        set((s) => ({ users: [...mergeSeedUsers(s.users), newUser] }));
       },
 
       updateUser: (id, data) => {
-        set((s) => ({
-          users: s.users.map((u) => (u.id === id ? { ...u, ...data } : u)),
-          currentUser:
-            s.currentUser?.id === id
-              ? { ...s.currentUser, ...data }
-              : s.currentUser,
-        }));
+        set((s) => {
+          const users = s.users.map((u) => (u.id === id ? { ...u, ...data } : u));
+          return {
+            users,
+            currentUser:
+              s.currentUser?.id === id
+                ? { ...s.currentUser, ...data }
+                : s.currentUser,
+          };
+        });
       },
 
       removeUser: (id) => {
@@ -60,8 +80,21 @@ export const useAuthStore = create<AuthState>()(
         }));
       },
 
-      resetUsers: () => set({ users: SEED_USERS }),
+      resetUsers: () => set({ users: SEED_USERS, currentUser: null }),
     }),
-    { name: "smm-auth" }
+    {
+      name: "smm-auth",
+      version: 2,
+      migrate: (persistedState) => {
+        const state = persistedState as Pick<AuthState, "users" | "currentUser">;
+        return syncAuthState(state);
+      },
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        const synced = syncAuthState(state);
+        state.users = synced.users;
+        state.currentUser = synced.currentUser;
+      },
+    }
   )
 );

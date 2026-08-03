@@ -14,6 +14,7 @@ interface QueueState {
   getTasksForUser: (userId: string, isAdmin: boolean) => QueueTask[];
   getTasksForProject: (projectId: string) => QueueTask[];
   getQueuedCount: () => number;
+  getActiveCountForUser: (userId: string, isAdmin: boolean) => number;
   resetTasks: () => void;
 }
 
@@ -59,6 +60,16 @@ export const useQueueStore = create<QueueState>()(
         get().tasks.filter(
           (t) => t.status === "queued" || t.status === "in_progress"
         ).length,
+
+      getActiveCountForUser: (userId, isAdmin) =>
+        get()
+          .getTasksForUser(userId, isAdmin)
+          .filter(
+            (task) =>
+              task.status === "queued" ||
+              task.status === "in_progress" ||
+              task.status === "error"
+          ).length,
 
       resetTasks: () => set({ tasks: SEED_QUEUE }),
     }),

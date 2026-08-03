@@ -42,6 +42,19 @@ export function getMockExtractionData(format: ContentFormat): MockExtractionData
   return EXTRACTION_BY_FORMAT[format];
 }
 
+export function getMockExtractionDataFromFile(
+  format: ContentFormat,
+  fileName: string
+): MockExtractionData {
+  const base = getMockExtractionData(format);
+  const label = fileName.replace(/\.[^.]+$/, "") || fileName;
+
+  return {
+    ...base,
+    title: `${base.title} (${label})`,
+  };
+}
+
 export function getMockPostText(format: ContentFormat): string {
   return POST_TEXT_BY_FORMAT[format];
 }

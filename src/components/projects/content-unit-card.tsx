@@ -42,11 +42,13 @@ export function ContentUnitCard({
             <FormatIcon size={12} weight="regular" className={styles.metaTagIcon} aria-hidden />
             {FORMAT_LABELS[content.format]}
           </span>
-          {content.sourceUrl && (
+          {(content.sourceType === "file" ? content.sourceFileName : content.sourceUrl) && (
             <span className={styles.metaTag}>
-              {layout === "grid"
-                ? content.sourceUrl.replace(/^https?:\/\//, "").slice(0, 28)
-                : `${content.sourceUrl.slice(0, 36)}...`}
+              {content.sourceType === "file"
+                ? content.sourceFileName
+                : layout === "grid"
+                  ? content.sourceUrl.replace(/^https?:\/\//, "").slice(0, 28)
+                  : `${content.sourceUrl.slice(0, 36)}...`}
             </span>
           )}
           <span className={styles.metaTag}>

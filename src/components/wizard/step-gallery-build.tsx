@@ -9,13 +9,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { PlaceholderImage } from "@/components/shared/placeholder-image";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { simulateTask } from "@/lib/simulate-generation";
+import { useWizardStepDisabled } from "@/components/wizard/wizard-step-context";
 import styles from "./wizard.module.css";
 
 interface StepGalleryBuildProps {
   onComplete: () => void;
+  confirmBeforeAction?: (action: () => void) => void;
 }
 
-export function StepGalleryBuild({ onComplete }: StepGalleryBuildProps) {
+export function StepGalleryBuild({
+  onComplete,
+  confirmBeforeAction,
+}: StepGalleryBuildProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const addActionLog = useProjectsStore((s) => s.addActionLog);
   const updateContentUnit = useProjectsStore((s) => s.updateContentUnit);
@@ -23,12 +28,15 @@ export function StepGalleryBuild({ onComplete }: StepGalleryBuildProps) {
   const updateTask = useQueueStore((s) => s.updateTask);
 
   const cards = useWizardStore((s) => s.cards);
+  const postText = useWizardStore((s) => s.postText);
+  const textOptions = useWizardStore((s) => s.textOptions);
   const buildOptions = useWizardStore((s) => s.buildOptions);
   const buildStatus = useWizardStore((s) => s.buildStatus);
   const isBuilding = useWizardStore((s) => s.isBuilding);
   const contentId = useWizardStore((s) => s.contentId);
   const projectId = useWizardStore((s) => s.projectId);
   const setField = useWizardStore((s) => s.setField);
+  const stepDisabled = useWizardStepDisabled();
 
   const handleBuild = async () => {
     if (!contentId || !projectId || !currentUser) return;
@@ -65,8 +73,36 @@ export function StepGalleryBuild({ onComplete }: StepGalleryBuildProps) {
     setField("buildOptions", { ...buildOptions, [key]: value });
   };
 
+  const publicationPreview = [
+    postText,
+    textOptions.addSourceLink ? "\n\nИсточник: example.com" : "",
+    textOptions.includeHashtags ? "\n\n#контент #новости" : "",
+    textOptions.includeEmoji ? " ✨" : "",
+  ]
+    .join("")
+    .trim();
+
   return (
     <div>
+      <div className={styles.section}>
+        <h3 className={styles.sectionTitle}>Текст публикации</h3>
+        <p className={styles.sectionHint}>
+          Текст, хештеги и эмодзи идут отдельным блоком — не на карточках галереи.
+        </p>
+        <div className={styles.postPreview}>
+          <div className={styles.postPreviewHeader}>
+            <div className={styles.postPreviewAvatar}>HA</div>
+            <div>
+              <div className={styles.postPreviewName}>HubAgency</div>
+              <div className={styles.postPreviewMeta}>Подпись к галерее</div>
+            </div>
+          </div>
+          <div className={styles.postPreviewBody}>
+            {publicationPreview || "Текст публикации не задан"}
+          </div>
+        </div>
+      </div>
+
       <div className={styles.section}>
         <h3 className={styles.sectionTitle}>Предпросмотр карточек</h3>
         <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
@@ -99,7 +135,12 @@ export function StepGalleryBuild({ onComplete }: StepGalleryBuildProps) {
         />
       </div>
 
-      <Button onClick={handleBuild} disabled={isBuilding || cards.length === 0}>
+      <Button
+        onClick={() =>
+          confirmBeforeAction ? confirmBeforeAction(handleBuild) : handleBuild()
+        }
+        disabled={stepDisabled || isBuilding || cards.length === 0}
+      >
         {isBuilding ? "Сборка..." : "Собрать галерею"}
       </Button>
 

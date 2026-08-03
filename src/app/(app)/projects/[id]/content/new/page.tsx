@@ -2,8 +2,8 @@
 
 import { use, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useProjectsStore } from "@/stores/projects-store";
 import { useWizardStore } from "@/stores/content-wizard-store";
+import { useCreateContentWithWorkflow } from "@/hooks/use-create-content-with-workflow";
 
 export default function NewContentPage({
   params,
@@ -12,14 +12,14 @@ export default function NewContentPage({
 }) {
   const { id: projectId } = use(params);
   const router = useRouter();
-  const createContentUnit = useProjectsStore((s) => s.createContentUnit);
+  const createContentWithWorkflow = useCreateContentWithWorkflow(projectId);
   const initWizard = useWizardStore((s) => s.initWizard);
 
   useEffect(() => {
-    const contentId = createContentUnit(projectId);
+    const contentId = createContentWithWorkflow();
     initWizard(projectId, contentId);
     router.replace(`/projects/${projectId}/content/${contentId}/wizard/format`);
-  }, [projectId, createContentUnit, initWizard, router]);
+  }, [projectId, createContentWithWorkflow, initWizard, router]);
 
   return null;
 }

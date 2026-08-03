@@ -1,8 +1,54 @@
-export type UserRole = "admin" | "manager";
+export type UserRole =
+  | "admin"
+  | "copywriter"
+  | "designer"
+  | "editor"
+  | "video_editor"
+  | "project_manager"
+  | "posting_manager";
+
+export type WorkflowStage =
+  | "copywriter"
+  | "designer"
+  | "editor"
+  | "video_editor"
+  | "project_manager"
+  | "posting_manager";
+
+export type WorkflowStatus = "in_progress" | "returned" | "done";
+
+export interface ProductionTask {
+  id: string;
+  contentUnitId: string;
+  projectId: string;
+  format: ContentFormat;
+  scenario: ContentPlanScenario;
+  title: string;
+  currentStage: WorkflowStage;
+  assigneeId: string | null;
+  status: WorkflowStatus;
+  returnComment?: string;
+  returnToStage?: WorkflowStage;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  taskId: string;
+  contentUnitId: string;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+}
 
 export type TaskStatus = "draft" | "queued" | "in_progress" | "done" | "error";
 
 export type ContentFormat = "gallery" | "slideshow" | "text";
+
+export type SourceType = "url" | "file";
 
 export type TextTone = "friendly" | "expert" | "formal" | "casual";
 
@@ -112,7 +158,9 @@ export interface ContentUnit {
   title: string;
   format: ContentFormat;
   formatConfirmed: boolean;
+  sourceType: SourceType;
   sourceUrl: string;
+  sourceFileName: string;
   status: TaskStatus;
   createdAt: string;
   cards: Card[];
@@ -141,6 +189,25 @@ export interface ContentUnit {
   generationPrompt: string;
 }
 
+export type ContentPlanScenario = "news" | "scheduled";
+
+export interface ContentPlanSlot {
+  id: string;
+  projectId: string;
+  contentUnitId?: string;
+  scheduledAt: string;
+  title: string;
+  format: ContentFormat;
+  scenario: ContentPlanScenario;
+  comment: string;
+  hasText: boolean;
+  hasZip: boolean;
+  hasVisual: boolean;
+  zipFileName?: string;
+  visualFileName?: string;
+  attachmentFiles?: string[];
+}
+
 export interface QueueTask {
   id: string;
   type: QueueTaskType;
@@ -158,6 +225,17 @@ export interface Prompt {
   description: string;
   text: string;
   category: PromptCategory;
+}
+
+export type SkillCategory = "extraction" | "generation" | "visual" | "assembly";
+
+export interface Skill {
+  id: string;
+  name: string;
+  description: string;
+  category: SkillCategory;
+  tools: string;
+  instructions: string;
 }
 
 export type AIProvider = "openrouter" | "router_ai" | "other";

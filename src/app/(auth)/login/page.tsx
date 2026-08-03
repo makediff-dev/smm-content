@@ -9,6 +9,8 @@ import { useAuthStore } from "@/stores/auth-store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PrototypeDisclaimer } from "@/components/shared/prototype-disclaimer";
+import { getRoleLabel } from "@/lib/roles";
+import { SEED_USERS } from "@/data/seed";
 import styles from "./login.module.css";
 
 const loginSchema = z.object({
@@ -17,6 +19,8 @@ const loginSchema = z.object({
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
+
+const DEMO_USERS = SEED_USERS.filter((user) => user.role !== "admin");
 
 export default function LoginPage() {
   const router = useRouter();
@@ -60,7 +64,7 @@ export default function LoginPage() {
           <Input
             label="Email"
             type="email"
-            placeholder="admin@smm.local"
+            placeholder="copywriter@smm.local"
             error={errors.email?.message}
             {...register("email")}
           />
@@ -78,20 +82,27 @@ export default function LoginPage() {
         </form>
 
         <div className={styles.hint}>
-          <strong>Демо-аккаунты:</strong>
-          <br />
-          admin@smm.local / demo — Администратор
-          <br />
-          manager@smm.local / demo — Менеджер
+          <strong>Демо-аккаунты:</strong> пароль у всех — <code>demo</code>
         </div>
 
         <div className={styles.demoButtons}>
-          <Button variant="secondary" fullWidth onClick={() => handleDemoLogin("admin@smm.local")}>
-            Войти как администратор
+          <Button
+            variant="secondary"
+            fullWidth
+            onClick={() => handleDemoLogin("admin@smm.local")}
+          >
+            Администратор
           </Button>
-          <Button variant="ghost" fullWidth onClick={() => handleDemoLogin("manager@smm.local")}>
-            Войти как менеджер
-          </Button>
+          {DEMO_USERS.map((user) => (
+            <Button
+              key={user.id}
+              variant="ghost"
+              fullWidth
+              onClick={() => handleDemoLogin(user.email)}
+            >
+              {getRoleLabel(user.role)}
+            </Button>
+          ))}
         </div>
       </div>
       <PrototypeDisclaimer variant="block" className={styles.disclaimer} />

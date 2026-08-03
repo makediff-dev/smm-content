@@ -7,14 +7,22 @@ import { useAuthStore } from "@/stores/auth-store";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PlaceholderImage } from "@/components/shared/placeholder-image";
 import { simulateTask } from "@/lib/simulate-generation";
-import { getMockExtractionData, getMockPostText, getMockPostTextRegenerated } from "@/lib/mock-wizard-data";
+import {
+  getMockExtractionData,
+  getMockPostText,
+  getMockPostTextRegenerated,
+} from "@/lib/mock-wizard-data";
+import { useWorkflowStore } from "@/stores/workflow-store";
+import { canUserUseBuildCapability } from "@/lib/workflow-access";
 import {
   countChars,
   generateMockPostText,
 } from "@/lib/mock-text-generation";
 import type { TextLength, TextTone } from "@/types";
+import { useWizardStepDisabled } from "@/components/wizard/wizard-step-context";
 import styles from "./wizard.module.css";
 
 export function StepText() {
@@ -23,7 +31,9 @@ export function StepText() {
   const updateContentUnit = useProjectsStore((s) => s.updateContentUnit);
 
   const format = useWizardStore((s) => s.format);
+  const sourceType = useWizardStore((s) => s.sourceType);
   const sourceUrl = useWizardStore((s) => s.sourceUrl);
+  const sourceFileName = useWizardStore((s) => s.sourceFileName);
   const extractedTitle = useWizardStore((s) => s.extractedTitle);
   const extractedText = useWizardStore((s) => s.extractedText);
   const extractedImages = useWizardStore((s) => s.extractedImages);
@@ -34,10 +44,43 @@ export function StepText() {
   const textTone = useWizardStore((s) => s.textTone);
   const textLength = useWizardStore((s) => s.textLength);
   const generationPrompt = useWizardStore((s) => s.generationPrompt);
+  const textOptions = useWizardStore((s) => s.textOptions);
   const contentId = useWizardStore((s) => s.contentId);
+  const cards = useWizardStore((s) => s.cards);
+  const narrationText = useWizardStore((s) => s.narrationText);
   const setField = useWizardStore((s) => s.setField);
+  const stepDisabled = useWizardStepDisabled();
+  const task = useWorkflowStore((s) =>
+    contentId ? s.getTaskByContentId(contentId) : undefined
+  );
+  const canEditNarration = canUserUseBuildCapability(
+    currentUser,
+    task,
+    format,
+    "narration"
+  );
 
   const isTextFormat = format === "text";
+  const isGalleryFormat = format === "gallery";
+  const isSlideshowFormat = format === "slideshow";
+
+  const publicationPreview = [
+    postText,
+    textOptions.addSourceLink ? "\n\nИсточник: example.com" : "",
+    textOptions.includeHashtags ? "\n\n#контент #новости" : "",
+    textOptions.includeEmoji ? " ✨" : "",
+  ]
+    .join("")
+    .trim();
+
+  const updateTextOption = (
+    key: keyof typeof textOptions,
+    value: boolean
+  ) => {
+    const next = { ...textOptions, [key]: value };
+    setField("textOptions", next);
+    if (contentId) updateContentUnit(contentId, { textOptions: next });
+  };
 
   const [regenerateOpen, setRegenerateOpen] = useState(false);
   const [regeneratePrompt, setRegeneratePrompt] = useState("");
@@ -140,10 +183,17 @@ export function StepText() {
         </div>
       )}
 
-      {sourceUrl && (
+      {sourceType === "url" && sourceUrl && (
         <div className={styles.section}>
           <h3 className={styles.sectionTitle}>Исходная ссылка</h3>
           <div className={styles.linkBlock}>{sourceUrl}</div>
+        </div>
+      )}
+
+      {sourceType === "file" && sourceFileName && (
+        <div className={styles.section}>
+          <h3 className={styles.sectionTitle}>Исходный файл</h3>
+          <div className={styles.linkBlock}>{sourceFileName}</div>
         </div>
       )}
 
@@ -173,7 +223,11 @@ export function StepText() {
 
           {extractedText && (
             <div className={styles.extractedActions}>
-              <Button variant="secondary" onClick={handleReextract} disabled={isExtracting}>
+              <Button
+                variant="secondary"
+                onClick={handleReextract}
+                disabled={stepDisabled || isExtracting}
+              >
                 {isExtracting ? "Извлечение..." : "Перегенерировать извлечение"}
               </Button>
             </div>
@@ -204,7 +258,10 @@ export function StepText() {
 
           <div className={`${styles.actions} ${styles.textEditorActions}`}>
             {!isPostGenerated ? (
-              <Button onClick={() => handleGeneratePost()} disabled={isGeneratingPost}>
+              <Button
+                onClick={() => handleGeneratePost()}
+                disabled={stepDisabled || isGeneratingPost}
+              >
                 {isGeneratingPost ? "Генерация..." : "Сгенерировать текст поста"}
               </Button>
             ) : regenerateOpen ? (
@@ -217,10 +274,13 @@ export function StepText() {
                     autoFocus
                   />
                 </div>
-                <Button onClick={handleConfirmRegenerate} disabled={isGeneratingPost}>
+                <Button
+                  onClick={handleConfirmRegenerate}
+                  disabled={stepDisabled || isGeneratingPost}
+                >
                   {isGeneratingPost ? "Генерация..." : "Перегенерировать"}
                 </Button>
-                <Button variant="ghost" onClick={handleCancelRegenerate}>
+                <Button variant="ghost" onClick={handleCancelRegenerate} disabled={stepDisabled}>
                   Отмена
                 </Button>
               </div>
@@ -228,11 +288,118 @@ export function StepText() {
               <Button
                 variant="secondary"
                 onClick={handleOpenRegenerate}
-                disabled={isGeneratingPost}
+                disabled={stepDisabled || isGeneratingPost}
               >
                 Перегенерировать
               </Button>
             )}
+          </div>
+
+          {isGalleryFormat && isPostGenerated && (
+            <>
+              <div className={styles.section} style={{ marginTop: 24, marginBottom: 0 }}>
+                <h3 className={styles.sectionTitle}>Текст публикации отдельно от карточек</h3>
+                <p className={styles.sectionHint}>
+                  Основной текст, хештеги и эмодзи настраиваются отдельно — они не
+                  дублируются на изображениях галереи.
+                </p>
+                <div className={styles.buildOptions}>
+                  <Checkbox
+                    label="Добавить ссылку на источник"
+                    checked={textOptions.addSourceLink}
+                    onChange={(e) => updateTextOption("addSourceLink", e.target.checked)}
+                  />
+                  <Checkbox
+                    label="Добавить хештеги"
+                    checked={textOptions.includeHashtags}
+                    onChange={(e) => updateTextOption("includeHashtags", e.target.checked)}
+                  />
+                  <Checkbox
+                    label="Добавить эмодзи"
+                    checked={textOptions.includeEmoji}
+                    onChange={(e) => updateTextOption("includeEmoji", e.target.checked)}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.postPreview} style={{ marginTop: 16 }}>
+                <div className={styles.postPreviewHeader}>
+                  <div className={styles.postPreviewAvatar}>HA</div>
+                  <div>
+                    <div className={styles.postPreviewName}>HubAgency</div>
+                    <div className={styles.postPreviewMeta}>Текст публикации · отдельно</div>
+                  </div>
+                </div>
+                <div className={styles.postPreviewBody}>
+                  {publicationPreview || "Текст публикации появится здесь"}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {isSlideshowFormat && cards.length > 0 && (
+        <div className={styles.section}>
+          <h3 className={styles.sectionTitle}>Текст для озвучки</h3>
+          <p className={styles.sectionHint}>
+            Редактор проверяет текст озвучки вместе с готовыми слайдами ниже.
+          </p>
+          <Textarea
+            value={narrationText}
+            onChange={(e) => {
+              setField("narrationText", e.target.value);
+              if (contentId) {
+                updateContentUnit(contentId, { narrationText: e.target.value });
+              }
+            }}
+            rows={4}
+            placeholder="Текст для озвучки видео"
+            disabled={!canEditNarration}
+          />
+        </div>
+      )}
+
+      {isSlideshowFormat && cards.length > 0 && (
+        <div className={styles.section}>
+          <h3 className={styles.sectionTitle}>Готовые слайды</h3>
+          <p className={styles.sectionHint}>Превью 1080×1080 — только просмотр на этом шаге.</p>
+          <div className={styles.imageGrid}>
+            {cards.map((card) => (
+              <div key={card.id}>
+                <PlaceholderImage
+                  variant="square"
+                  size="small"
+                  label={card.shortText.slice(0, 16) || card.id}
+                />
+                <div className={styles.subsectionTitle} style={{ marginTop: 8 }}>
+                  {card.shortText || "Без заголовка"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {isGalleryFormat && cards.length > 0 && (
+        <div className={styles.section}>
+          <h3 className={styles.sectionTitle}>Превью карточек 1080×1080</h3>
+          <p className={styles.sectionHint}>
+            Редактор проверяет текст поста вместе с готовыми карточками.
+          </p>
+          <div className={styles.imageGrid}>
+            {cards.map((card) => (
+              <div key={card.id}>
+                <PlaceholderImage
+                  variant="square"
+                  size="small"
+                  label={card.shortText.slice(0, 16) || card.id}
+                />
+                <div className={styles.subsectionTitle} style={{ marginTop: 8 }}>
+                  {card.shortText || "Без заголовка"}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

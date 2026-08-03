@@ -1,7 +1,16 @@
 "use client";
 
 import { create } from "zustand";
-import type { Card, ContentFormat, TaskStatus, TextLength, TextTone, WizardStep, CardsPhase } from "@/types";
+import type {
+  Card,
+  ContentFormat,
+  SourceType,
+  TaskStatus,
+  TextLength,
+  TextTone,
+  WizardStep,
+  CardsPhase,
+} from "@/types";
 
 interface WizardState {
   contentId: string | null;
@@ -9,7 +18,9 @@ interface WizardState {
   currentStep: WizardStep;
   format: ContentFormat;
   formatConfirmed: boolean;
+  sourceType: SourceType;
   sourceUrl: string;
+  sourceFileName: string;
   promptId: string;
   additionalInstructions: string;
   extractedTitle: string;
@@ -58,7 +69,9 @@ const initialState = {
   currentStep: "source" as WizardStep,
   format: "gallery" as ContentFormat,
   formatConfirmed: false,
+  sourceType: "url" as SourceType,
   sourceUrl: "",
+  sourceFileName: "",
   promptId: "prompt-post",
   additionalInstructions: "",
   extractedTitle: "",

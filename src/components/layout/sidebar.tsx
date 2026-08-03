@@ -5,8 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { SignOut, User } from "@phosphor-icons/react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useQueueStore } from "@/stores/queue-store";
+import { useWorkflowStore } from "@/stores/workflow-store";
 import { getNavigationForRole } from "@/lib/navigation";
+import { getRoleLabel, isManagementRole } from "@/lib/roles";
 import { navIconMap } from "@/lib/nav-icons";
+import { NotificationsPanel } from "./notifications-panel";
 import styles from "./sidebar.module.css";
 
 function getInitials(name: string): string {
@@ -23,8 +26,19 @@ export function Sidebar() {
   const router = useRouter();
   const currentUser = useAuthStore((s) => s.currentUser);
   const logout = useAuthStore((s) => s.logout);
-  const queuedCount = useQueueStore((s) => s.getQueuedCount());
+  const workflowCount = useWorkflowStore((s) =>
+    currentUser ? s.getActiveCountForUser(currentUser) : 0
+  );
+  const isManagement = currentUser ? isManagementRole(currentUser.role) : false;
+  const aiQueueCount = useQueueStore((s) =>
+    currentUser
+      ? s.getActiveCountForUser(currentUser.id, isManagement)
+      : 0
+  );
   const navItems = currentUser ? getNavigationForRole(currentUser.role) : [];
+  const queueBadgeCount = isManagement
+    ? workflowCount + aiQueueCount
+    : workflowCount;
 
   const handleLogout = () => {
     logout();
@@ -56,8 +70,8 @@ export function Sidebar() {
                 className={styles.navIcon}
               />
               <span className={styles.navLabel}>{item.label}</span>
-              {item.href === "/queue" && queuedCount > 0 && (
-                <span className={styles.navBadge}>{queuedCount}</span>
+              {item.href === "/queue" && queueBadgeCount > 0 && (
+                <span className={styles.navBadge}>{queueBadgeCount}</span>
               )}
             </Link>
           );
@@ -74,9 +88,10 @@ export function Sidebar() {
               <div className={styles.accountName}>{currentUser.name}</div>
               <div className={styles.accountEmail}>{currentUser.email}</div>
               <div className={styles.accountRole}>
-                {currentUser.role === "admin" ? "Администратор" : "Менеджер"}
+                {getRoleLabel(currentUser.role)}
               </div>
             </div>
+            <NotificationsPanel />
           </div>
           <button className={styles.logoutBtn} onClick={handleLogout}>
             <SignOut size={16} weight="bold" />

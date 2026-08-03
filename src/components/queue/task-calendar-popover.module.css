@@ -1,0 +1,18 @@
+.root {
+  position: relative;
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  width: min(360px, calc(100vw - 32px));
+}
+
+@media (max-width: 640px) {
+  .popover {
+    right: 0;
+    left: auto;
+  }
+}

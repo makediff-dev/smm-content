@@ -3,6 +3,8 @@
 import { useWizardStore } from "@/stores/content-wizard-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useAuthStore } from "@/stores/auth-store";
+import { useWorkflowStore } from "@/stores/workflow-store";
+import { canUserUseBuildCapability } from "@/lib/workflow-access";
 import { useQueueStore, createQueueTaskForType } from "@/stores/queue-store";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -11,10 +13,12 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { Table, TableColumn } from "@/components/ui/table";
 import { simulateTask } from "@/lib/simulate-generation";
 import type { Card } from "@/types";
+import { useWizardStepDisabled } from "@/components/wizard/wizard-step-context";
 import styles from "./wizard.module.css";
 
 interface StepSlideshowBuildProps {
   onComplete: () => void;
+  confirmBeforeAction?: (action: () => void) => void;
 }
 
 const VOICE_OPTIONS = [
@@ -24,7 +28,10 @@ const VOICE_OPTIONS = [
   { value: "voice-male-2", label: "Мужской голос 2" },
 ];
 
-export function StepSlideshowBuild({ onComplete }: StepSlideshowBuildProps) {
+export function StepSlideshowBuild({
+  onComplete,
+  confirmBeforeAction,
+}: StepSlideshowBuildProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const addActionLog = useProjectsStore((s) => s.addActionLog);
   const updateContentUnit = useProjectsStore((s) => s.updateContentUnit);
@@ -42,6 +49,29 @@ export function StepSlideshowBuild({ onComplete }: StepSlideshowBuildProps) {
   const contentId = useWizardStore((s) => s.contentId);
   const projectId = useWizardStore((s) => s.projectId);
   const setField = useWizardStore((s) => s.setField);
+  const stepDisabled = useWizardStepDisabled();
+  const format = useWizardStore((s) => s.format);
+  const task = useWorkflowStore((s) =>
+    contentId ? s.getTaskByContentId(contentId) : undefined
+  );
+  const canEditNarration = canUserUseBuildCapability(
+    currentUser,
+    task,
+    format,
+    "narration"
+  );
+  const canGenerateVoice = canUserUseBuildCapability(
+    currentUser,
+    task,
+    format,
+    "voice"
+  );
+  const canAssembleVideo = canUserUseBuildCapability(
+    currentUser,
+    task,
+    format,
+    "assembly"
+  );
 
   const cardsWithDuration = cards.map((c, i) => ({
     ...c,
@@ -140,18 +170,28 @@ export function StepSlideshowBuild({ onComplete }: StepSlideshowBuildProps) {
         <h3 className={styles.sectionTitle}>Текст для озвучки</h3>
         <Textarea
           value={narrationText}
-          onChange={(e) => setField("narrationText", e.target.value)}
+          onChange={(e) => {
+            setField("narrationText", e.target.value);
+            if (contentId) {
+              updateContentUnit(contentId, { narrationText: e.target.value });
+            }
+          }}
           placeholder="Текст будет сгенерирован автоматически..."
           rows={4}
+          disabled={!canEditNarration}
         />
       </div>
 
-      <div className={styles.formGrid} style={{ marginBottom: 24 }}>
+      <div
+        className={styles.formGrid}
+        style={{ marginBottom: 24, opacity: canGenerateVoice ? 1 : 0.6 }}
+      >
         <Select
           label="Голос / модель озвучки"
           options={VOICE_OPTIONS}
           value={voiceModel}
           onChange={(e) => setField("voiceModel", e.target.value)}
+          disabled={!canGenerateVoice}
         />
         <div>
           <label className={styles.sectionTitle} style={{ fontSize: 13 }}>
@@ -167,6 +207,7 @@ export function StepSlideshowBuild({ onComplete }: StepSlideshowBuildProps) {
               value={speechSpeed}
               onChange={(e) => setField("speechSpeed", parseFloat(e.target.value))}
               className={styles.slider}
+              disabled={!canGenerateVoice}
             />
             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>2x</span>
           </div>
@@ -179,12 +220,22 @@ export function StepSlideshowBuild({ onComplete }: StepSlideshowBuildProps) {
       </div>
 
       <div className={styles.actions}>
-        <Button variant="secondary" onClick={handleGenerateVoice} disabled={isBuilding}>
+        <Button
+          variant="secondary"
+          onClick={handleGenerateVoice}
+          disabled={!canGenerateVoice || stepDisabled || isBuilding}
+        >
           Сгенерировать озвучку
         </Button>
         <Button
-          onClick={handleBuildVideo}
-          disabled={isBuilding || !isVoiceGenerated}
+          onClick={() =>
+            confirmBeforeAction
+              ? confirmBeforeAction(handleBuildVideo)
+              : handleBuildVideo()
+          }
+          disabled={
+            !canAssembleVideo || stepDisabled || isBuilding || !isVoiceGenerated
+          }
         >
           {isBuilding ? "Сборка..." : "Собрать видео"}
         </Button>

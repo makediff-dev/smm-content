@@ -5,7 +5,7 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useQueueStore } from "@/stores/queue-store";
-import { SEED_USERS, SEED_PROJECTS, SEED_CONTENT, SEED_QUEUE, SEED_PROMPTS, SEED_AI_SETTINGS } from "@/data/seed";
+import { SEED_USERS, SEED_PROJECTS, SEED_CONTENT, SEED_QUEUE, SEED_PROMPTS, SEED_SKILLS, SEED_AI_SETTINGS } from "@/data/seed";
 import { AppShell } from "@/components/layout/app-shell";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -35,7 +35,11 @@ export default function AIModelsPage() {
     useAuthStore.setState({ users: SEED_USERS, currentUser: useAuthStore.getState().currentUser });
     useProjectsStore.setState({ projects: SEED_PROJECTS, contentUnits: SEED_CONTENT });
     useQueueStore.setState({ tasks: SEED_QUEUE });
-    useSettingsStore.setState({ prompts: SEED_PROMPTS, aiSettings: SEED_AI_SETTINGS });
+    useSettingsStore.setState({
+      prompts: SEED_PROMPTS,
+      skills: SEED_SKILLS,
+      aiSettings: SEED_AI_SETTINGS,
+    });
     alert("Демо-данные сброшены");
   };
 

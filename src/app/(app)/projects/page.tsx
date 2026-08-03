@@ -1,15 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { AppShell } from "@/components/layout/app-shell";
+import { useSearch } from "@/components/layout/search-context";
 import { ProjectCard } from "@/components/projects/project-card";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { EmptyState } from "@/components/shared/empty-state";
+import { PageSearchBar } from "@/components/shared/page-search-bar";
+import { matchesSearch, normalizeSearchQuery } from "@/lib/search";
+import { isManagementRole } from "@/lib/roles";
 import styles from "./projects.module.css";
 
 export default function ProjectsPage() {
@@ -23,11 +28,34 @@ export default function ProjectsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
+  const { query } = useSearch();
+
+  const canManageAll = currentUser ? isManagementRole(currentUser.role) : false;
+  const projects = currentUser
+    ? getProjectsForUser(currentUser.id, canManageAll, currentUser.projectIds)
+    : [];
+
+  const filteredProjects = useMemo(() => {
+    return projects.filter((project) => {
+      const managerNames = project.managerIds
+        .map((id) => users.find((u) => u.id === id)?.name ?? "")
+        .join(" ");
+      const recentTitles = contentUnits
+        .filter((c) => c.projectId === project.id)
+        .map((c) => c.title)
+        .join(" ");
+
+      return matchesSearch(
+        query,
+        project.name,
+        project.description,
+        managerNames,
+        recentTitles
+      );
+    });
+  }, [projects, query, users, contentUnits]);
 
   if (!currentUser) return null;
-
-  const isAdmin = currentUser.role === "admin";
-  const projects = getProjectsForUser(currentUser.id, isAdmin);
 
   const handleCreate = () => {
     if (!newName.trim()) return;
@@ -44,33 +72,51 @@ export default function ProjectsPage() {
         <div>
           <h1 className={styles.pageTitle}>Проекты</h1>
           <p className={styles.pageDescription}>
-            {isAdmin ? "Все проекты агентства" : "Ваши проекты"}
+            {canManageAll ? "Все проекты агентства" : "Ваши проекты"}
           </p>
         </div>
-        {isAdmin && (
-          <Button onClick={() => setModalOpen(true)}>Создать проект</Button>
-        )}
+        <div className={styles.pageHeaderActions}>
+          <PageSearchBar />
+          {canManageAll && (
+            <Button onClick={() => setModalOpen(true)}>Создать проект</Button>
+          )}
+        </div>
       </div>
 
       <div className={styles.grid}>
-        {projects.map((project) => {
-          const projectContent = contentUnits
-            .filter((c) => c.projectId === project.id)
-            .slice(0, 3);
-          const recentGenerations = projectContent.map((c) => c.title);
-          const managerNames = project.managerIds
-            .map((id) => users.find((u) => u.id === id)?.name ?? id)
-            .filter(Boolean);
+        {filteredProjects.length === 0 ? (
+          <EmptyState
+            title={
+              normalizeSearchQuery(query)
+                ? "Ничего не найдено"
+                : "Проектов пока нет"
+            }
+            description={
+              normalizeSearchQuery(query)
+                ? "Попробуйте изменить запрос"
+                : "Создайте первый проект"
+            }
+          />
+        ) : (
+          filteredProjects.map((project) => {
+            const projectContent = contentUnits
+              .filter((c) => c.projectId === project.id)
+              .slice(0, 3);
+            const recentGenerations = projectContent.map((c) => c.title);
+            const managerNames = project.managerIds
+              .map((id) => users.find((u) => u.id === id)?.name ?? id)
+              .filter(Boolean);
 
-          return (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              recentGenerations={recentGenerations}
-              managerNames={managerNames}
-            />
-          );
-        })}
+            return (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                recentGenerations={recentGenerations}
+                managerNames={managerNames}
+              />
+            );
+          })
+        )}
       </div>
 
       <Modal
