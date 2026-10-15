@@ -535,7 +535,7 @@ export function DesignStep() {
                   />
                 )}
                 {selected.hasPlate && <span className={styles.plate} />}
-                {design.layers.map((item, index) => {
+                {design && design.layers.map((item, index) => {
                   if (item.hidden && index !== activeIndex) return null;
                   const shadow = resolveTextShadow(item.shadow);
                   const displayScale = displayWidth / design.width || scale;

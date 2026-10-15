@@ -337,7 +337,8 @@ export function getPersonStageForPathIndex(
   const current = steps[index];
   if (current?.stage) return current.stage;
   for (let i = index - 1; i >= 0; i -= 1) {
-    if (steps[i].stage) return steps[i].stage;
+    const previous = steps[i].stage;
+    if (previous) return previous;
   }
   return "copywriter";
 }
