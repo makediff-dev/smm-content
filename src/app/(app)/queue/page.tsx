@@ -17,7 +17,7 @@ import { TaskCalendarPopover } from "@/components/queue/task-calendar-popover";
 import type { ProductionTask, QueueTask } from "@/types";
 import { FORMAT_LABELS, QUEUE_TYPE_LABELS, STATUS_LABELS } from "@/types";
 import { formatDate, formatDateKey, toDateKey } from "@/lib/simulate-generation";
-import { getStageLabel } from "@/lib/workflow";
+import { getAssigneeName, getStageLabel } from "@/lib/workflow";
 import { matchesSearch, normalizeSearchQuery } from "@/lib/search";
 import { isManagementRole } from "@/lib/roles";
 import styles from "./queue.module.css";
@@ -32,7 +32,7 @@ export default function QueuePage() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const users = useAuthStore((s) => s.users);
   const getTasksForUser = useQueueStore((s) => s.getTasksForUser);
-  const getWorkflowTasksForUser = useWorkflowStore((s) => s.getTasksForUser);
+  const getAllActiveTasks = useWorkflowStore((s) => s.getAllActiveTasks);
   const retryTask = useQueueStore((s) => s.retryTask);
   const projects = useProjectsStore((s) => s.projects);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -42,7 +42,7 @@ export default function QueuePage() {
   const aiTasks = currentUser
     ? getTasksForUser(currentUser.id, isManagement)
     : [];
-  const workflowTasks = currentUser ? getWorkflowTasksForUser(currentUser) : [];
+  const workflowTasks = getAllActiveTasks();
 
   const filteredWorkflowTasks = useMemo(() => {
     return workflowTasks.filter((task) => {
@@ -112,10 +112,15 @@ export default function QueuePage() {
         projects.find((p) => p.id === row.projectId)?.name ?? row.projectId,
     },
     {
+      key: "assignee",
+      header: "Ответственный",
+      render: (row) => getAssigneeName(row.assigneeId, users),
+    },
+    {
       key: "actions",
       header: "Действия",
       render: (row) => (
-        <Link href={`/history/${row.contentUnitId}`}>
+        <Link href={`/projects/${row.projectId}/content/${row.contentUnitId}`}>
           <Button variant="ghost" size="small">
             Открыть
           </Button>
@@ -184,14 +189,12 @@ export default function QueuePage() {
   const showAiQueue = isManagement;
 
   return (
-    <AppShell breadcrumb="Очередь задач">
+    <AppShell breadcrumb="Все задачи">
       <div className={styles.pageHeader}>
         <div>
-          <h1 className={styles.pageTitle}>Очередь задач</h1>
+          <h1 className={styles.pageTitle}>Все задачи</h1>
           <p className={styles.pageDescription}>
-            {isManagement
-              ? "Этапы производства и AI-очередь"
-              : "Задачи на вашем этапе цепочки"}
+            Все проекты и все роли в производстве
           </p>
         </div>
         <div className={styles.pageHeaderTools}>
@@ -212,11 +215,10 @@ export default function QueuePage() {
         </div>
       )}
 
-      <h2 className={styles.sectionTitle}>Мои этапы производства</h2>
       {workflowTasks.length === 0 ? (
         <EmptyState
-          title="Нет задач на вашем этапе"
-          description="Когда контент дойдёт до вашей роли, он появится здесь"
+          title="Нет задач"
+          description="Пока нет задач в производстве"
         />
       ) : filteredWorkflowTasks.length === 0 ? (
         <EmptyState

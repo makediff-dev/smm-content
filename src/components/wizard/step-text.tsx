@@ -15,8 +15,6 @@ import {
   getMockPostText,
   getMockPostTextRegenerated,
 } from "@/lib/mock-wizard-data";
-import { useWorkflowStore } from "@/stores/workflow-store";
-import { canUserUseBuildCapability } from "@/lib/workflow-access";
 import {
   countChars,
   generateMockPostText,
@@ -25,7 +23,11 @@ import type { TextLength, TextTone } from "@/types";
 import { useWizardStepDisabled } from "@/components/wizard/wizard-step-context";
 import styles from "./wizard.module.css";
 
-export function StepText() {
+interface StepTextProps {
+  hideSource?: boolean;
+}
+
+export function StepText({ hideSource = false }: StepTextProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const addActionLog = useProjectsStore((s) => s.addActionLog);
   const updateContentUnit = useProjectsStore((s) => s.updateContentUnit);
@@ -47,18 +49,8 @@ export function StepText() {
   const textOptions = useWizardStore((s) => s.textOptions);
   const contentId = useWizardStore((s) => s.contentId);
   const cards = useWizardStore((s) => s.cards);
-  const narrationText = useWizardStore((s) => s.narrationText);
   const setField = useWizardStore((s) => s.setField);
   const stepDisabled = useWizardStepDisabled();
-  const task = useWorkflowStore((s) =>
-    contentId ? s.getTaskByContentId(contentId) : undefined
-  );
-  const canEditNarration = canUserUseBuildCapability(
-    currentUser,
-    task,
-    format,
-    "narration"
-  );
 
   const isTextFormat = format === "text";
   const isGalleryFormat = format === "gallery";
@@ -163,7 +155,7 @@ export function StepText() {
 
   return (
     <div>
-      {isTextFormat && (
+      {isTextFormat && !hideSource && (
         <div className={styles.section}>
           <h3 className={styles.sectionTitle}>Промпт для генерации</h3>
           <p className={styles.sectionHint}>
@@ -183,21 +175,21 @@ export function StepText() {
         </div>
       )}
 
-      {sourceType === "url" && sourceUrl && (
+      {!hideSource && sourceType === "url" && sourceUrl && (
         <div className={styles.section}>
           <h3 className={styles.sectionTitle}>Исходная ссылка</h3>
           <div className={styles.linkBlock}>{sourceUrl}</div>
         </div>
       )}
 
-      {sourceType === "file" && sourceFileName && (
+      {!hideSource && sourceType === "file" && sourceFileName && (
         <div className={styles.section}>
           <h3 className={styles.sectionTitle}>Исходный файл</h3>
           <div className={styles.linkBlock}>{sourceFileName}</div>
         </div>
       )}
 
-      {(extractedTitle || extractedText || (!isTextFormat && extractedImages.length > 0)) && (
+      {!hideSource && (extractedTitle || extractedText || (!isTextFormat && extractedImages.length > 0)) && (
         <div className={styles.section}>
           <h3 className={styles.sectionTitle}>Извлечённые данные</h3>
 
@@ -235,7 +227,7 @@ export function StepText() {
         </div>
       )}
 
-      {(extractedText || isPostGenerated) && (
+      {(hideSource || extractedText || isPostGenerated) && (
         <div className={styles.section}>
           <div className={styles.textEditorHeader}>
             <span className={styles.sectionTitle}>Текст поста</span>
@@ -339,28 +331,7 @@ export function StepText() {
         </div>
       )}
 
-      {isSlideshowFormat && cards.length > 0 && (
-        <div className={styles.section}>
-          <h3 className={styles.sectionTitle}>Текст для озвучки</h3>
-          <p className={styles.sectionHint}>
-            Редактор проверяет текст озвучки вместе с готовыми слайдами ниже.
-          </p>
-          <Textarea
-            value={narrationText}
-            onChange={(e) => {
-              setField("narrationText", e.target.value);
-              if (contentId) {
-                updateContentUnit(contentId, { narrationText: e.target.value });
-              }
-            }}
-            rows={4}
-            placeholder="Текст для озвучки видео"
-            disabled={!canEditNarration}
-          />
-        </div>
-      )}
-
-      {isSlideshowFormat && cards.length > 0 && (
+      {!hideSource && isSlideshowFormat && cards.length > 0 && (
         <div className={styles.section}>
           <h3 className={styles.sectionTitle}>Готовые слайды</h3>
           <p className={styles.sectionHint}>Превью 1080×1080 — только просмотр на этом шаге.</p>
@@ -381,7 +352,7 @@ export function StepText() {
         </div>
       )}
 
-      {isGalleryFormat && cards.length > 0 && (
+      {!hideSource && isGalleryFormat && cards.length > 0 && (
         <div className={styles.section}>
           <h3 className={styles.sectionTitle}>Превью карточек 1080×1080</h3>
           <p className={styles.sectionHint}>

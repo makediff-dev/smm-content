@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import {
@@ -13,7 +14,7 @@ export function useCreateContentWithWorkflow(projectId: string) {
   const createTask = useWorkflowStore((s) => s.createTask);
   const users = useAuthStore((s) => s.users);
 
-  return () => {
+  return useCallback(() => {
     const contentId = createContentUnit(projectId);
     const content = getContentUnit(contentId);
 
@@ -30,5 +31,5 @@ export function useCreateContentWithWorkflow(projectId: string) {
     }
 
     return contentId;
-  };
+  }, [projectId, createContentUnit, getContentUnit, createTask, users]);
 }

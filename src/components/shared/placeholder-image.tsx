@@ -29,10 +29,39 @@ export function PlaceholderImage({
   );
 }
 
-export function VideoPlayerStub({ className }: { className?: string }) {
+export function VideoPlayerStub({
+  className,
+  src,
+}: {
+  className?: string;
+  src?: string;
+}) {
+  const isFile = Boolean(src && /\.(mp4|webm|mov|ogg)(\?|$)/i.test(src));
+
   return (
-    <div className={`${styles.placeholder} ${styles.video} ${className ?? ""}`}>
-      <span className={styles.label}>▶ Видео</span>
+    <div className={styles.videoWrap}>
+      {isFile && src ? (
+        <video
+          className={`${styles.placeholder} ${styles.video} ${styles.videoEl} ${className ?? ""}`}
+          src={src}
+          controls
+          playsInline
+        />
+      ) : (
+        <div className={`${styles.placeholder} ${styles.video} ${className ?? ""}`}>
+          <span className={styles.label}>▶ Видео</span>
+        </div>
+      )}
+      {src ? (
+        <a
+          className={styles.videoLink}
+          href={src}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {src}
+        </a>
+      ) : null}
     </div>
   );
 }

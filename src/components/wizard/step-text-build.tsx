@@ -17,11 +17,13 @@ import styles from "./wizard.module.css";
 interface StepTextBuildProps {
   onComplete: () => void;
   confirmBeforeAction?: (action: () => void) => void;
+  persistUnitDone?: boolean;
 }
 
 export function StepTextBuild({
   onComplete,
   confirmBeforeAction,
+  persistUnitDone = true,
 }: StepTextBuildProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const addActionLog = useProjectsStore((s) => s.addActionLog);
@@ -77,7 +79,9 @@ export function StepTextBuild({
       (status) => {
         setField("buildStatus", status);
         updateTask(taskId, { status });
-        if (contentId) updateContentUnit(contentId, { status });
+        if (contentId && persistUnitDone) {
+          updateContentUnit(contentId, { status });
+        }
       },
       ["queued", "in_progress", "done"],
       900
@@ -86,7 +90,7 @@ export function StepTextBuild({
     updateContentUnit(contentId, {
       postText,
       textOptions,
-      status: "done",
+      ...(persistUnitDone ? { status: "done" as const } : {}),
     });
 
     setField("isBuilding", false);

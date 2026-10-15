@@ -93,6 +93,15 @@ export const useProjectsStore = create<ProjectsState>()(
           sourceType: data?.sourceType ?? "url",
           sourceUrl: data?.sourceUrl ?? "",
           sourceFileName: data?.sourceFileName ?? "",
+          sourceUseLink: data?.sourceUseLink ?? data?.sourceType !== "file",
+          sourceUseFile: data?.sourceUseFile ?? data?.sourceType === "file",
+          sourceNotesEnabled: data?.sourceNotesEnabled ?? false,
+          sourceNotes: data?.sourceNotes ?? "",
+          sourceLinks: data?.sourceLinks ?? (data?.sourceUrl ? [data.sourceUrl] : [""]),
+          sourceFiles: data?.sourceFiles ?? [],
+          sourceExtracts: data?.sourceExtracts ?? {},
+          cardsCount: data?.cardsCount ?? 3,
+          videoTransition: data?.videoTransition ?? "none",
           status: "draft",
           createdAt: new Date().toISOString(),
           cards: data?.cards ?? [],
@@ -119,6 +128,8 @@ export const useProjectsStore = create<ProjectsState>()(
             addSourceLink: true,
           },
           generationPrompt: data?.generationPrompt ?? "",
+          memeAssets: data?.memeAssets ?? [],
+          memeMusic: data?.memeMusic ?? null,
         };
         set((s) => {
           const contentUnits = [...s.contentUnits, unit];

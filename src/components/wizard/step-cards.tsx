@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useWizardStore } from "@/stores/content-wizard-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -13,7 +13,6 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { generateId, simulateTask } from "@/lib/simulate-generation";
 import { getMockCards, getMockCardsRegenerated } from "@/lib/mock-wizard-data";
 import {
-  ArrowRight,
   ArrowsClockwise,
   CaretDown,
   CaretUp,
@@ -21,18 +20,20 @@ import {
   Eraser,
   LinkSimple,
   Palette,
-  Plus,
   Sparkle,
   Swap,
-  Trash,
   UploadSimple,
 } from "@phosphor-icons/react";
 import {
   CARDS_PHASE_LABELS,
   CARDS_PHASE_ORDER,
+  COPYRIGHT_MAX_LENGTH,
+  MAX_CARDS_COUNT,
+  TITLE_MAX_LENGTH,
   type Card,
   type CardsPhase,
 } from "@/types";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useWizardStepDisabled } from "@/components/wizard/wizard-step-context";
 import styles from "./wizard.module.css";
 
@@ -41,46 +42,59 @@ const PHASE_HINTS: Record<CardsPhase, string> = {
     "Сначала AI сгенерирует короткие заголовки для каждой карточки на основе текста поста.",
   edit: "Проверьте и отредактируйте заголовки и подписи — перед созданием изображений.",
   images:
-    "На основе утверждённых заголовков будут сгенерированы фотографии для карточек.",
+    "Проверьте кадр, плашку и текст на изображении. Можно заменить фото, обрезать и применить фирменный стиль.",
 };
+
+export type StepCardsMode = "all" | "headlines" | "layout";
+
+interface StepCardsProps {
+  mode?: StepCardsMode;
+}
 
 function CardsPhaseStepper({
   currentPhase,
   onPhaseClick,
+  phases,
 }: {
   currentPhase: CardsPhase;
   onPhaseClick: (phase: CardsPhase) => void;
+  phases: CardsPhase[];
 }) {
-  const currentIndex = CARDS_PHASE_ORDER.indexOf(currentPhase);
+  const currentIndex = Math.max(0, phases.indexOf(currentPhase));
 
   return (
-    <div className={styles.cardsPhaseStepper}>
-      {CARDS_PHASE_ORDER.map((phase, index) => {
+    <ol className={styles.phaseStepper}>
+      {phases.map((phase, index) => {
         const isActive = phase === currentPhase;
         const isCompleted = index < currentIndex;
-        const isClickable = isCompleted;
-
         return (
-          <div
+          <li
             key={phase}
-            className={`${styles.cardsPhaseStep} ${isActive ? styles.cardsPhaseStepActive : ""} ${
-              isCompleted ? styles.cardsPhaseStepCompleted : ""
-            } ${isClickable ? styles.cardsPhaseStepClickable : ""}`}
-            onClick={() => isClickable && onPhaseClick(phase)}
+            className={`${styles.phaseStepperItem} ${isActive ? styles.phaseStepperItemActive : ""} ${
+              isCompleted ? styles.phaseStepperItemDone : ""
+            }`}
           >
-            <div className={styles.cardsPhaseDot}>{index + 1}</div>
-            <span className={styles.cardsPhaseLabel}>{CARDS_PHASE_LABELS[phase]}</span>
-            {index < CARDS_PHASE_ORDER.length - 1 && (
-              <div className={styles.cardsPhaseConnector} />
+            {index === phases.length - 1 && (
+              <span className={styles.phaseStepperLine} aria-hidden />
             )}
-          </div>
+            <button
+              type="button"
+              className={styles.phaseButton}
+              disabled={index > currentIndex}
+              onClick={() => index <= currentIndex && onPhaseClick(phase)}
+            >
+              <span className={styles.phaseStepperIndex}>{index + 1}</span>
+              {CARDS_PHASE_LABELS[phase]}
+            </button>
+            {index === 0 && <span className={styles.phaseStepperLine} aria-hidden />}
+          </li>
         );
       })}
-    </div>
+    </ol>
   );
 }
 
-export function StepCards() {
+export function StepCards({ mode = "all" }: StepCardsProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const addActionLog = useProjectsStore((s) => s.addActionLog);
   const updateContentUnit = useProjectsStore((s) => s.updateContentUnit);
@@ -89,6 +103,8 @@ export function StepCards() {
   const cards = useWizardStore((s) => s.cards);
   const format = useWizardStore((s) => s.format);
   const cardsPhase = useWizardStore((s) => s.cardsPhase);
+  const cardsCount = useWizardStore((s) => s.cardsCount);
+  const buildOptions = useWizardStore((s) => s.buildOptions);
   const isGeneratingCardPhrases = useWizardStore((s) => s.isGeneratingCardPhrases);
   const isGeneratingCardImages = useWizardStore((s) => s.isGeneratingCardImages);
   const selectedCardId = useWizardStore((s) => s.selectedCardId);
@@ -99,13 +115,31 @@ export function StepCards() {
   const project = projectId ? getProject(projectId) : undefined;
   const selectedCard = cards.find((card) => card.id === selectedCardId);
   const hasCardImages = cards.length > 0 && cards.every((card) => card.imageUrl);
-  const stepperPhase: CardsPhase = cardsPhase === "edit" ? "phrases" : cardsPhase;
-  const phaseIndex = CARDS_PHASE_ORDER.indexOf(stepperPhase);
+  const headlinePhases: CardsPhase[] = ["phrases", "edit"];
+  const stepperPhases =
+    mode === "headlines"
+      ? headlinePhases
+      : mode === "layout"
+        ? []
+        : CARDS_PHASE_ORDER;
+  const stepperPhase: CardsPhase =
+    mode === "headlines" && cardsPhase === "images"
+      ? cards.length > 0
+        ? "edit"
+        : "phrases"
+      : cardsPhase;
+  const phaseIndex = Math.max(0, (stepperPhases.length ? stepperPhases : CARDS_PHASE_ORDER).indexOf(stepperPhase));
 
   const [regenerateOpen, setRegenerateOpen] = useState(false);
   const [regeneratePrompt, setRegeneratePrompt] = useState("");
   const [imageUrlInput, setImageUrlInput] = useState("");
+  const [crop, setCrop] = useState(false);
+  const [plaque, setPlaque] = useState(false);
+  const [dim, setDim] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const showHeadlines = mode !== "layout";
+  const showLayout = mode !== "headlines";
+  const showStepper = stepperPhases.length > 0;
   const stepDisabled = useWizardStepDisabled();
   const task = useWorkflowStore((s) =>
     contentId ? s.getTaskByContentId(contentId) : undefined
@@ -120,13 +154,26 @@ export function StepCards() {
   const phrasesDisabled = stepDisabled || !canEditPhrases;
   const imagesDisabled = stepDisabled || !canEditImages;
 
+  useEffect(() => {
+    const next =
+      mode === "layout"
+        ? "images"
+        : mode === "headlines" && cardsPhase === "images"
+          ? cards.length > 0
+            ? "edit"
+            : "phrases"
+          : null;
+    if (!next || useWizardStore.getState().cardsPhase === next) return;
+    setField("cardsPhase", next);
+  }, [mode, cardsPhase, cards.length, setField]);
+
   const updateCards = (newCards: Card[]) => {
     setField("cards", newCards);
     if (contentId) updateContentUnit(contentId, { cards: newCards });
   };
 
   const handlePhaseClick = (phase: CardsPhase) => {
-    setField("cardsPhase", phase === "edit" ? "phrases" : phase);
+    setField("cardsPhase", phase);
   };
 
   const handleGeneratePhrases = async (extraPrompt?: string, isRegenerate = false) => {
@@ -141,13 +188,19 @@ export function StepCards() {
         ? getMockCardsRegenerated(format, copyright, trimmedExtra)
         : getMockCards(format, copyright);
 
-    const newCards: Card[] = sourceCards.map((card) => ({
-      ...card,
-      id: generateId("card"),
-    }));
+    const count = Math.min(MAX_CARDS_COUNT, Math.max(1, cardsCount));
+    const newCards: Card[] = Array.from({ length: count }, (_, index) => {
+      const source = sourceCards[index % sourceCards.length];
+      return {
+        ...source,
+        id: generateId("card"),
+        headlineOnImage: source.headlineOnImage ?? true,
+      };
+    });
 
     updateCards(newCards);
     setField("selectedCardId", newCards[0]?.id ?? null);
+    setField("cardsPhase", "edit");
     setField("isGeneratingCardPhrases", false);
 
     if (contentId && currentUser) {
@@ -176,7 +229,11 @@ export function StepCards() {
     setRegeneratePrompt("");
   };
 
-  const handleUpdateCardById = (cardId: string, field: keyof Card, value: string) => {
+  const handleUpdateCardById = (
+    cardId: string,
+    field: keyof Card,
+    value: string | boolean
+  ) => {
     const newCards = cards.map((card) =>
       card.id === cardId ? { ...card, [field]: value } : card
     );
@@ -190,11 +247,13 @@ export function StepCards() {
   };
 
   const handleAddCard = () => {
+    if (cards.length >= MAX_CARDS_COUNT) return;
     const newCard: Card = {
       id: generateId("card"),
       shortText: "Новая карточка",
       copyright: project?.defaultCopyright ?? "Источник",
       status: "needs_edit",
+      headlineOnImage: true,
     };
     updateCards([...cards, newCard]);
     setField("selectedCardId", newCard.id);
@@ -308,85 +367,105 @@ export function StepCards() {
 
   const renderPhrasesEditor = () => (
     <>
-      <div className={styles.cardPhrasesList}>
+      <ul className={`${styles.phraseList} ${isGeneratingCardPhrases ? styles.listBusy : ""}`}>
         {cards.map((card, index) => (
-          <div key={card.id} className={styles.cardPhraseRow}>
-            <span className={styles.cardPhraseIndex}>#{index + 1}</span>
-            <div className={styles.cardPhraseFields}>
-              <Input
-                label="Заголовок"
+          <li key={card.id} className={styles.phraseRow}>
+            <span className={styles.labelHeadline}>Заголовок</span>
+            <span className={styles.labelCopyright}>Копирайт</span>
+            <span className={styles.phraseIndex}>#{index + 1}</span>
+            <label className={`${styles.inputWrap} ${styles.headlineField}`}>
+              <span className={styles.srOnly}>Заголовок</span>
+              <input
+                className={styles.sourceInput}
                 value={card.shortText}
-                onChange={(e) => handleUpdateCardById(card.id, "shortText", e.target.value)}
                 placeholder="До 8 слов для карточки"
+                maxLength={TITLE_MAX_LENGTH}
+                disabled={phrasesDisabled}
+                onChange={(e) =>
+                  handleUpdateCardById(card.id, "shortText", e.target.value)
+                }
               />
-              <Input
-                label="Копирайт"
+            </label>
+            <label className={`${styles.inputWrap} ${styles.copyrightField}`}>
+              <span className={styles.srOnly}>Копирайт</span>
+              <input
+                className={styles.sourceInput}
                 value={card.copyright}
-                onChange={(e) => handleUpdateCardById(card.id, "copyright", e.target.value)}
+                maxLength={COPYRIGHT_MAX_LENGTH}
                 placeholder="Источник: example.com"
+                disabled={phrasesDisabled}
+                onChange={(e) =>
+                  handleUpdateCardById(card.id, "copyright", e.target.value)
+                }
               />
-            </div>
-            <Button
-              variant="ghost"
-              size="small"
-              className={styles.dangerAction}
-              onClick={() => handleDeleteCardById(card.id)}
-              disabled={phrasesDisabled || cards.length === 1}
-            >
-              <Trash size={16} aria-hidden />
-              Удалить
-            </Button>
-            <div className={styles.cardPhraseReorder}>
+              <span className={styles.fieldCounter}>
+                {card.copyright.length}/{COPYRIGHT_MAX_LENGTH}
+              </span>
+            </label>
+            <div className={styles.phraseControls}>
               <button
                 type="button"
-                className={styles.reorderButton}
+                className={styles.iconButton}
                 onClick={() => handleMoveCard(card.id, "up")}
                 disabled={phrasesDisabled || index === 0}
                 aria-label="Переместить выше"
               >
-                <CaretUp size={14} />
+                ↑
               </button>
               <button
                 type="button"
-                className={styles.reorderButton}
+                className={styles.iconButton}
                 onClick={() => handleMoveCard(card.id, "down")}
                 disabled={phrasesDisabled || index === cards.length - 1}
                 aria-label="Переместить ниже"
               >
-                <CaretDown size={14} />
+                ↓
+              </button>
+              <button
+                type="button"
+                className={styles.iconButton}
+                onClick={() => handleDeleteCardById(card.id)}
+                disabled={phrasesDisabled || cards.length === 1}
+                aria-label="Удалить карточку"
+              >
+                ✕
               </button>
             </div>
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
 
-      <div className={styles.cardActionsBar}>
-        <div className={styles.cardActionsGroup}>
-          <Button variant="secondary" onClick={handleAddCard} disabled={phrasesDisabled}>
-            <Plus size={16} weight="bold" aria-hidden />
+      <div className={styles.cardsBar}>
+        <div className={styles.cardsBarGroup}>
+          <button
+            type="button"
+            className={styles.cardsGhost}
+            onClick={handleAddCard}
+            disabled={phrasesDisabled || cards.length >= MAX_CARDS_COUNT}
+          >
             Добавить карточку
-          </Button>
+          </button>
           {regenerateOpen ? (
-            <div className={styles.regenerateInline}>
-              <div className={styles.regenerateInputWrap}>
-                <Input
-                  value={regeneratePrompt}
-                  onChange={(e) => setRegeneratePrompt(e.target.value)}
-                  placeholder="Уточнение: короче, другой акцент, больше цифр..."
-                  autoFocus
-                />
-              </div>
+            <>
+              <input
+                className={`${styles.sourceInput} ${styles.refineInput}`}
+                value={regeneratePrompt}
+                autoFocus
+                placeholder="Уточнение: короче, другой акцент, больше цифр…"
+                onChange={(e) => setRegeneratePrompt(e.target.value)}
+              />
               <Button
+                variant="ghost"
                 onClick={handleConfirmRegenerate}
                 disabled={phrasesDisabled || isGeneratingCardPhrases}
               >
                 <ArrowsClockwise size={16} aria-hidden />
-                {isGeneratingCardPhrases ? "Генерация..." : "Перегенерировать"}
+                {isGeneratingCardPhrases ? "Генерация…" : "Перегенерировать"}
               </Button>
               <Button variant="ghost" onClick={handleCancelRegenerate} disabled={phrasesDisabled}>
                 Отмена
               </Button>
-            </div>
+            </>
           ) : (
             <Button
               variant="ghost"
@@ -398,60 +477,121 @@ export function StepCards() {
             </Button>
           )}
         </div>
-        <Button
-          onClick={handleProceedToImages}
-          disabled={phrasesDisabled || cards.length === 0}
-        >
-          Перейти к фотографиям
-          <ArrowRight size={16} weight="bold" aria-hidden />
-        </Button>
+        {showLayout && (
+          <Button
+            onClick={handleProceedToImages}
+            disabled={phrasesDisabled || cards.length === 0}
+          >
+            Перейти к фотографиям →
+          </Button>
+        )}
       </div>
     </>
   );
 
   return (
     <div>
-      <CardsPhaseStepper currentPhase={stepperPhase} onPhaseClick={handlePhaseClick} />
+      {showStepper && (
+        <CardsPhaseStepper
+          currentPhase={stepperPhase}
+          onPhaseClick={handlePhaseClick}
+          phases={stepperPhases}
+        />
+      )}
 
       <div className={styles.section}>
         <h3 className={styles.sectionTitle}>
-          Шаг {phaseIndex + 1}. {CARDS_PHASE_LABELS[stepperPhase]}
+          {mode === "layout"
+            ? "Оформление"
+            : `Шаг ${phaseIndex + 1}. ${CARDS_PHASE_LABELS[stepperPhase]}`}
         </h3>
         <p className={styles.sectionHint}>
-          {(cardsPhase === "phrases" || cardsPhase === "edit") && cards.length > 0
-            ? "Проверьте заголовки: измените текст, добавьте или удалите карточки."
-            : PHASE_HINTS[cardsPhase]}
+          {mode === "layout"
+            ? PHASE_HINTS.images
+            : stepperPhase === "edit"
+              ? "Проверьте заголовки: измените текст, удалите лишние или перегенерируйте"
+              : PHASE_HINTS[stepperPhase]}
         </p>
       </div>
 
-      {(cardsPhase === "phrases" || cardsPhase === "edit") && (
-        <div className={styles.cardsPhasePanel}>
+      {showHeadlines && stepperPhase === "phrases" && (
+        <div className={styles.fields}>
           {isGeneratingCardPhrases && (
-            <div className={`${styles.loading} ${styles.loadingPulse}`}>
-              Генерация заголовков... В очереди → В работе
-            </div>
+            <p className={styles.progress}>
+              <span className={styles.spinner} />
+              Генерируем заголовки…
+            </p>
           )}
-
-          {cards.length === 0 ? (
-            <div className={styles.cardActionsBar}>
-              <Button
-                onClick={() => handleGeneratePhrases()}
-                disabled={phrasesDisabled || isGeneratingCardPhrases}
-              >
-                <Sparkle size={16} weight="fill" aria-hidden />
-                {isGeneratingCardPhrases
-                  ? "Генерация..."
+          <label className={styles.field} htmlFor="cards-count">
+            <span className={styles.fieldLabel}>Сколько карточек</span>
+            <input
+              id="cards-count"
+              className={styles.sourceInput}
+              type="number"
+              min={1}
+              max={MAX_CARDS_COUNT}
+              value={cardsCount}
+              disabled={phrasesDisabled || isGeneratingCardPhrases}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                if (!Number.isFinite(next)) return;
+                const count = Math.min(MAX_CARDS_COUNT, Math.max(1, Math.trunc(next)));
+                setField("cardsCount", count);
+                if (contentId) updateContentUnit(contentId, { cardsCount: count });
+              }}
+            />
+          </label>
+          <div className={styles.cardsBar}>
+            <Button
+              variant={cards.length > 0 ? "ghost" : "primary"}
+              onClick={() => handleGeneratePhrases()}
+              disabled={phrasesDisabled || isGeneratingCardPhrases}
+            >
+              <Sparkle size={16} weight="fill" aria-hidden />
+              {isGeneratingCardPhrases
+                ? "Генерация…"
+                : cards.length > 0
+                  ? "Сгенерировать заново"
                   : "Сгенерировать заголовки для карточек"}
+            </Button>
+            {cards.length > 0 && (
+              <Button
+                onClick={() => setField("cardsPhase", "edit")}
+                disabled={isGeneratingCardPhrases}
+              >
+                Перейти к редактированию →
               </Button>
-            </div>
-          ) : (
-            renderPhrasesEditor()
-          )}
+            )}
+          </div>
         </div>
       )}
 
-      {cardsPhase === "images" && (
+      {showHeadlines && stepperPhase === "edit" && (
+        <div className={styles.cardsPhasePanel}>{renderPhrasesEditor()}</div>
+      )}
+
+      {showLayout && cardsPhase === "images" && (
         <>
+          <div className={styles.section}>
+            <Checkbox
+              label="Правила обработки изображений проекта (фирменный стиль)"
+              checked={buildOptions.applyBrandStyle}
+              onChange={(e) => {
+                const next = { ...buildOptions, applyBrandStyle: e.target.checked };
+                setField("buildOptions", next);
+                if (contentId) updateContentUnit(contentId, { buildOptions: next });
+              }}
+            />
+            <Checkbox
+              label="Подготовить архив для скачивания"
+              checked={buildOptions.prepareArchive}
+              onChange={(e) => {
+                const next = { ...buildOptions, prepareArchive: e.target.checked };
+                setField("buildOptions", next);
+                if (contentId) updateContentUnit(contentId, { buildOptions: next });
+              }}
+            />
+          </div>
           {!hasCardImages && (
             <div className={styles.cardsPhasePanel}>
               {isGeneratingCardImages && (
@@ -484,10 +624,25 @@ export function StepCards() {
                 <div className={styles.preview}>
                   {selectedCard ? (
                     <>
-                      <PlaceholderImage
-                        variant="vertical"
-                        label={selectedCard.imageUrl ?? "Изображение карточки"}
-                      />
+                      {selectedCard.imageUrl?.startsWith("http") ||
+                      selectedCard.imageUrl?.startsWith("blob:") ? (
+                        <div
+                          className={`${styles.layoutPreviewPhoto} ${crop ? styles.layoutPreviewCrop : ""}`}
+                          style={{ backgroundImage: `url(${selectedCard.imageUrl})` }}
+                        >
+                          {dim && <span className={styles.layoutPreviewDim} />}
+                          {plaque && (
+                            <span className={styles.layoutPreviewPlaque}>
+                              {selectedCard.shortText}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <PlaceholderImage
+                          variant="vertical"
+                          label={selectedCard.imageUrl ?? "Изображение карточки"}
+                        />
+                      )}
                       <div className={styles.previewText}>{selectedCard.shortText}</div>
                       <div className={styles.previewCopyright}>{selectedCard.copyright}</div>
                       <StatusBadge status={selectedCard.status} />
@@ -524,21 +679,36 @@ export function StepCards() {
                   <Button
                     variant="ghost"
                     size="small"
-                    onClick={() => {}}
+                    onClick={() => fileInputRef.current?.click()}
                     disabled={imagesDisabled || !selectedCard}
                   >
                     <Swap size={16} aria-hidden />
                     Заменить
                   </Button>
-                  <Button variant="ghost" size="small" onClick={() => {}} disabled={imagesDisabled}>
+                  <Button
+                    variant="ghost"
+                    size="small"
+                    onClick={() => setCrop((value) => !value)}
+                    disabled={imagesDisabled}
+                  >
                     <Crop size={16} aria-hidden />
                     Обрезать
                   </Button>
-                  <Button variant="ghost" size="small" onClick={() => {}} disabled={imagesDisabled}>
+                  <Button
+                    variant="ghost"
+                    size="small"
+                    onClick={() => setDim((value) => !value)}
+                    disabled={imagesDisabled}
+                  >
                     <Eraser size={16} aria-hidden />
                     Удалить область
                   </Button>
-                  <Button variant="ghost" size="small" onClick={() => {}} disabled={imagesDisabled}>
+                  <Button
+                    variant="ghost"
+                    size="small"
+                    onClick={() => setPlaque((value) => !value)}
+                    disabled={imagesDisabled}
+                  >
                     <Palette size={16} aria-hidden />
                     Фирменный стиль
                   </Button>

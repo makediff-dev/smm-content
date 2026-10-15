@@ -1,17 +1,9 @@
 "use client";
 
-import { Fragment, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  CaretLeft,
-  CaretRight,
-  DownloadSimple,
-  Plus,
-  Trash,
-  UploadSimple,
-} from "@phosphor-icons/react";
+import { CaretLeft, CaretRight, DownloadSimple } from "@phosphor-icons/react";
 import { AppShell } from "@/components/layout/app-shell";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -22,56 +14,31 @@ import {
   useContentPlanStore,
 } from "@/stores/content-plan-store";
 import { useProjectsStore } from "@/stores/projects-store";
-import type { ContentFormat, ContentPlanScenario, ContentUnit } from "@/types";
-import { FORMAT_LABELS } from "@/types";
+import { useWorkflowStore } from "@/stores/workflow-store";
+import type { ContentFormat, ContentPlanScenario, ContentPlanSlot } from "@/types";
 import {
-  ROWS_PER_DAY,
+  FORMAT_LEGEND,
+  FORMAT_STRIP,
   addDays,
-  buildDayRows,
-  formatDayHeader,
+  downloadWeekPlan,
   formatPublicationTime,
   formatWeekRange,
-  getKpVisualFileName,
-  getKpZipFileName,
-  getSlotVisualFiles,
-  getSlotZipFileName,
+  getPlanItemStatus,
   getWeekStart,
   toDateKey,
 } from "@/lib/content-plan";
+import { getRoleWorkspaceHref } from "@/lib/role-workspace";
 import styles from "./kp.module.css";
 
 const FORMAT_OPTIONS = [
   { value: "gallery", label: "Галерея" },
   { value: "slideshow", label: "Слайд-шоу с озвучкой" },
   { value: "text", label: "Текстовый пост" },
-];
-
-const SCENARIO_OPTIONS = [
-  { value: "scheduled", label: "По расписанию" },
-  { value: "news", label: "Новость" },
+  { value: "video_meme", label: "Видео-мем" },
 ];
 
 function getDefaultTime() {
   return "12:00";
-}
-
-function getSlotAssets(content: ContentUnit | undefined, format: ContentFormat) {
-  if (content) {
-    return {
-      hasText: !!content.postText,
-      hasZip: content.format === "gallery" && content.status === "done",
-      hasVisual:
-        content.format !== "text" &&
-        content.cards.length > 0 &&
-        content.cards.every((card) => card.imageUrl),
-    };
-  }
-
-  return {
-    hasText: true,
-    hasZip: format === "gallery",
-    hasVisual: format !== "text",
-  };
 }
 
 function formatAddDateLabel(dateKey: string) {
@@ -83,43 +50,13 @@ function formatAddDateLabel(dateKey: string) {
   });
 }
 
-function handleAssetDownload(fileName: string) {
-  alert(`[Прототип] Скачать ${fileName}`);
-}
-
-function renderAssetDownload(hasAsset: boolean, fileName: string | null) {
-  if (!hasAsset || !fileName) {
-    return <span className={styles.assetEmpty}>—</span>;
-  }
-
-  return renderAssetDownloads([fileName]);
-}
-
-function renderAssetDownloads(fileNames: string[]) {
-  if (!fileNames.length) {
-    return <span className={styles.assetEmpty}>—</span>;
-  }
-
-  return (
-    <div className={styles.assetList}>
-      {fileNames.map((fileName) => (
-        <button
-          key={fileName}
-          type="button"
-          className={styles.assetDownload}
-          onClick={() => handleAssetDownload(fileName)}
-          title={`Скачать ${fileName}`}
-        >
-          <DownloadSimple size={14} weight="bold" />
-          {fileName}
-        </button>
-      ))}
-    </div>
-  );
+function isSameDay(date: Date, other: Date) {
+  return toDateKey(date) === toDateKey(other);
 }
 
 export default function ContentPlanPage() {
   const [weekOffset, setWeekOffset] = useState(0);
+  const [dragId, setDragId] = useState<string | null>(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addDateKey, setAddDateKey] = useState<string | null>(null);
   const [addForm, setAddForm] = useState({
@@ -130,22 +67,14 @@ export default function ContentPlanPage() {
     format: "gallery" as ContentFormat,
     scenario: "scheduled" as ContentPlanScenario,
     comment: "",
-    zipFileName: "",
-    visualFileName: "",
-    attachmentFiles: [] as string[],
   });
-
-  const zipInputRef = useRef<HTMLInputElement>(null);
-  const visualInputRef = useRef<HTMLInputElement>(null);
-  const attachmentsInputRef = useRef<HTMLInputElement>(null);
 
   const slots = useContentPlanStore((s) => s.slots);
   const addSlot = useContentPlanStore((s) => s.addSlot);
-  const readyForProofreading = useContentPlanStore((s) => s.readyForProofreading);
-  const setReadyForProofreading = useContentPlanStore((s) => s.setReadyForProofreading);
+  const moveSlotToDate = useContentPlanStore((s) => s.moveSlotToDate);
   const projects = useProjectsStore((s) => s.projects);
   const contentUnits = useProjectsStore((s) => s.contentUnits);
-  const getProject = useProjectsStore((s) => s.getProject);
+  const getTaskByContentId = useWorkflowStore((s) => s.getTaskByContentId);
 
   const projectContent = useMemo(() => {
     if (!addForm.projectId) return [];
@@ -156,72 +85,42 @@ export default function ContentPlanPage() {
     (unit) => unit.id === addForm.contentUnitId
   );
 
+  const weekStart = useMemo(() => {
+    const start = getWeekStart(new Date());
+    return addDays(start, weekOffset * 7);
+  }, [weekOffset]);
+
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
+    [weekStart]
+  );
+
+  const activeSlots = useMemo(
+    () => slots.filter((slot) => !slot.archived),
+    [slots]
+  );
+
+  const weekSlots = useMemo(
+    () =>
+      activeSlots.filter((slot) => {
+        const date = new Date(slot.scheduledAt);
+        return date >= weekStart && date < addDays(weekStart, 7);
+      }),
+    [activeSlots, weekStart]
+  );
+
   const openAddModal = (dateKey: string) => {
-    const defaultProjectId = projects[0]?.id ?? "";
     setAddDateKey(dateKey);
     setAddForm({
       time: getDefaultTime(),
-      projectId: defaultProjectId,
+      projectId: projects[0]?.id ?? "",
       contentUnitId: "",
       title: "",
       format: "gallery",
       scenario: "scheduled",
       comment: "",
-      zipFileName: "",
-      visualFileName: "",
-      attachmentFiles: [],
     });
     setAddModalOpen(true);
-  };
-
-  const handleProjectChange = (projectId: string) => {
-    setAddForm((form) => ({
-      ...form,
-      projectId,
-      contentUnitId: "",
-      title: "",
-      format: "gallery",
-    }));
-  };
-
-  const handleContentChange = (contentUnitId: string) => {
-    const content = projectContent.find((unit) => unit.id === contentUnitId);
-    const format = content?.format ?? addForm.format;
-    setAddForm((form) => ({
-      ...form,
-      contentUnitId,
-      title: content?.title ?? form.title,
-      format,
-      zipFileName: "",
-      visualFileName: "",
-      attachmentFiles: [],
-    }));
-  };
-
-  const handleZipUpload = (file?: File) => {
-    if (!file) return;
-    setAddForm((form) => ({ ...form, zipFileName: file.name }));
-  };
-
-  const handleVisualUpload = (file?: File) => {
-    if (!file) return;
-    setAddForm((form) => ({ ...form, visualFileName: file.name }));
-  };
-
-  const handleAttachmentsUpload = (files: FileList | null) => {
-    if (!files?.length) return;
-    const names = Array.from(files).map((file) => file.name);
-    setAddForm((form) => ({
-      ...form,
-      attachmentFiles: [...form.attachmentFiles, ...names],
-    }));
-  };
-
-  const removeAttachment = (fileName: string) => {
-    setAddForm((form) => ({
-      ...form,
-      attachmentFiles: form.attachmentFiles.filter((name) => name !== fileName),
-    }));
   };
 
   const handleAddSlot = () => {
@@ -230,10 +129,6 @@ export default function ContentPlanPage() {
 
     const title = selectedContent?.title ?? addForm.title.trim();
     const format = selectedContent?.format ?? addForm.format;
-    const assets = getSlotAssets(selectedContent, format);
-    const hasUploadedZip = !!addForm.zipFileName;
-    const hasUploadedVisual =
-      !!addForm.visualFileName || addForm.attachmentFiles.length > 0;
 
     addSlot({
       projectId: addForm.projectId,
@@ -243,14 +138,9 @@ export default function ContentPlanPage() {
       format,
       scenario: addForm.scenario,
       comment: addForm.comment.trim(),
-      hasText: assets.hasText,
-      hasZip: hasUploadedZip || assets.hasZip,
-      hasVisual: hasUploadedVisual || assets.hasVisual,
-      zipFileName: addForm.zipFileName || undefined,
-      visualFileName: addForm.visualFileName || undefined,
-      attachmentFiles: addForm.attachmentFiles.length
-        ? addForm.attachmentFiles
-        : undefined,
+      hasText: Boolean(selectedContent?.postText || addForm.title),
+      hasZip: format === "gallery",
+      hasVisual: format !== "text",
     });
 
     setAddModalOpen(false);
@@ -263,38 +153,49 @@ export default function ContentPlanPage() {
     !!addForm.time &&
     (!!addForm.contentUnitId || !!addForm.title.trim());
 
-  const weekStart = useMemo(() => {
-    const start = getWeekStart(new Date());
-    return addDays(start, weekOffset * 7);
-  }, [weekOffset]);
-
-  const weekDays = useMemo(
-    () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
-    [weekStart]
-  );
-
-  const weekSlots = useMemo(
-    () =>
-      slots.filter((slot) => {
-        const date = new Date(slot.scheduledAt);
-        const end = addDays(weekStart, 7);
-        return date >= weekStart && date < end;
-      }),
-    [slots, weekStart]
-  );
-
-  let rowCounter = 0;
+  const slotsForDay = (dateKey: string) =>
+    weekSlots
+      .filter((slot) => toDateKey(new Date(slot.scheduledAt)) === dateKey)
+      .sort(
+        (a, b) =>
+          new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+      );
 
   return (
-    <AppShell breadcrumb="КП">
+    <AppShell breadcrumb="Контент-план">
       <div className={styles.page}>
         <div className={styles.toolbar}>
-          <h1 className={styles.pageTitle}>КП</h1>
-          <div className={styles.toolbarRight}>
-            <Button variant="secondary" onClick={() => setWeekOffset(0)}>
-              Эта неделя
+          <div>
+            <h1 className={styles.pageTitle}>Контент-план</h1>
+            <p className={styles.pageDescription}>
+              Неделя на одном экране. Цвет полоски — формат, подпись — статус.
+              Карточку можно перетащить на другой день.
+            </p>
+          </div>
+          <div className={styles.actions}>
+            <Link href="/archive">
+              <Button variant="secondary">Архив</Button>
+            </Link>
+            <Button
+              variant="primary"
+              onClick={() => downloadWeekPlan(weekStart, weekSlots)}
+            >
+              <DownloadSimple size={16} />
+              Скачать контент-план
             </Button>
+          </div>
+        </div>
+
+        <section className={styles.board} aria-label="Неделя">
+          <div className={styles.boardHead}>
             <div className={styles.weekNav}>
+              <button
+                type="button"
+                className={styles.weekNow}
+                onClick={() => setWeekOffset(0)}
+              >
+                Эта неделя
+              </button>
               <button
                 type="button"
                 className={styles.weekButton}
@@ -313,114 +214,88 @@ export default function ContentPlanPage() {
                 <CaretRight size={16} />
               </button>
             </div>
+            <div className={styles.legend}>
+              {FORMAT_LEGEND.map((item) => (
+                <span key={item.format} className={styles.legendItem}>
+                  <span
+                    className={styles.legendDot}
+                    style={{ background: FORMAT_STRIP[item.format] }}
+                  />
+                  {item.label}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className={styles.metaBar}>
-          <div className={styles.statusBadge}>
-            <span className={styles.statusDot} />
-            КП формируется
+          <div className={styles.weekGrid}>
+            {weekDays.map((day) => {
+              const dateKey = toDateKey(day);
+              const today = isSameDay(day, new Date());
+              const items = slotsForDay(dateKey);
+
+              return (
+                <div
+                  key={dateKey}
+                  className={`${styles.dayCol} ${today ? styles.dayToday : ""}`}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "move";
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const id = event.dataTransfer.getData("text/plain") || dragId;
+                    if (id) moveSlotToDate(id, dateKey);
+                    setDragId(null);
+                  }}
+                >
+                  <div className={styles.dayHead}>
+                    <span className={styles.dayName}>
+                      {day
+                        .toLocaleDateString("ru-RU", { weekday: "short" })
+                        .replace(".", "")
+                        .toUpperCase()}{" "}
+                      {day.getDate()}
+                    </span>
+                    {today && <span className={styles.todayMark}>сегодня</span>}
+                    <button
+                      type="button"
+                      className={styles.addDay}
+                      onClick={() => openAddModal(dateKey)}
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <div className={styles.dayList}>
+                    {items.length === 0 ? (
+                      <p className={styles.dayEmpty}>
+                        Пусто. Нейросеть может предложить тему.
+                      </p>
+                    ) : (
+                      items.map((slot) => (
+                        <PlanCard
+                          key={slot.id}
+                          slot={slot}
+                          status={getPlanItemStatus(
+                            slot,
+                            slot.contentUnitId
+                              ? getTaskByContentId(slot.contentUnitId)
+                              : undefined
+                          )}
+                          onDragStart={() => setDragId(slot.id)}
+                        />
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <Checkbox
-            label="КП готово к вычитке"
-            checked={readyForProofreading}
-            onChange={(e) => setReadyForProofreading(e.target.checked)}
-          />
-        </div>
-
-        <div className={styles.tableWrapper}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th className={styles.th}>#</th>
-                <th className={styles.th}>Время публикации</th>
-                <th className={styles.th}>Текст</th>
-                <th className={styles.th}>ZIP</th>
-                <th className={styles.th}>Визуал</th>
-                <th className={styles.th}>Комментарии</th>
-              </tr>
-            </thead>
-            <tbody>
-              {weekDays.map((day) => {
-                const dateKey = toDateKey(day);
-                const dayRows = buildDayRows(dateKey, weekSlots, rowCounter);
-                rowCounter += ROWS_PER_DAY;
-
-                return (
-                  <Fragment key={dateKey}>
-                    <tr className={styles.dayHeaderRow}>
-                      <td colSpan={6}>{formatDayHeader(day)}</td>
-                    </tr>
-                    {dayRows.map((row) => {
-                      const project = row.slot
-                        ? getProject(row.slot.projectId)
-                        : undefined;
-
-                      return (
-                        <tr key={row.id} className={styles.dataRow}>
-                          <td className={styles.tdMuted}>{row.rowNumber}</td>
-                          <td className={styles.tdTime}>
-                            {row.slot ? formatPublicationTime(row.slot.scheduledAt) : "—"}
-                          </td>
-                          <td className={styles.tdText}>
-                            {row.slot ? (
-                              <div className={styles.slotText}>
-                                {row.slot.contentUnitId ? (
-                                  <Link
-                                    href={`/history/${row.slot.contentUnitId}?from=kp`}
-                                    className={styles.slotLink}
-                                  >
-                                    {row.slot.title}
-                                  </Link>
-                                ) : (
-                                  <span>{row.slot.title}</span>
-                                )}
-                                <span className={styles.slotMeta}>
-                                  {project?.name ?? "Проект"} ·{" "}
-                                  {FORMAT_LABELS[row.slot.format]}
-                                  {row.slot.scenario === "news" ? " · новость" : ""}
-                                </span>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                className={styles.addButton}
-                                onClick={() => openAddModal(dateKey)}
-                              >
-                                <Plus size={14} weight="bold" />
-                                Добавить
-                              </button>
-                            )}
-                          </td>
-                          <td className={styles.tdAsset}>
-                            {row.slot
-                              ? renderAssetDownload(
-                                  row.slot.hasZip,
-                                  getSlotZipFileName(row.slot)
-                                )
-                              : renderAssetDownload(false, null)}
-                          </td>
-                          <td className={styles.tdAsset}>
-                            {row.slot
-                              ? renderAssetDownloads(getSlotVisualFiles(row.slot))
-                              : renderAssetDownloads([])}
-                          </td>
-                          <td className={styles.tdComment}>
-                            {row.slot?.comment || "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        </section>
       </div>
 
       <Modal
-        title="Добавить в КП"
+        title="Добавить в план"
         open={addModalOpen}
         onClose={() => setAddModalOpen(false)}
         footer={
@@ -453,7 +328,14 @@ export default function ContentPlanPage() {
               label: project.name,
             }))}
             value={addForm.projectId}
-            onChange={(e) => handleProjectChange(e.target.value)}
+            onChange={(e) =>
+              setAddForm((form) => ({
+                ...form,
+                projectId: e.target.value,
+                contentUnitId: "",
+                title: "",
+              }))
+            }
           />
           <Select
             label="Контент"
@@ -465,7 +347,15 @@ export default function ContentPlanPage() {
               })),
             ]}
             value={addForm.contentUnitId}
-            onChange={(e) => handleContentChange(e.target.value)}
+            onChange={(e) => {
+              const content = projectContent.find((unit) => unit.id === e.target.value);
+              setAddForm((form) => ({
+                ...form,
+                contentUnitId: e.target.value,
+                title: content?.title ?? form.title,
+                format: content?.format ?? form.format,
+              }));
+            }}
           />
           {!addForm.contentUnitId && (
             <>
@@ -490,17 +380,6 @@ export default function ContentPlanPage() {
               />
             </>
           )}
-          <Select
-            label="Сценарий"
-            options={SCENARIO_OPTIONS}
-            value={addForm.scenario}
-            onChange={(e) =>
-              setAddForm((form) => ({
-                ...form,
-                scenario: e.target.value as ContentPlanScenario,
-              }))
-            }
-          />
           <Textarea
             label="Комментарий"
             value={addForm.comment}
@@ -510,146 +389,45 @@ export default function ContentPlanPage() {
             rows={2}
             placeholder="Необязательно"
           />
-
-          <div className={styles.fileUploadSection}>
-            <div className={styles.fileUploadTitle}>Файлы для слота</div>
-            <p className={styles.fileUploadHint}>
-              Можно прикрепить ZIP, видео, изображения и другие файлы вручную —
-              они появятся в колонках таблицы.
-            </p>
-
-            <div className={styles.fileUploadField}>
-              <span className={styles.fileUploadLabel}>ZIP-архив</span>
-              {addForm.zipFileName ? (
-                <div className={styles.fileChip}>
-                  <span>{addForm.zipFileName}</span>
-                  <button
-                    type="button"
-                    className={styles.fileChipRemove}
-                    onClick={() =>
-                      setAddForm((form) => ({ ...form, zipFileName: "" }))
-                    }
-                    aria-label="Удалить ZIP"
-                  >
-                    <Trash size={14} />
-                  </button>
-                </div>
-              ) : (
-                <Button
-                  variant="secondary"
-                  size="small"
-                  onClick={() => zipInputRef.current?.click()}
-                >
-                  <UploadSimple size={16} />
-                  Выбрать ZIP
-                </Button>
-              )}
-              <input
-                ref={zipInputRef}
-                type="file"
-                accept=".zip,application/zip"
-                className={styles.hiddenFileInput}
-                onChange={(e) => {
-                  handleZipUpload(e.target.files?.[0]);
-                  e.target.value = "";
-                }}
-              />
-            </div>
-
-            <div className={styles.fileUploadField}>
-              <span className={styles.fileUploadLabel}>Визуал / видео</span>
-              {addForm.visualFileName ? (
-                <div className={styles.fileChip}>
-                  <span>{addForm.visualFileName}</span>
-                  <button
-                    type="button"
-                    className={styles.fileChipRemove}
-                    onClick={() =>
-                      setAddForm((form) => ({ ...form, visualFileName: "" }))
-                    }
-                    aria-label="Удалить файл визуала"
-                  >
-                    <Trash size={14} />
-                  </button>
-                </div>
-              ) : (
-                <Button
-                  variant="secondary"
-                  size="small"
-                  onClick={() => visualInputRef.current?.click()}
-                >
-                  <UploadSimple size={16} />
-                  Выбрать файл
-                </Button>
-              )}
-              <input
-                ref={visualInputRef}
-                type="file"
-                accept="video/*,image/*,.mp4,.mov,.png,.jpg,.jpeg,.webp,.zip"
-                className={styles.hiddenFileInput}
-                onChange={(e) => {
-                  handleVisualUpload(e.target.files?.[0]);
-                  e.target.value = "";
-                }}
-              />
-            </div>
-
-            <div className={styles.fileUploadField}>
-              <span className={styles.fileUploadLabel}>Дополнительные файлы</span>
-              <Button
-                variant="ghost"
-                size="small"
-                onClick={() => attachmentsInputRef.current?.click()}
-              >
-                <Plus size={14} weight="bold" />
-                Добавить файлы
-              </Button>
-              <input
-                ref={attachmentsInputRef}
-                type="file"
-                multiple
-                accept=".zip,.mp4,.mov,.png,.jpg,.jpeg,.webp,.pdf,.txt,.md,audio/*,video/*,image/*"
-                className={styles.hiddenFileInput}
-                onChange={(e) => {
-                  handleAttachmentsUpload(e.target.files);
-                  e.target.value = "";
-                }}
-              />
-              {addForm.attachmentFiles.length > 0 && (
-                <div className={styles.fileChipList}>
-                  {addForm.attachmentFiles.map((fileName) => (
-                    <div key={fileName} className={styles.fileChip}>
-                      <span>{fileName}</span>
-                      <button
-                        type="button"
-                        className={styles.fileChipRemove}
-                        onClick={() => removeAttachment(fileName)}
-                        aria-label={`Удалить ${fileName}`}
-                      >
-                        <Trash size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {!addForm.zipFileName &&
-              !addForm.visualFileName &&
-              addForm.attachmentFiles.length === 0 &&
-              (selectedContent || addForm.format) && (
-                <p className={styles.fileUploadDefaults}>
-                  Без загрузки будут использованы стандартные имена:{" "}
-                  {getKpZipFileName(selectedContent?.format ?? addForm.format) ??
-                    "—"}{" "}
-                  /{" "}
-                  {getKpVisualFileName(selectedContent?.format ?? addForm.format) ??
-                    "—"}
-                </p>
-              )}
-          </div>
         </div>
       </Modal>
     </AppShell>
+  );
+}
+
+function PlanCard({
+  slot,
+  status,
+  onDragStart,
+}: {
+  slot: ContentPlanSlot;
+  status: string;
+  onDragStart: () => void;
+}) {
+  const href = slot.contentUnitId
+    ? getRoleWorkspaceHref(slot.projectId, slot.contentUnitId)
+    : null;
+
+  return (
+    <article
+      className={styles.planCard}
+      style={{ borderLeftColor: FORMAT_STRIP[slot.format] }}
+      draggable
+      onDragStart={(event) => {
+        event.dataTransfer.setData("text/plain", slot.id);
+        event.dataTransfer.effectAllowed = "move";
+        onDragStart();
+      }}
+    >
+      <p className={styles.planTime}>{formatPublicationTime(slot.scheduledAt)}</p>
+      {href ? (
+        <Link href={href} className={styles.planTitle}>
+          {slot.title}
+        </Link>
+      ) : (
+        <p className={styles.planTitle}>{slot.title}</p>
+      )}
+      <p className={styles.planStatus}>{status}</p>
+    </article>
   );
 }

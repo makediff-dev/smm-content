@@ -1,14 +1,20 @@
-import type {
-  CardsPhase,
-  ContentFormat,
-  ProductionTask,
-  User,
-  UserRole,
-  WizardStep,
-  WorkflowStage,
+import {
+  formatUsesCards,
+  type CardsPhase,
+  type ContentFormat,
+  type ProductionTask,
+  type User,
+  type UserRole,
+  type WizardStep,
+  type WorkflowStage,
 } from "@/types";
-import { isManagementRole } from "@/lib/roles";
-import { getPreviousStages, stageToRole } from "@/lib/workflow";
+import { isAdminRole, isManagementRole } from "@/lib/roles";
+import {
+  getMoveTargetStages,
+  getPreviousStages,
+  stageToRole,
+} from "@/lib/workflow";
+import { isWaitingForReturnedFix } from "@/lib/role-workspace";
 import {
   type BuildCapability,
   canEditCardsPhaseForStage,
@@ -21,18 +27,23 @@ export function getInitialCardsPhaseForStage(
   stage: WorkflowStage | undefined,
   cards: { imageUrl?: string }[]
 ): CardsPhase {
-  if (cards.length === 0) return stage === "designer" ? "edit" : "phrases";
-  if (cards.every((card) => card.imageUrl)) return "images";
   if (stage === "designer") return "images";
+  if (stage === "editor") {
+    if (cards.length === 0) return "phrases";
+    if (cards.every((card) => card.imageUrl)) return "images";
+    return "edit";
+  }
+  if (cards.length === 0) return "phrases";
+  if (cards.every((card) => card.imageUrl)) return "images";
   return "phrases";
 }
 
 export function isWorkflowOversightRole(role: UserRole): boolean {
-  return isManagementRole(role);
+  return isAdminRole(role);
 }
 
 export function isWorkflowPrivilegedRole(role: UserRole): boolean {
-  return isManagementRole(role);
+  return isAdminRole(role);
 }
 
 function isTaskAssignee(user: User, task: ProductionTask | undefined): boolean {
@@ -88,7 +99,7 @@ export function canUserEditWizardStep(
 ): boolean {
   if (!user) return false;
 
-  if (isManagementRole(user.role)) return true;
+  if (isAdminRole(user.role)) return true;
 
   if (step === "format") {
     return canEditFormatStep(user, task, options?.formatConfirmed);
@@ -111,7 +122,7 @@ export function canUserEditCardsPhase(
 ): boolean {
   if (!user || !task || task.status === "done") return false;
 
-  if (isManagementRole(user.role)) return true;
+  if (isAdminRole(user.role)) return true;
 
   if (!isUserResponsibleForTaskStage(user, task)) return false;
 
@@ -129,7 +140,7 @@ export function canUserUseBuildCapability(
 ): boolean {
   if (!user || !task || task.status === "done") return false;
 
-  if (isManagementRole(user.role)) return true;
+  if (isAdminRole(user.role)) return true;
 
   if (!isUserResponsibleForTaskStage(user, task)) return false;
 
@@ -146,7 +157,7 @@ export function canUserActOnWorkflowStage(
   stage: WorkflowStage
 ): boolean {
   if (!user || !task) return false;
-  if (isManagementRole(user.role)) return true;
+  if (isAdminRole(user.role)) return true;
   if (!isTaskAssignee(user, task)) return false;
   return user.role === stageToRole(stage) && task.currentStage === stage;
 }
@@ -156,7 +167,14 @@ export function canUserApproveWorkflowTask(
   task: ProductionTask
 ): boolean {
   if (!user || task.status === "done") return false;
-  if (isManagementRole(user.role)) return true;
+  if (isAdminRole(user.role)) return true;
+  if (isWaitingForReturnedFix(user, task)) return false;
+  if (
+    task.currentStage === "copywriter" &&
+    user.role === "project_manager"
+  ) {
+    return true;
+  }
   if (!isUserResponsibleForTaskStage(user, task)) return false;
   return user.role === stageToRole(task.currentStage);
 }
@@ -165,30 +183,33 @@ export function canUserReturnWorkflowTask(
   user: User | null | undefined,
   task: ProductionTask
 ): boolean {
-  if (!user || task.status === "done") return false;
+  if (!user) return false;
+  if (isAdminRole(user.role)) return true;
+  if (task.status === "done") return false;
+  if (isWaitingForReturnedFix(user, task)) return false;
 
-  if (isManagementRole(user.role)) {
-    return getPreviousStages(task.format, task.currentStage).length > 0;
+  if (
+    task.currentStage === "copywriter" &&
+    user.role === "project_manager"
+  ) {
+    return true;
   }
 
   if (!isUserResponsibleForTaskStage(user, task)) return false;
-  if (user.role !== "editor") return false;
-  return task.currentStage === "editor";
+  return user.role === stageToRole(task.currentStage);
 }
 
 export function getReturnTargetStages(
   user: User,
   task: ProductionTask
 ): WorkflowStage[] {
-  const previousStages = getPreviousStages(task.format, task.currentStage);
-
-  if (user.role === "editor" && task.currentStage === "editor") {
-    return previousStages.filter(
-      (stage) => stage === "copywriter" || stage === "designer"
-    );
+  if (isAdminRole(user.role)) {
+    return getMoveTargetStages(task.format, task.currentStage);
   }
 
-  return previousStages;
+  return getPreviousStages(task.format, task.currentStage, {
+    designApproved: task.designApproved,
+  }).filter((stage) => stage !== "posting_manager");
 }
 
 export function getWizardStepForStage(
@@ -199,12 +220,12 @@ export function getWizardStepForStage(
     return "result";
   }
 
-  if (stage === "designer" && format !== "text") {
+  if (stage === "designer") {
     return "cards";
   }
 
-  if (stage === "editor" && format === "slideshow") {
-    return "text";
+  if (stage === "editor") {
+    return format === "video_meme" ? "text" : "cards";
   }
 
   const steps = getWizardStepsForStage(stage, format);

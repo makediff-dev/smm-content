@@ -89,6 +89,14 @@ function createSeedContent(
     sourceType: "url",
     sourceUrl: `https://example.com/${id}`,
     sourceFileName: "",
+    sourceUseLink: true,
+    sourceUseFile: false,
+    sourceNotesEnabled: false,
+    sourceNotes: "",
+    sourceFiles: [],
+    sourceExtracts: {},
+    cardsCount: 3,
+    videoTransition: "none",
     status: "draft",
     createdAt: daysAgo(1),
     cards: [],
@@ -116,6 +124,9 @@ function createSeedContent(
     },
     generationPrompt: "",
     ...overrides,
+    sourceLinks:
+      overrides.sourceLinks ??
+      [overrides.sourceUrl ?? `https://example.com/${id}`],
   };
 }
 
@@ -138,6 +149,7 @@ const SAMPLE_CARDS_WITH_IMAGES = SAMPLE_CARDS.map((card, index) => ({
   ...card,
   id: `card-img-${index + 1}`,
   imageUrl: `https://picsum.photos/seed/${index + 1}/540/675`,
+  headlineOnImage: true,
 }));
 
 export const SEED_PROJECTS: Project[] = [
@@ -531,7 +543,10 @@ export const SEED_CONTENT: ContentUnit[] = [
     createdAt: daysAgo(1),
     status: "in_progress",
     postText: "Разбираем типичные ошибки SMM-команд и как их избежать.",
-    cards: SAMPLE_CARDS,
+    cards: SAMPLE_CARDS_WITH_IMAGES.map((card, index) => ({
+      ...card,
+      id: `card-smm-${index + 1}`,
+    })),
     extractedTitle: "5 ошибок SMM",
     extractedText: "Команды часто публикуют контент без стратегии...",
   }),
@@ -539,7 +554,7 @@ export const SEED_CONTENT: ContentUnit[] = [
     createdAt: daysAgo(1),
     status: "in_progress",
     postText: "Как мы выросли от кухни до сервиса доставки по всей стране.",
-    cards: SAMPLE_CARDS.map((card, index) => ({
+    cards: SAMPLE_CARDS_WITH_IMAGES.map((card, index) => ({
       ...card,
       id: `card-fb-${index + 1}`,
       duration: 4,
@@ -560,6 +575,10 @@ export const SEED_CONTENT: ContentUnit[] = [
     status: "in_progress",
     postText:
       "Meal-prep экономит время и помогает питаться сбалансированно. 4 простых шага на неделю.",
+    cards: SAMPLE_CARDS_WITH_IMAGES.map((card, index) => ({
+      ...card,
+      id: `card-meal-${index + 1}`,
+    })),
     extractedTitle: "Meal-prep для занятых",
     extractedText: "Подготовка еды на неделю занимает 2 часа...",
   }),
@@ -604,14 +623,21 @@ export const SEED_CONTENT: ContentUnit[] = [
     extractedTitle: "Demo Q1",
     extractedText: "Новые функции аналитики и автопостинга...",
   }),
-  createSeedContent("content-16", "proj-1", "Итоги квартала", "gallery", {
-    createdAt: daysAgo(4),
-    status: "done",
-    postText: "HubAgency подводит итоги Q1: рост, кейсы, планы.",
-    cards: SAMPLE_CARDS_WITH_IMAGES,
-    extractedTitle: "Итоги Q1",
-    extractedText: "Ключевые метрики и достижения квартала...",
-  }),
+  createSeedContent(
+    "content-16",
+    "proj-1",
+    "Японские тюнеры прокачали Lexus GX",
+    "gallery",
+    {
+      createdAt: daysAgo(4),
+      status: "done",
+      postText:
+        "Японские тюнеры взяли Lexus GX и собрали машину под улицу и трассу: широкий кузов, другая подвеска, свет и салон. В материале девять слайдов 1080 × 1080 и отдельный кадр для сторис. Плашка стоит на всех номерах, подписи короткие, без спойлера в первом кадре. Какой кузов ближе вам — спокойный сток или этот кит?\n\n#lexus #gx #тюнинг",
+      cards: SAMPLE_CARDS_WITH_IMAGES,
+      extractedTitle: "Lexus GX",
+      extractedText: "Тюнинг Lexus GX в Японии...",
+    }
+  ),
   createSeedContent("content-17", "proj-2", "Новая линейка десертов", "text", {
     createdAt: daysAgo(3),
     status: "done",
@@ -632,14 +658,21 @@ export const SEED_CONTENT: ContentUnit[] = [
     extractedTitle: "Партнёрская интеграция",
     extractedText: "Совместное решение для контент-команд...",
   }),
-  createSeedContent("content-19", "proj-1", "Кейс клиента FinTech", "gallery", {
-    createdAt: daysAgo(5),
-    status: "done",
-    postText: "Как FinTech-клиент сократил время производства контента на 40%.",
-    cards: SAMPLE_CARDS_WITH_IMAGES,
-    extractedTitle: "Кейс FinTech",
-    extractedText: "Клиент из финтеха автоматизировал контент-процесс...",
-  }),
+  createSeedContent(
+    "content-19",
+    "proj-1",
+    "Японские тюнеры прокачали Lexus GX",
+    "gallery",
+    {
+      createdAt: daysAgo(5),
+      status: "done",
+      postText:
+        "Японские тюнеры взяли Lexus GX и собрали машину под улицу и трассу: широкий кузов, другая подвеска, свет и салон. В материале девять слайдов 1080 × 1080 и отдельный кадр для сторис. Какой кузов ближе вам — спокойный сток или этот кит?\n\n#lexus #gx #тюнинг",
+      cards: SAMPLE_CARDS_WITH_IMAGES,
+      extractedTitle: "Lexus GX",
+      extractedText: "Тюнинг Lexus GX в Японии...",
+    }
+  ),
   createSeedContent("content-20", "proj-2", "Подборка рецептов", "text", {
     createdAt: daysAgo(4),
     status: "done",
@@ -655,11 +688,14 @@ export const SEED_CONTENT: ContentUnit[] = [
     extractedText: "Простые шаги к более экологичному образу жизни...",
     sourceUrl: "https://example.com/eco-habits",
   }),
-  createSeedContent("content-22", "proj-3", "Zero waste в быту", "gallery", {
+  createSeedContent("content-22", "proj-3", "Zero waste в быту", "text", {
     createdAt: daysAgo(1),
     status: "in_progress",
     postText: "Как сократить отходы дома без больших затрат.",
-    cards: SAMPLE_CARDS,
+    cards: SAMPLE_CARDS_WITH_IMAGES.map((card, index) => ({
+      ...card,
+      id: `card-zw-${index + 1}`,
+    })),
     extractedTitle: "Zero waste",
     extractedText: "Практики zero waste для семьи...",
   }),
@@ -667,8 +703,35 @@ export const SEED_CONTENT: ContentUnit[] = [
     createdAt: daysAgo(2),
     status: "in_progress",
     postText: "Главные экологические тренды года для lifestyle-брендов.",
+    cards: SAMPLE_CARDS_WITH_IMAGES.map((card, index) => ({
+      ...card,
+      id: `card-eco-${index + 1}`,
+    })),
     extractedTitle: "Экотренды 2026",
     extractedText: "Устойчивость, upcycling и осознанное потребление...",
+  }),
+  createSeedContent("content-24", "proj-1", "Сямс для ленты", "gallery", {
+    createdAt: daysAgo(1),
+    status: "in_progress",
+    postText: "",
+    cards: SAMPLE_CARDS_WITH_IMAGES.map((card, index) => ({
+      ...card,
+      id: `card-syams-${index + 1}`,
+      shortText: index === 0 ? "Сямс" : card.shortText,
+    })),
+    extractedTitle: "Сямс",
+    extractedText: "Карточки после проверки дизайнера.",
+    promptId: "",
+  }),
+  createSeedContent("content-25", "proj-1", "Мем про ТО", "video_meme", {
+    createdAt: daysAgo(1),
+    status: "in_progress",
+    sourceType: "url",
+    sourceUrl: "https://example.com/meme-to.mp4",
+    postText:
+      "Когда увидел цену за ТО и вспомнил, что «просто заехать проверить».",
+    extractedTitle: "Мем про ТО",
+    extractedText: "Чужой ролик с подводкой про сервис.",
   }),
 ];
 
@@ -682,7 +745,7 @@ export const SEED_PROMPTS: Prompt[] = [
   },
   {
     id: "prompt-post",
-    name: "Генерация поста",
+    name: "новость / пост",
     description: "Промпт для создания текста поста в соцсети",
     category: "post",
     text: "Создай текст поста для Instagram на основе материала. Тон: экспертный, дружелюбный. До 500 символов.",
@@ -774,6 +837,7 @@ export const SEED_AI_SETTINGS: AIModelSettings = {
   imageModel: "black-forest-labs/flux-1.1-pro",
   voiceModel: "elevenlabs/multilingual-v2",
   generationLimit: 100,
+  monthlySpendLimit: 5000,
   connectionStatus: "connected",
 };
 
@@ -837,6 +901,26 @@ export const SEED_QUEUE: QueueTask[] = [
     contentUnitId: "content-6",
     createdAt: daysAgo(2),
     label: "Финализация текста — Дайджест новостей недели",
+  },
+  {
+    id: "queue-7",
+    type: "text_generation",
+    status: "done",
+    projectId: "proj-1",
+    managerId: "user-copywriter",
+    contentUnitId: "content-1",
+    createdAt: daysAgo(40),
+    label: "Генерация текста — Обзор AI-инструментов",
+  },
+  {
+    id: "queue-8",
+    type: "image_processing",
+    status: "done",
+    projectId: "proj-3",
+    managerId: "user-designer",
+    contentUnitId: "content-21",
+    createdAt: daysAgo(38),
+    label: "Обработка изображений — Эко-привычки на каждый день",
   },
 ];
 
@@ -940,7 +1024,7 @@ export const SEED_WORKFLOW_TASKS: ProductionTask[] = [
     id: "wf-22",
     contentUnitId: "content-22",
     projectId: "proj-3",
-    format: "gallery",
+    format: "text",
     scenario: "news",
     title: "Zero waste в быту",
     currentStage: "designer",
@@ -1001,7 +1085,36 @@ export const SEED_WORKFLOW_TASKS: ProductionTask[] = [
     status: "returned",
     returnComment: "Добавить ссылку на источник и убрать рекламные формулировки",
     returnToStage: "editor",
+    returnedByUserId: "user-editor",
+    returnedByStage: "editor",
     createdAt: daysAgo(2),
+    updatedAt: daysAgo(0),
+  },
+  {
+    id: "wf-24",
+    contentUnitId: "content-24",
+    projectId: "proj-1",
+    format: "gallery",
+    scenario: "scheduled",
+    title: "Сямс для ленты",
+    currentStage: "editor",
+    assigneeId: "user-editor",
+    status: "in_progress",
+    designApproved: true,
+    createdAt: daysAgo(1),
+    updatedAt: daysAgo(0),
+  },
+  {
+    id: "wf-25",
+    contentUnitId: "content-25",
+    projectId: "proj-1",
+    format: "video_meme",
+    scenario: "scheduled",
+    title: "Мем про ТО",
+    currentStage: "editor",
+    assigneeId: "user-editor",
+    status: "in_progress",
+    createdAt: daysAgo(1),
     updatedAt: daysAgo(0),
   },
   // Видеомонтажёр — 3 задачи
@@ -1052,8 +1165,8 @@ export const SEED_WORKFLOW_TASKS: ProductionTask[] = [
     contentUnitId: "content-16",
     projectId: "proj-1",
     format: "gallery",
-    scenario: "scheduled",
-    title: "Итоги квартала",
+    scenario: "news",
+    title: "Японские тюнеры прокачали Lexus GX",
     currentStage: "project_manager",
     assigneeId: "user-pm",
     status: "in_progress",
@@ -1106,7 +1219,7 @@ export const SEED_WORKFLOW_TASKS: ProductionTask[] = [
     projectId: "proj-1",
     format: "gallery",
     scenario: "scheduled",
-    title: "Кейс клиента FinTech",
+    title: "Японские тюнеры прокачали Lexus GX",
     currentStage: "posting_manager",
     assigneeId: "user-posting",
     status: "in_progress",
@@ -1138,6 +1251,58 @@ export const SEED_WORKFLOW_TASKS: ProductionTask[] = [
     status: "in_progress",
     createdAt: daysAgo(1),
     updatedAt: daysAgo(0),
+  },
+  {
+    id: "wf-done-1",
+    contentUnitId: "content-4",
+    projectId: "proj-2",
+    format: "gallery",
+    scenario: "scheduled",
+    title: "Новое меню FoodBox",
+    currentStage: "copywriter",
+    assigneeId: "user-copywriter",
+    status: "done",
+    createdAt: daysAgo(8),
+    updatedAt: daysAgo(8),
+  },
+  {
+    id: "wf-done-2",
+    contentUnitId: "content-4",
+    projectId: "proj-2",
+    format: "gallery",
+    scenario: "scheduled",
+    title: "Новое меню FoodBox — дизайн",
+    currentStage: "designer",
+    assigneeId: "user-designer",
+    status: "done",
+    createdAt: daysAgo(7),
+    updatedAt: daysAgo(4),
+  },
+  {
+    id: "wf-done-3",
+    contentUnitId: "content-4",
+    projectId: "proj-2",
+    format: "gallery",
+    scenario: "scheduled",
+    title: "Новое меню FoodBox — вычитка",
+    currentStage: "editor",
+    assigneeId: "user-editor",
+    status: "done",
+    createdAt: daysAgo(4),
+    updatedAt: daysAgo(4),
+  },
+  {
+    id: "wf-done-4",
+    contentUnitId: "content-4",
+    projectId: "proj-2",
+    format: "gallery",
+    scenario: "scheduled",
+    title: "Новое меню FoodBox — в план",
+    currentStage: "project_manager",
+    assigneeId: "user-pm",
+    status: "done",
+    createdAt: daysAgo(3),
+    updatedAt: daysAgo(1),
   },
 ];
 

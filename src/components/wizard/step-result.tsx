@@ -162,7 +162,9 @@ export function StepResult({ projectId, contentId }: StepResultProps) {
       ? "Готовая галерея"
       : format === "slideshow"
         ? "Готовое слайд-шоу"
-        : "Готовый текстовый пост";
+        : format === "video_meme"
+          ? "Готовый видео-мем"
+          : "Готовый текстовый пост";
 
   return (
     <div>
@@ -180,6 +182,18 @@ export function StepResult({ projectId, contentId }: StepResultProps) {
             </div>
           </div>
           <div className={styles.postPreviewBody}>{displayPost}</div>
+        </div>
+      ) : format === "video_meme" ? (
+        <div className={styles.resultLayout}>
+          <VideoPlayerStub />
+          <div>
+            <p className={styles.sectionHint}>
+              Ролик с подводкой и логотипом, нужный размер
+            </p>
+            <div className={styles.postPreview}>
+              <div className={styles.postPreviewBody}>{displayPost}</div>
+            </div>
+          </div>
         </div>
       ) : format === "gallery" ? (
         <>
@@ -233,18 +247,20 @@ export function StepResult({ projectId, contentId }: StepResultProps) {
           <Button onClick={() => handleDownload("ZIP")} disabled={!canDownload}>
             Скачать ZIP
           </Button>
-        ) : format === "slideshow" ? (
+        ) : format === "slideshow" || format === "video_meme" ? (
           <>
             <Button onClick={() => handleDownload("MP4")} disabled={!canDownload}>
               Скачать MP4
             </Button>
-            <Button
-              variant="secondary"
-              onClick={() => handleDownload("Карточки ZIP")}
-              disabled={!canDownload}
-            >
-              Скачать карточки
-            </Button>
+            {format === "slideshow" && (
+              <Button
+                variant="secondary"
+                onClick={() => handleDownload("Карточки ZIP")}
+                disabled={!canDownload}
+              >
+                Скачать карточки
+              </Button>
+            )}
           </>
         ) : (
           <>

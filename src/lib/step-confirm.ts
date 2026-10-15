@@ -45,13 +45,17 @@ const WIZARD_STEP_DESCRIPTIONS: Record<
         ? "Пост будет финализирован и подготовлен к публикации."
         : format === "gallery"
           ? "Галерея будет собрана, материалы подготовлены к скачиванию."
-          : "Видео будет собрано с озвучкой и подготовлено к скачиванию.",
+          : format === "video_meme"
+            ? "Мем будет собран: плашка, логотип, нужный размер."
+            : "Видео будет собрано с озвучкой и подготовлено к скачиванию.",
     confirmLabel:
       format === "text"
         ? "Подтвердить финализацию"
         : format === "gallery"
           ? "Подтвердить сборку"
-          : "Подтвердить сборку видео",
+          : format === "video_meme"
+            ? "Подтвердить сборку мема"
+            : "Подтвердить сборку видео",
   }),
   result: () => ({
     description: "Вы завершите работу над текущим шагом.",
@@ -97,9 +101,10 @@ export function getWizardStepConfirmContent(
 
 export function getWorkflowStageConfirmContent(
   stage: WorkflowStage,
-  format: ContentFormat
+  format: ContentFormat,
+  options?: { designApproved?: boolean }
 ): StepConfirmContent {
-  const nextStage = getNextStage(format, stage);
+  const nextStage = getNextStage(format, stage, options);
   const stageLabel = getStageLabel(stage);
   const isFinalStage = stage === "posting_manager" || !nextStage;
 
@@ -117,6 +122,27 @@ export function getWorkflowStageConfirmContent(
     title: `Подтвердить этап «${stageLabel}»?`,
     description: `Работа будет передана на этап «${getStageLabel(nextStage!)}». Убедитесь, что задачи текущего этапа выполнены.`,
     confirmLabel: "Подтвердить этап",
+    cancelLabel: "Отмена",
+  };
+}
+
+export function getAdminShiftConfirmContent(
+  fromLabel: string,
+  toLabel: string,
+  direction: "forward" | "back"
+): StepConfirmContent {
+  if (direction === "back") {
+    return {
+      title: "Откатить задачу?",
+      description: `Задача вернётся на предыдущий этап: с «${fromLabel}» на «${toLabel}».`,
+      confirmLabel: "Вернуться",
+      cancelLabel: "Отмена",
+    };
+  }
+  return {
+    title: "Переместить задачу дальше?",
+    description: `Задача перейдёт на следующий этап: с «${fromLabel}» на «${toLabel}».`,
+    confirmLabel: "Переместить далее",
     cancelLabel: "Отмена",
   };
 }

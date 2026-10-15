@@ -23,11 +23,7 @@ export function ContentUnitCard({
   const openHref =
     content.status === "done"
       ? `/history/${content.id}`
-      : content.status === "draft" || content.status === "in_progress"
-        ? content.formatConfirmed
-          ? `/projects/${projectId}/content/${content.id}/wizard/source`
-          : `/projects/${projectId}/content/${content.id}/wizard/format`
-        : `/history/${content.id}`;
+      : `/projects/${projectId}/content/${content.id}`;
 
   return (
     <Link

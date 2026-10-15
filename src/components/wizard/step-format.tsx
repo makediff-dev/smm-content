@@ -11,20 +11,31 @@ import {
 import { useWizardStepDisabled } from "@/components/wizard/wizard-step-context";
 import styles from "./wizard.module.css";
 
-const FORMAT_OPTIONS: ContentFormat[] = ["text", "gallery", "slideshow"];
+const FORMAT_OPTIONS: ContentFormat[] = [
+  "text",
+  "gallery",
+  "slideshow",
+  "video_meme",
+];
 
 export function StepFormat() {
   const updateContentUnit = useProjectsStore((s) => s.updateContentUnit);
   const format = useWizardStore((s) => s.format);
+  const selectedFormats = useWizardStore((s) => s.selectedFormats);
   const contentId = useWizardStore((s) => s.contentId);
   const setField = useWizardStore((s) => s.setField);
   const stepDisabled = useWizardStepDisabled();
 
   const handleSelect = (nextFormat: ContentFormat) => {
     if (stepDisabled) return;
-    setField("format", nextFormat);
-    if (contentId) {
-      updateContentUnit(contentId, { format: nextFormat });
+    const selected = selectedFormats.includes(nextFormat)
+      ? selectedFormats.filter((item) => item !== nextFormat)
+      : [...selectedFormats, nextFormat];
+    setField("selectedFormats", selected);
+    const primary = selected.includes(format) ? format : (selected[0] ?? format);
+    if (primary !== format) setField("format", primary);
+    if (contentId && selected.length > 0) {
+      updateContentUnit(contentId, { format: primary });
     }
   };
 
@@ -33,20 +44,22 @@ export function StepFormat() {
       <div className={styles.section}>
         <h3 className={styles.sectionTitle}>Выберите тип контента</h3>
         <p className={styles.sectionHint}>
-          От выбранного формата зависит сценарий создания и шаги мастера
+          Можно выбрать несколько типов — нажмите, чтобы подсветить, ещё раз,
+          чтобы снять. Для каждого выбранного формата пойдёт своя цепочка.
         </p>
       </div>
 
       <div className={styles.formatCards}>
         {FORMAT_OPTIONS.map((option) => {
           const Icon = formatIconMap[option];
-          const isActive = format === option;
+          const isActive = selectedFormats.includes(option);
 
           return (
             <button
               key={option}
               type="button"
               className={`${styles.formatCard} ${isActive ? styles.formatCardActive : ""}`}
+              aria-pressed={isActive}
               onClick={() => handleSelect(option)}
               disabled={stepDisabled}
             >

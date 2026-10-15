@@ -12,13 +12,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Table, TableColumn } from "@/components/ui/table";
 import { simulateTask } from "@/lib/simulate-generation";
-import type { Card } from "@/types";
+import { VIDEO_TRANSITIONS, type Card } from "@/types";
 import { useWizardStepDisabled } from "@/components/wizard/wizard-step-context";
 import styles from "./wizard.module.css";
 
 interface StepSlideshowBuildProps {
   onComplete: () => void;
   confirmBeforeAction?: (action: () => void) => void;
+  persistUnitStatus?: boolean;
 }
 
 const VOICE_OPTIONS = [
@@ -31,6 +32,7 @@ const VOICE_OPTIONS = [
 export function StepSlideshowBuild({
   onComplete,
   confirmBeforeAction,
+  persistUnitStatus = true,
 }: StepSlideshowBuildProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const addActionLog = useProjectsStore((s) => s.addActionLog);
@@ -42,6 +44,7 @@ export function StepSlideshowBuild({
   const narrationText = useWizardStore((s) => s.narrationText);
   const voiceModel = useWizardStore((s) => s.voiceModel);
   const speechSpeed = useWizardStore((s) => s.speechSpeed);
+  const videoTransition = useWizardStore((s) => s.videoTransition);
   const isVoiceGenerated = useWizardStore((s) => s.isVoiceGenerated);
   const isBuilding = useWizardStore((s) => s.isBuilding);
   const buildProgress = useWizardStore((s) => s.buildProgress);
@@ -88,6 +91,28 @@ export function StepSlideshowBuild({
       render: (r) => `${r.duration ?? 3} сек`,
     },
   ];
+
+  const persistVoiceFields = (patch: {
+    narrationText?: string;
+    voiceModel?: string;
+    speechSpeed?: number;
+    videoTransition?: string;
+  }) => {
+    if (contentId) updateContentUnit(contentId, patch);
+  };
+
+  const handleGenerateVoiceText = async () => {
+    if (!canEditNarration) return;
+    setField("isBuilding", true);
+    await simulateTask(() => undefined, ["queued", "in_progress"], 600);
+    const text = cards.map((card) => card.shortText).filter(Boolean).join(". ") + ".";
+    setField("narrationText", text);
+    persistVoiceFields({ narrationText: text });
+    setField("isBuilding", false);
+    if (contentId && currentUser) {
+      addActionLog(contentId, "Генерация текста озвучки", currentUser.name);
+    }
+  };
 
   const handleGenerateVoice = async () => {
     setField("isBuilding", true);
@@ -145,7 +170,9 @@ export function StepSlideshowBuild({
       (status) => {
         setField("buildStatus", status);
         updateTask(videoTaskId, { status });
-        if (contentId) updateContentUnit(contentId, { status });
+        if (contentId && persistUnitStatus) {
+          updateContentUnit(contentId, { status });
+        }
         if (status === "done") {
           setField("buildProgress", [
             "Задача в очереди",
@@ -167,16 +194,24 @@ export function StepSlideshowBuild({
   return (
     <div>
       <div className={styles.section}>
-        <h3 className={styles.sectionTitle}>Текст для озвучки</h3>
+        <div className={styles.textEditorHeader}>
+          <h3 className={styles.sectionTitle}>Текст для озвучки</h3>
+          <Button
+            variant="ghost"
+            size="small"
+            onClick={handleGenerateVoiceText}
+            disabled={!canEditNarration || stepDisabled || isBuilding}
+          >
+            {narrationText ? "Переписать" : "Сгенерировать"}
+          </Button>
+        </div>
         <Textarea
           value={narrationText}
           onChange={(e) => {
             setField("narrationText", e.target.value);
-            if (contentId) {
-              updateContentUnit(contentId, { narrationText: e.target.value });
-            }
+            persistVoiceFields({ narrationText: e.target.value });
           }}
-          placeholder="Текст будет сгенерирован автоматически..."
+          placeholder="Напишите текст диктора или сгенерируйте его по заданию"
           rows={4}
           disabled={!canEditNarration}
         />
@@ -190,7 +225,10 @@ export function StepSlideshowBuild({
           label="Голос / модель озвучки"
           options={VOICE_OPTIONS}
           value={voiceModel}
-          onChange={(e) => setField("voiceModel", e.target.value)}
+          onChange={(e) => {
+            setField("voiceModel", e.target.value);
+            persistVoiceFields({ voiceModel: e.target.value });
+          }}
           disabled={!canGenerateVoice}
         />
         <div>
@@ -205,13 +243,33 @@ export function StepSlideshowBuild({
               max="2"
               step="0.1"
               value={speechSpeed}
-              onChange={(e) => setField("speechSpeed", parseFloat(e.target.value))}
+              onChange={(e) => {
+              const speechSpeedValue = parseFloat(e.target.value);
+              setField("speechSpeed", speechSpeedValue);
+              persistVoiceFields({ speechSpeed: speechSpeedValue });
+            }}
               className={styles.slider}
               disabled={!canGenerateVoice}
             />
             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>2x</span>
           </div>
         </div>
+      </div>
+
+      <div className={styles.section}>
+        <Select
+          label="Переход между слайдами"
+          options={VIDEO_TRANSITIONS.map((item) => ({
+            value: item.value,
+            label: item.label,
+          }))}
+          value={videoTransition}
+          onChange={(e) => {
+            setField("videoTransition", e.target.value);
+            persistVoiceFields({ videoTransition: e.target.value });
+          }}
+          disabled={!canAssembleVideo}
+        />
       </div>
 
       <div className={styles.section}>

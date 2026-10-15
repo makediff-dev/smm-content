@@ -18,10 +18,11 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (hydrated) {
-      router.replace(currentUser ? "/projects" : "/login");
-    }
-  }, [hydrated, currentUser, router]);
+    if (!hydrated) return;
+    router.replace(currentUser ? "/projects" : "/login");
+    // router identity can change every render in App Router
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, currentUser]);
 
   return null;
 }

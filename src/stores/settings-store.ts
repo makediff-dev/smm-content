@@ -40,6 +40,7 @@ export const useSettingsStore = create<SettingsState>()(
           ...original,
           id: generateId("prompt"),
           name: `${original.name} (копия)`,
+          ownerId: original.ownerId ?? "own",
         };
         set((s) => ({ prompts: [...s.prompts, copy] }));
       },
@@ -86,6 +87,10 @@ export const useSettingsStore = create<SettingsState>()(
           ...persisted,
           prompts: persisted?.prompts?.length ? persisted.prompts : currentState.prompts,
           skills: persisted?.skills?.length ? persisted.skills : currentState.skills,
+          aiSettings: {
+            ...currentState.aiSettings,
+            ...persisted?.aiSettings,
+          },
         };
       },
     }

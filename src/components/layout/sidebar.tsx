@@ -8,6 +8,7 @@ import { useQueueStore } from "@/stores/queue-store";
 import { useWorkflowStore } from "@/stores/workflow-store";
 import { getNavigationForRole } from "@/lib/navigation";
 import { getRoleLabel, isManagementRole } from "@/lib/roles";
+import { getStuckTaskRows } from "@/lib/stuck-tracker";
 import { navIconMap } from "@/lib/nav-icons";
 import { NotificationsPanel } from "./notifications-panel";
 import styles from "./sidebar.module.css";
@@ -36,6 +37,11 @@ export function Sidebar() {
       : 0
   );
   const navItems = currentUser ? getNavigationForRole(currentUser.role) : [];
+  const users = useAuthStore((s) => s.users);
+  const tasks = useWorkflowStore((s) => s.tasks);
+  const stuckHotCount = isManagement
+    ? getStuckTaskRows(tasks, users).filter((row) => row.isHot).length
+    : 0;
   const queueBadgeCount = isManagement
     ? workflowCount + aiQueueCount
     : workflowCount;
@@ -72,6 +78,9 @@ export function Sidebar() {
               <span className={styles.navLabel}>{item.label}</span>
               {item.href === "/queue" && queueBadgeCount > 0 && (
                 <span className={styles.navBadge}>{queueBadgeCount}</span>
+              )}
+              {item.href === "/stuck" && stuckHotCount > 0 && (
+                <span className={styles.navBadge}>{stuckHotCount}</span>
               )}
             </Link>
           );

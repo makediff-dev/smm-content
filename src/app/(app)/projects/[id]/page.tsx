@@ -45,6 +45,7 @@ const FORMAT_TABS: { id: ContentFormat | "all"; label: string }[] = [
   { id: "gallery", label: "Галерея" },
   { id: "slideshow", label: "Слайд-шоу с озвучкой" },
   { id: "text", label: "Текстовый пост" },
+  { id: "video_meme", label: "Видео-мем" },
 ];
 
 export default function ProjectPage({
@@ -195,7 +196,7 @@ export default function ProjectPage({
   const handleCreateContent = () => {
     const contentId = createContentWithWorkflow();
     initWizard(projectId, contentId);
-    router.push(`/projects/${projectId}/content/${contentId}/wizard/format`);
+    router.push(`/projects/${projectId}/content/${contentId}`);
   };
 
   const handleSaveSettings = () => {

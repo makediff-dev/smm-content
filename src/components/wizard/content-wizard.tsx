@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/stores/auth-store";
 import { useWizardStore } from "@/stores/content-wizard-store";
 import { useProjectsStore } from "@/stores/projects-store";
-import { useWorkflowStore } from "@/stores/workflow-store";
+import {
+  createProductionTaskForContent,
+  useWorkflowStore,
+} from "@/stores/workflow-store";
 import { AppShell } from "@/components/layout/app-shell";
 import { WizardStepper } from "@/components/wizard/wizard-stepper";
 import { StepFormat } from "@/components/wizard/step-format";
@@ -12,12 +16,12 @@ import { StepSource } from "@/components/wizard/step-source";
 import { StepText } from "@/components/wizard/step-text";
 import { StepCards } from "@/components/wizard/step-cards";
 import { StepGalleryBuild } from "@/components/wizard/step-gallery-build";
-import { StepSlideshowBuild } from "@/components/wizard/step-slideshow-build";
 import { StepTextBuild } from "@/components/wizard/step-text-build";
 import { StepResult } from "@/components/wizard/step-result";
 import { WizardStepNavigation } from "@/components/wizard/wizard-step-navigation";
 import { WizardReadOnlyBanner } from "@/components/wizard/wizard-read-only-banner";
 import { WizardStepProvider } from "@/components/wizard/wizard-step-context";
+import { FORMAT_LABELS, formatUsesCards } from "@/types";
 import { StepConfirmModal } from "@/components/shared/step-confirm-modal";
 import { useWizardAccess } from "@/hooks/use-wizard-access";
 import { useStepConfirmModal } from "@/hooks/use-step-confirm-modal";
@@ -36,6 +40,7 @@ interface ContentWizardProps {
 export function ContentWizard({ projectId, contentId, step }: ContentWizardProps) {
   const router = useRouter();
   const format = useWizardStore((s) => s.format);
+  const selectedFormats = useWizardStore((s) => s.selectedFormats);
   const formatConfirmed = useWizardStore((s) => s.formatConfirmed);
   const initWizard = useWizardStore((s) => s.initWizard);
   const currentStep = useWizardStore((s) => s.currentStep);
@@ -46,11 +51,14 @@ export function ContentWizard({ projectId, contentId, step }: ContentWizardProps
   const cards = useWizardStore((s) => s.cards);
   const buildStatus = useWizardStore((s) => s.buildStatus);
   const getContentUnit = useProjectsStore((s) => s.getContentUnit);
+  const createContentUnit = useProjectsStore((s) => s.createContentUnit);
   const updateContentUnit = useProjectsStore((s) => s.updateContentUnit);
+  const createTask = useWorkflowStore((s) => s.createTask);
+  const users = useAuthStore((s) => s.users);
   const task = useWorkflowStore((s) => s.getTaskByContentId(contentId));
 
   const content = getContentUnit(contentId);
-  const stepOrder = getStepOrderForFormat(format);
+  const stepOrder = useMemo(() => getStepOrderForFormat(format), [format]);
   const hydratedContentIdRef = useRef<string | null>(null);
   const { readOnly, canEdit, currentStageLabel } = useWizardAccess(
     contentId,
@@ -82,10 +90,28 @@ export function ContentWizard({ projectId, contentId, step }: ContentWizardProps
     hydratedContentIdRef.current = contentId;
     initWizard(projectId, contentId, {
       format: content.format,
+      selectedFormats: content.formatConfirmed ? [content.format] : [],
       formatConfirmed: content.formatConfirmed ?? true,
       sourceType: content.sourceType ?? "url",
       sourceUrl: content.sourceUrl,
       sourceFileName: content.sourceFileName ?? "",
+      sourceUseLink: content.sourceUseLink ?? content.sourceType !== "file",
+      sourceUseFile: content.sourceUseFile ?? content.sourceType === "file",
+      sourceNotesEnabled: content.sourceNotesEnabled ?? false,
+      sourceNotes: content.sourceNotes ?? "",
+      sourceLinks: content.sourceLinks?.length
+        ? content.sourceLinks
+        : content.sourceUrl
+          ? [content.sourceUrl]
+          : [""],
+      sourceFiles: content.sourceFiles?.length
+        ? content.sourceFiles
+        : content.sourceFileName
+          ? [{ id: "seed-file", name: content.sourceFileName }]
+          : [],
+      sourceExtracts: content.sourceExtracts ?? {},
+      cardsCount: content.cardsCount ?? 3,
+      videoTransition: content.videoTransition ?? "none",
       promptId: content.promptId,
       additionalInstructions: content.additionalInstructions,
       extractedTitle: content.extractedTitle,
@@ -99,7 +125,7 @@ export function ContentWizard({ projectId, contentId, step }: ContentWizardProps
       isExtracted: !!content.extractedText,
       isPostGenerated: !!content.postText,
       voiceModel: content.voiceModel,
-      speechSpeed: content.speechSpeed,
+      speechSpeed: content.speechSpeed ?? 1,
       narrationText: content.narrationText,
       buildOptions: content.buildOptions,
       textTone: content.textTone ?? "friendly",
@@ -116,14 +142,16 @@ export function ContentWizard({ projectId, contentId, step }: ContentWizardProps
   }, [contentId, projectId, content, task?.currentStage, initWizard]);
 
   useEffect(() => {
-    if (!content || task?.currentStage !== "designer") return;
-    setField(
-      "cardsPhase",
-      getInitialCardsPhaseForStage("designer", content.cards)
-    );
-  }, [content, task?.currentStage, setField]);
+    if (task?.currentStage !== "designer") return;
+    const unit = useProjectsStore.getState().getContentUnit(contentId);
+    if (!unit) return;
+    const next = getInitialCardsPhaseForStage("designer", unit.cards);
+    if (useWizardStore.getState().cardsPhase === next) return;
+    setField("cardsPhase", next);
+  }, [contentId, task?.currentStage, setField]);
 
   useEffect(() => {
+    if (useWizardStore.getState().currentStep === step) return;
     setField("currentStep", step);
   }, [step, setField]);
 
@@ -133,13 +161,15 @@ export function ContentWizard({ projectId, contentId, step }: ContentWizardProps
         `/projects/${projectId}/content/${contentId}/wizard/${stepOrder[0]}`
       );
     }
-  }, [step, stepOrder, projectId, contentId, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, stepOrder, projectId, contentId]);
 
   useEffect(() => {
     if (!formatConfirmed && step !== "format") {
       router.replace(`/projects/${projectId}/content/${contentId}/wizard/format`);
     }
-  }, [formatConfirmed, step, projectId, contentId, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formatConfirmed, step, projectId, contentId]);
 
   const navigateTo = (targetStep: WizardStep) => {
     router.push(
@@ -168,8 +198,49 @@ export function ContentWizard({ projectId, contentId, step }: ContentWizardProps
 
   const saveFormatAndNext = () => {
     if (!contentId) return;
-    updateContentUnit(contentId, { format, formatConfirmed: true });
+    const formats = selectedFormats.length > 0 ? selectedFormats : [format];
+    const primary = formats.includes(format) ? format : formats[0];
+    const source = getContentUnit(contentId);
+    updateContentUnit(contentId, { format: primary, formatConfirmed: true });
+    setField("format", primary);
     setField("formatConfirmed", true);
+
+    formats
+      .filter((item) => item !== primary)
+      .forEach((extraFormat) => {
+        const extraId = createContentUnit(projectId, {
+          title: source
+            ? `${source.title} · ${FORMAT_LABELS[extraFormat]}`
+            : FORMAT_LABELS[extraFormat],
+          format: extraFormat,
+          formatConfirmed: true,
+          sourceType: source?.sourceType,
+          sourceUrl: source?.sourceUrl,
+          sourceFileName: source?.sourceFileName,
+          sourceUseLink: source?.sourceUseLink,
+          sourceUseFile: source?.sourceUseFile,
+          sourceNotesEnabled: source?.sourceNotesEnabled,
+          sourceNotes: source?.sourceNotes,
+          sourceLinks: source?.sourceLinks,
+          sourceFiles: source?.sourceFiles,
+          sourceExtracts: source?.sourceExtracts,
+          promptId: source?.promptId,
+          generationPrompt: source?.generationPrompt,
+        });
+        const extra = getContentUnit(extraId);
+        if (extra) {
+          createTask(
+            createProductionTaskForContent(
+              extraId,
+              projectId,
+              extraFormat,
+              extra.title
+            ),
+            users
+          );
+        }
+      });
+
     goNext();
   };
 
@@ -207,7 +278,10 @@ export function ContentWizard({ projectId, contentId, step }: ContentWizardProps
 
   const currentStepIndex = stepOrder.indexOf(currentStep);
   const canGoBack = currentStepIndex > 0;
-  const canGoForward = currentStepIndex >= 0 && currentStepIndex < stepOrder.length - 1;
+  const canGoForward =
+    currentStepIndex >= 0 &&
+    currentStepIndex < stepOrder.length - 1 &&
+    (currentStep !== "format" || selectedFormats.length > 0);
 
   return (
     <AppShell projectId={projectId} breadcrumb="Создание контента">
@@ -227,20 +301,15 @@ export function ContentWizard({ projectId, contentId, step }: ContentWizardProps
               {currentStep === "format" && <StepFormat />}
               {currentStep === "source" && <StepSource />}
               {currentStep === "text" && <StepText />}
-              {currentStep === "cards" && format !== "text" && <StepCards />}
+              {currentStep === "cards" && formatUsesCards(format) && <StepCards />}
               {currentStep === "build" && format === "gallery" && (
                 <StepGalleryBuild
                   onComplete={handleComplete}
                   confirmBeforeAction={confirmBeforeAction}
                 />
               )}
-              {currentStep === "build" && format === "slideshow" && (
-                <StepSlideshowBuild
-                  onComplete={handleComplete}
-                  confirmBeforeAction={confirmBeforeAction}
-                />
-              )}
-              {currentStep === "build" && format === "text" && (
+              {currentStep === "build" &&
+                (format === "text" || format === "video_meme") && (
                 <StepTextBuild
                   onComplete={handleComplete}
                   confirmBeforeAction={confirmBeforeAction}

@@ -27,6 +27,12 @@ const EXTRACTION_BY_FORMAT: Record<ContentFormat, MockExtractionData> = {
       "На этой неделе Meta обновила алгоритм ленты, TikTok расширил инструменты для B2B, а исследование HubSpot показало рост использования AI в контент-командах на 35%.\n\nЭксперты рекомендуют адаптировать стратегии под оригинальный контент и короткие форматы.",
     images: [],
   },
+  video_meme: {
+    title: "Ролик для видео-мема",
+    text:
+      "Исходный ролик: реакция водителя на ценник в салоне. Подводка на плашку должна быть короткой, смешной и по делу, без пересказа всего клипа.",
+    images: [],
+  },
 };
 
 const POST_TEXT_BY_FORMAT: Record<ContentFormat, string> = {
@@ -36,6 +42,7 @@ const POST_TEXT_BY_FORMAT: Record<ContentFormat, string> = {
     "SaaS-рынок в 2026: три тренда, которые нельзя игнорировать. Смотрите слайд-шоу с ключевыми тезисами для вашей аудитории.",
   text:
     "Главное за неделю в digital:\n\n• Meta обновила алгоритм ленты\n• TikTok расширил B2B-инструменты\n• AI в контент-командах +35%\n\n#маркетинг #digital",
+  video_meme: "Когда увидел цену за ТО и вспомнил, что «просто заехать проверить».",
 };
 
 export function getMockExtractionData(format: ContentFormat): MockExtractionData {

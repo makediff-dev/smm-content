@@ -5,6 +5,8 @@ import type {
   Card,
   ContentFormat,
   SourceType,
+  SourceExtract,
+  SourceFileRef,
   TaskStatus,
   TextLength,
   TextTone,
@@ -17,10 +19,20 @@ interface WizardState {
   projectId: string | null;
   currentStep: WizardStep;
   format: ContentFormat;
+  selectedFormats: ContentFormat[];
   formatConfirmed: boolean;
   sourceType: SourceType;
   sourceUrl: string;
   sourceFileName: string;
+  sourceUseLink: boolean;
+  sourceUseFile: boolean;
+  sourceNotesEnabled: boolean;
+  sourceNotes: string;
+  sourceLinks: string[];
+  sourceFiles: SourceFileRef[];
+  sourceExtracts: Record<string, SourceExtract>;
+  cardsCount: number;
+  videoTransition: string;
   promptId: string;
   additionalInstructions: string;
   extractedTitle: string;
@@ -68,10 +80,20 @@ const initialState = {
   projectId: null as string | null,
   currentStep: "source" as WizardStep,
   format: "gallery" as ContentFormat,
+  selectedFormats: [] as ContentFormat[],
   formatConfirmed: false,
   sourceType: "url" as SourceType,
   sourceUrl: "",
   sourceFileName: "",
+  sourceUseLink: true,
+  sourceUseFile: false,
+  sourceNotesEnabled: false,
+  sourceNotes: "",
+  sourceLinks: [""],
+  sourceFiles: [] as SourceFileRef[],
+  sourceExtracts: {} as Record<string, SourceExtract>,
+  cardsCount: 3,
+  videoTransition: "none",
   promptId: "prompt-post",
   additionalInstructions: "",
   extractedTitle: "",
@@ -120,11 +142,13 @@ export const useWizardStore = create<WizardState>()((set) => ({
       projectId,
       contentId,
       ...data,
+      speechSpeed: data?.speechSpeed ?? initialState.speechSpeed,
       selectedCardId: data?.cards?.[0]?.id ?? null,
     });
   },
 
-  setField: (key, value) => set({ [key]: value }),
+  setField: (key, value) =>
+    set((state) => (state[key] === value ? state : { [key]: value })),
 
   resetWizard: () => set(initialState),
 }));

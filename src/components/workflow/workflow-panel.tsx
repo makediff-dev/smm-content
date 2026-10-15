@@ -18,7 +18,6 @@ import {
   canUserActOnStage,
 } from "@/lib/workflow";
 import {
-  getWizardStepForStage,
   getReturnTargetStages,
   isWorkflowOversightRole,
 } from "@/lib/workflow-access";
@@ -85,7 +84,9 @@ export function WorkflowPanel({ contentUnitId }: WorkflowPanelProps) {
 
   const openApproveModal = () => {
     requestConfirm(
-      getWorkflowStageConfirmContent(task.currentStage, task.format),
+      getWorkflowStageConfirmContent(task.currentStage, task.format, {
+        designApproved: task.designApproved,
+      }),
       handleApprove
     );
   };
@@ -112,7 +113,7 @@ export function WorkflowPanel({ contentUnitId }: WorkflowPanelProps) {
   };
 
   const wizardHref = content
-    ? `/projects/${content.projectId}/content/${contentUnitId}/wizard/${getWizardStepForStage(task.currentStage, content.format)}`
+    ? `/projects/${content.projectId}/content/${contentUnitId}`
     : null;
 
   return (

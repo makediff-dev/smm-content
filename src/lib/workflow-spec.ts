@@ -1,8 +1,9 @@
-import type {
-  CardsPhase,
-  ContentFormat,
-  WizardStep,
-  WorkflowStage,
+import {
+  formatUsesCards,
+  type CardsPhase,
+  type ContentFormat,
+  type WizardStep,
+  type WorkflowStage,
 } from "@/types";
 
 export type BuildCapability = "narration" | "voice" | "assembly";
@@ -27,15 +28,15 @@ const STAGE_ACCESS: Record<
     },
     designer: {
       editableSteps: ["cards"],
-      cardsPhases: ["phrases", "edit", "images"],
+      cardsPhases: ["images"],
       buildCapabilities: null,
-      description: "Заголовки, визуал, загрузка и замена изображений",
+      description: "Проверка кадра, плашки и замена изображений",
     },
     editor: {
-      editableSteps: ["text"],
-      cardsPhases: null,
+      editableSteps: ["text", "cards"],
+      cardsPhases: ["phrases", "edit", "images"],
       buildCapabilities: null,
-      description: "Проверка текста и превью карточек 1080×1080",
+      description: "Вычитка текста и генерация заголовков карточек",
     },
     project_manager: {
       editableSteps: ["source", "text", "cards", "build", "result"],
@@ -59,15 +60,15 @@ const STAGE_ACCESS: Record<
     },
     designer: {
       editableSteps: ["cards"],
-      cardsPhases: ["phrases", "edit", "images"],
+      cardsPhases: ["images"],
       buildCapabilities: null,
-      description: "Оценка, скачивание, замена и добавление изображений",
+      description: "Проверка кадра, плашки и замена изображений",
     },
     editor: {
-      editableSteps: ["text", "build"],
-      cardsPhases: null,
-      buildCapabilities: ["narration"],
-      description: "Текст для озвучки, готовые слайды, возврат копирайтеру/дизайнеру",
+      editableSteps: ["text", "cards"],
+      cardsPhases: ["phrases", "edit", "images"],
+      buildCapabilities: null,
+      description: "Вычитка текста и заголовков слайдов",
     },
     video_editor: {
       editableSteps: ["build"],
@@ -96,13 +97,19 @@ const STAGE_ACCESS: Record<
       description: "Источник и текст поста (длинный / сокращённый)",
     },
     editor: {
-      editableSteps: ["text", "build"],
-      cardsPhases: null,
-      buildCapabilities: ["assembly"],
-      description: "Проверка текста и финализация перед менеджером",
+      editableSteps: ["text", "cards"],
+      cardsPhases: ["phrases", "edit", "images"],
+      buildCapabilities: null,
+      description: "Вычитка текста и генерация заголовков карточек",
+    },
+    designer: {
+      editableSteps: ["cards"],
+      cardsPhases: ["images"],
+      buildCapabilities: null,
+      description: "Проверка кадра, плашки и замена изображений",
     },
     project_manager: {
-      editableSteps: ["source", "text", "build", "result"],
+      editableSteps: ["source", "text", "cards", "build", "result"],
       cardsPhases: null,
       buildCapabilities: null,
       description: "Итоговая проверка, возврат на любой этап, слот в КП",
@@ -112,6 +119,32 @@ const STAGE_ACCESS: Record<
       cardsPhases: null,
       buildCapabilities: null,
       description: "Готовый пост и скачивание",
+    },
+  },
+  video_meme: {
+    copywriter: {
+      editableSteps: ["source", "text"],
+      cardsPhases: null,
+      buildCapabilities: null,
+      description: "Находит видео и пишет подводку",
+    },
+    editor: {
+      editableSteps: ["text"],
+      cardsPhases: null,
+      buildCapabilities: null,
+      description: "Вычитка подводки",
+    },
+    designer: {
+      editableSteps: ["cards", "build"],
+      cardsPhases: ["images"],
+      buildCapabilities: ["assembly"],
+      description: "Вёрстка мема, другие файлы и музыка",
+    },
+    project_manager: {
+      editableSteps: ["source", "text", "build", "result"],
+      cardsPhases: null,
+      buildCapabilities: null,
+      description: "Согласование видео и слот в КП",
     },
   },
 };
@@ -136,9 +169,9 @@ export function getEditableWizardSteps(
   format: ContentFormat
 ): WizardStep[] {
   const allowed =
-    format === "text"
-      ? (["source", "text", "build", "result"] as WizardStep[])
-      : (["source", "text", "cards", "build", "result"] as WizardStep[]);
+    formatUsesCards(format) || format === "text"
+      ? (["source", "text", "cards", "build", "result"] as WizardStep[])
+      : (["source", "text", "build", "result"] as WizardStep[]);
 
   if (stage === "project_manager" || stage === "posting_manager") {
     return getStageStepAccess(stage, format).editableSteps.filter((step) =>
@@ -159,7 +192,7 @@ export function canEditCardsPhaseForStage(
   const access = getStageStepAccess(stage, format);
   if (!access.cardsPhases) return false;
   if (access.cardsPhases.includes(phase)) return true;
-  // "phrases" and "edit" share the same card-title UI; designer edits titles after copywriter.
+  // "phrases" and "edit" share the same card-title UI on the editor.
   if (phase === "phrases" && access.cardsPhases.includes("edit")) return true;
   return false;
 }

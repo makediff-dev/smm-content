@@ -5,6 +5,7 @@ import {
   Images,
   FilmStrip,
   TextAlignLeft,
+  VideoCamera,
   type Icon,
 } from "@phosphor-icons/react";
 import type { ContentFormat } from "@/types";
@@ -16,4 +17,5 @@ export const formatIconMap: Record<FormatFilterId, Icon> = {
   gallery: Images,
   slideshow: FilmStrip,
   text: TextAlignLeft,
+  video_meme: VideoCamera,
 };

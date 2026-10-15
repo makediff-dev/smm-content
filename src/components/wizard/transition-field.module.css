@@ -1,0 +1,278 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* селект тянется, превью держит свою ширину */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.row > *:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-light);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* вертикальный кадр — как у слайда в ролике */
+.preview {
+  position: relative;
+  flex-shrink: 0;
+  width: 54px;
+  height: 96px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--flash, var(--bg-muted));
+}
+
+.frame {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+  animation-duration: 2.4s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+.a {
+  background: linear-gradient(140deg, #6d7cff, #3f4bd8);
+}
+
+.b {
+  background: linear-gradient(140deg, #ff9a6d, #e05c3f);
+}
+
+/*
+ * Кадры держат стартовое и конечное состояние по трети цикла: без пауз
+ * непонятно, что именно происходит на стыке.
+ */
+.cut .b {
+  animation-name: cutIn;
+  animation-timing-function: steps(1);
+}
+
+@keyframes cutIn {
+  0%,
+  45% {
+    opacity: 0;
+  }
+  46%,
+  100% {
+    opacity: 1;
+  }
+}
+
+.fade .b {
+  animation-name: fadeIn;
+}
+
+/* растворение — то же затухание, но рывками: так его и видно в ролике */
+.dissolve .b {
+  animation-name: fadeIn;
+  animation-timing-function: steps(6);
+}
+
+@keyframes fadeIn {
+  0%,
+  25% {
+    opacity: 0;
+  }
+  65%,
+  100% {
+    opacity: 1;
+  }
+}
+
+/* вспышка: первый кадр уходит в цвет фона, из него же появляется второй */
+.flash .a {
+  animation-name: flashOut;
+}
+
+.flash .b {
+  animation-name: flashIn;
+}
+
+@keyframes flashOut {
+  0%,
+  20% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes flashIn {
+  0%,
+  50% {
+    opacity: 0;
+  }
+  80%,
+  100% {
+    opacity: 1;
+  }
+}
+
+.wipe .b {
+  animation-name: wipeIn;
+}
+
+@keyframes wipeIn {
+  0%,
+  25% {
+    clip-path: inset(
+      calc(var(--t, 0) * 100%) calc(var(--r, 0) * 100%) calc(var(--b, 0) * 100%)
+        calc(var(--l, 0) * 100%)
+    );
+  }
+  65%,
+  100% {
+    clip-path: inset(0);
+  }
+}
+
+.slide .a {
+  animation-name: slideOut;
+}
+
+.slide .b {
+  animation-name: slideIn;
+}
+
+@keyframes slideOut {
+  0%,
+  25% {
+    transform: translate(0, 0);
+  }
+  65%,
+  100% {
+    transform: translate(
+      calc(var(--dx) * -100%),
+      calc(var(--dy) * -100%)
+    );
+  }
+}
+
+@keyframes slideIn {
+  0%,
+  25% {
+    transform: translate(calc(var(--dx) * 100%), calc(var(--dy) * 100%));
+  }
+  65%,
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+.circleopen .b {
+  animation-name: circleIn;
+}
+
+@keyframes circleIn {
+  0%,
+  25% {
+    clip-path: circle(0%);
+  }
+  65%,
+  100% {
+    clip-path: circle(85%);
+  }
+}
+
+/* круг схлопывается на первом кадре, поэтому он лежит поверх второго */
+.circleclose .a {
+  z-index: 1;
+  animation-name: circleOut;
+}
+
+@keyframes circleOut {
+  0%,
+  25% {
+    clip-path: circle(85%);
+  }
+  65%,
+  100% {
+    clip-path: circle(0%);
+  }
+}
+
+.blur .a {
+  animation-name: blurOut;
+}
+
+.blur .b {
+  animation-name: blurIn;
+}
+
+@keyframes blurOut {
+  0%,
+  25% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  65%,
+  100% {
+    opacity: 0;
+    filter: blur(6px);
+  }
+}
+
+@keyframes blurIn {
+  0%,
+  25% {
+    opacity: 0;
+    filter: blur(6px);
+  }
+  65%,
+  100% {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.zoom .b {
+  animation-name: zoomIn;
+}
+
+@keyframes zoomIn {
+  0%,
+  25% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  65%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frame {
+    animation: none;
+  }
+
+  .b {
+    opacity: 1;
+  }
+}

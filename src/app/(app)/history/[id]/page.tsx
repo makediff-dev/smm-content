@@ -121,7 +121,7 @@ export default function HistoryPage({
       generationPrompt: content.generationPrompt,
     });
     router.push(
-      `/projects/${content.projectId}/content/${newId}/wizard/format`
+      `/projects/${content.projectId}/content/${newId}`
     );
   };
 
@@ -305,7 +305,7 @@ export default function HistoryPage({
             variant="ghost"
             onClick={() =>
               router.push(
-                `/projects/${content.projectId}/content/${contentId}/wizard/result`
+                `/projects/${content.projectId}/content/${contentId}`
               )
             }
           >

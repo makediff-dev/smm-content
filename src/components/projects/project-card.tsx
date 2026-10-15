@@ -41,7 +41,7 @@ export function ProjectCard({
       )}
 
       <div className={styles.section}>
-        <div className={styles.sectionLabel}>Менеджеры</div>
+        <div className={styles.sectionLabel}>Сотрудники</div>
         <div>
           {managerNames.map((name) => (
             <span key={name} className={styles.tag}>{name}</span>

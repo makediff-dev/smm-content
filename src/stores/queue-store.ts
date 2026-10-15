@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { QueueTask, QueueTaskType, TaskStatus } from "@/types";
 import { SEED_QUEUE } from "@/data/seed";
+import { mergeSeedQueue } from "@/lib/seed-sync";
 import { generateId } from "@/lib/simulate-generation";
 
 interface QueueState {
@@ -73,7 +74,17 @@ export const useQueueStore = create<QueueState>()(
 
       resetTasks: () => set({ tasks: SEED_QUEUE }),
     }),
-    { name: "smm-queue" }
+    {
+      name: "smm-queue",
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<QueueState> | undefined;
+        return {
+          ...currentState,
+          ...persisted,
+          tasks: mergeSeedQueue(persisted?.tasks),
+        };
+      },
+    }
   )
 );
 
