@@ -1,26 +1,60 @@
 .shell {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: var(--bg-app);
 }
 
 .body {
+  position: relative;
   display: flex;
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
 
+.navBackdrop {
+  display: none;
+}
+
 .main {
   flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   background: var(--bg-main);
   padding: 32px 36px;
+  padding-bottom: calc(32px + env(safe-area-inset-bottom));
 }
 
 .content {
   max-width: 1280px;
   margin: 0 auto;
+  min-width: 0;
+}
+
+@media (max-width: 960px) {
+  .navBackdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 70;
+    border: none;
+    background: rgba(0, 0, 0, 0.28);
+    cursor: pointer;
+  }
+
+  .main {
+    padding: 20px 16px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 640px) {
+  .main {
+    padding: 16px 12px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
 }

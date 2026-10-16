@@ -156,11 +156,9 @@ function ReportCard({ report }: { report: PersonTaskReport }) {
         <p className={styles.comment}>Возврат: {report.returnComment}</p>
       )}
       {report.href && (
-        <div className={styles.comment}>
+        <div className={styles.cardActions}>
           <Link href={report.href}>
-            <Button variant="ghost" size="small">
-              Открыть задачу
-            </Button>
+            <Button variant="secondary">Открыть задачу</Button>
           </Link>
         </div>
       )}

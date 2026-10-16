@@ -258,16 +258,25 @@
   padding: 0 12px;
   border: none;
   border-radius: var(--radius-pill);
-  background: var(--bg-muted);
-  color: var(--text-muted);
+  background: #ececee;
+  color: var(--text);
   font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.filterChip:hover {
+  background: #e0e0e3;
 }
 
 .filterChipActive {
   background: var(--accent);
   color: var(--accent-text);
-  font-weight: 600;
+}
+
+.filterChipActive:hover {
+  background: var(--accent-hover);
 }
 
 .archiveList {
@@ -321,8 +330,26 @@
     flex-direction: column;
   }
 
+  .actions,
+  .weekNav,
+  .boardHead,
+  .legend {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .weekRange {
+    min-width: 0;
+    text-align: start;
+  }
+
   .archiveRow {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .pageTitle {
+    font-size: 24px;
   }
 }

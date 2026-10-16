@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableColumn } from "@/components/ui/table";
 import { tableStyles } from "@/components/ui/table";
 import { LogoUploadSection } from "@/components/projects/logo-upload-section";
-import type { LogoAsset, QueueTask, ContentFormat } from "@/types";
+import type { LogoAsset, QueueTask, ContentFormat, TaskStatus } from "@/types";
 import { FORMAT_LABELS, QUEUE_TYPE_LABELS, STATUS_LABELS } from "@/types";
 import { formatDate } from "@/lib/simulate-generation";
 import { matchesSearch, normalizeSearchQuery } from "@/lib/search";
@@ -31,7 +31,6 @@ import Link from "next/link";
 import { ListBullets, SquaresFour } from "@phosphor-icons/react";
 import styles from "./project.module.css";
 import contentStyles from "@/components/projects/content-unit-card.module.css";
-import { formatIconMap } from "@/lib/format-icons";
 
 const PROJECT_TABS = [
   { id: "content", label: "Контент" },
@@ -40,12 +39,20 @@ const PROJECT_TABS = [
   { id: "members", label: "Участники" },
 ];
 
-const FORMAT_TABS: { id: ContentFormat | "all"; label: string }[] = [
+const FORMAT_FILTERS: { id: ContentFormat | "all"; label: string }[] = [
   { id: "all", label: "Все" },
-  { id: "gallery", label: "Галерея" },
-  { id: "slideshow", label: "Слайд-шоу с озвучкой" },
-  { id: "text", label: "Текстовый пост" },
-  { id: "video_meme", label: "Видео-мем" },
+  { id: "gallery", label: FORMAT_LABELS.gallery },
+  { id: "slideshow", label: FORMAT_LABELS.slideshow },
+  { id: "text", label: FORMAT_LABELS.text },
+  { id: "video_meme", label: FORMAT_LABELS.video_meme },
+];
+
+const STATUS_FILTERS: { id: TaskStatus | "all"; label: string }[] = [
+  { id: "all", label: "Все" },
+  ...Object.entries(STATUS_LABELS).map(([id, label]) => ({
+    id: id as TaskStatus,
+    label,
+  })),
 ];
 
 export default function ProjectPage({
@@ -68,6 +75,7 @@ export default function ProjectPage({
 
   const [activeTab, setActiveTab] = useState("content");
   const [formatFilter, setFormatFilter] = useState<ContentFormat | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
   const [contentView, setContentView] = useState<"list" | "grid">("list");
   const [saved, setSaved] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
@@ -94,6 +102,7 @@ export default function ProjectPage({
   const contentUnits = useMemo(() => {
     return allProjectContent.filter((c) => {
       if (formatFilter !== "all" && c.format !== formatFilter) return false;
+      if (statusFilter !== "all" && c.status !== statusFilter) return false;
       return matchesSearch(
         query,
         c.title,
@@ -101,9 +110,9 @@ export default function ProjectPage({
         STATUS_LABELS[c.status]
       );
     });
-  }, [allProjectContent, formatFilter, query]);
+  }, [allProjectContent, formatFilter, statusFilter, query]);
 
-  const formatCounts = FORMAT_TABS.reduce(
+  const formatCounts = FORMAT_FILTERS.reduce(
     (acc, tab) => {
       acc[tab.id] =
         tab.id === "all"
@@ -112,6 +121,17 @@ export default function ProjectPage({
       return acc;
     },
     {} as Record<ContentFormat | "all", number>
+  );
+
+  const statusCounts = STATUS_FILTERS.reduce(
+    (acc, tab) => {
+      acc[tab.id] =
+        tab.id === "all"
+          ? allProjectContent.length
+          : allProjectContent.filter((c) => c.status === tab.id).length;
+      return acc;
+    },
+    {} as Record<TaskStatus | "all", number>
   );
 
   const filteredQueueTasks = useMemo(() => {
@@ -268,36 +288,33 @@ export default function ProjectPage({
         <>
           <div className={contentStyles.toolbar}>
             <div className={contentStyles.toolbarFormats}>
-              <span className={contentStyles.formatTabsLabel}>Формат</span>
-              <div className={contentStyles.formatTabs}>
-                {FORMAT_TABS.map((tab) => {
-                  const TabIcon = formatIconMap[tab.id];
-                  const isActive = formatFilter === tab.id;
-
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={isActive}
-                      className={`${contentStyles.formatTab} ${
-                        isActive ? contentStyles.formatTabActive : ""
-                      }`}
-                      onClick={() => setFormatFilter(tab.id)}
-                    >
-                      <TabIcon
-                        size={16}
-                        weight={isActive ? "fill" : "regular"}
-                        className={contentStyles.formatTabIcon}
-                        aria-hidden
-                      />
-                      <span>{tab.label}</span>
-                      <span className={contentStyles.formatTabCount}>
-                        {formatCounts[tab.id]}
-                      </span>
-                    </button>
-                  );
-                })}
+              <div className={contentStyles.filterField}>
+                <Select
+                  id="content-format-filter"
+                  label="Формат"
+                  value={formatFilter}
+                  onChange={(event) =>
+                    setFormatFilter(event.target.value as ContentFormat | "all")
+                  }
+                  options={FORMAT_FILTERS.map((tab) => ({
+                    value: tab.id,
+                    label: `${tab.label} · ${formatCounts[tab.id]}`,
+                  }))}
+                />
+              </div>
+              <div className={contentStyles.filterField}>
+                <Select
+                  id="content-status-filter"
+                  label="Статус"
+                  value={statusFilter}
+                  onChange={(event) =>
+                    setStatusFilter(event.target.value as TaskStatus | "all")
+                  }
+                  options={STATUS_FILTERS.map((tab) => ({
+                    value: tab.id,
+                    label: `${tab.label} · ${statusCounts[tab.id]}`,
+                  }))}
+                />
               </div>
             </div>
             <div className={contentStyles.toolbarActions}>
@@ -332,17 +349,23 @@ export default function ProjectPage({
           {contentUnits.length === 0 ? (
             <EmptyState
               title={
-                normalizeSearchQuery(query)
+                normalizeSearchQuery(query) ||
+                formatFilter !== "all" ||
+                statusFilter !== "all"
                   ? "Ничего не найдено"
                   : "Контент не найден"
               }
               description={
-                normalizeSearchQuery(query)
-                  ? "Попробуйте изменить запрос"
+                normalizeSearchQuery(query) ||
+                formatFilter !== "all" ||
+                statusFilter !== "all"
+                  ? "Попробуйте изменить запрос или фильтры"
                   : "Создайте первую контент-единицу для этого проекта"
               }
               action={
-                !normalizeSearchQuery(query) ? (
+                !normalizeSearchQuery(query) &&
+                formatFilter === "all" &&
+                statusFilter === "all" ? (
                   <Button onClick={handleCreateContent}>Создать контент</Button>
                 ) : undefined
               }

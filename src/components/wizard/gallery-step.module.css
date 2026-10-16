@@ -33,6 +33,17 @@
   gap: 12px 8px;
 }
 
+@media (max-width: 640px) {
+  .choiceRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 .choiceLabel {
   color: var(--text-muted);
   font-size: 13px;
@@ -69,19 +80,20 @@
   width: 100%;
   min-height: 120px;
   padding: 12px 14px;
-  border: 1.5px solid transparent;
+  border: none;
   border-radius: var(--radius);
-  background: var(--bg-muted);
+  background: var(--field-bg);
   color: var(--text);
   font: inherit;
   line-height: 1.55;
   resize: vertical;
+  box-shadow: var(--field-ring);
 }
 
 .post:focus {
   outline: none;
-  border-color: var(--accent);
-  background: var(--bg-white);
+  background: var(--field-bg);
+  box-shadow: var(--field-ring-focus);
 }
 
 .cardsTitle {

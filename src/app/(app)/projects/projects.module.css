@@ -239,6 +239,16 @@
 }
 
 @media (max-width: 960px) {
+  .pageHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pageHeaderActions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
   .stats {
     grid-template-columns: 1fr;
   }
@@ -246,5 +256,14 @@
   .queueItem {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .queueActions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

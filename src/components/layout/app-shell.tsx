@@ -1,6 +1,7 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./top-bar";
 import styles from "./app-shell.module.css";
@@ -12,11 +13,40 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, projectId, breadcrumb }: AppShellProps) {
+  const pathname = usePathname();
+  const [navOpen, setNavOpen] = useState(false);
+
+  useEffect(() => {
+    setNavOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setNavOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [navOpen]);
+
   return (
     <div className={styles.shell}>
-      <TopBar projectId={projectId} breadcrumb={breadcrumb} />
+      <TopBar
+        projectId={projectId}
+        breadcrumb={breadcrumb}
+        navOpen={navOpen}
+        onToggleNav={() => setNavOpen((open) => !open)}
+      />
       <div className={styles.body}>
-        <Sidebar />
+        {navOpen && (
+          <button
+            type="button"
+            className={styles.navBackdrop}
+            aria-label="Закрыть меню"
+            onClick={() => setNavOpen(false)}
+          />
+        )}
+        <Sidebar open={navOpen} onNavigate={() => setNavOpen(false)} />
         <main className={styles.main}>
           <div className={styles.content}>{children}</div>
         </main>

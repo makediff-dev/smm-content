@@ -1,11 +1,11 @@
 .page {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--bg-app);
   position: relative;
-  padding-bottom: 56px;
+  padding: 24px 16px 72px;
 }
 
 .card {
@@ -16,6 +16,19 @@
   border-radius: var(--radius-xl);
   padding: 44px;
   box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 28px 20px;
+  }
+
+  .disclaimer {
+    left: 16px;
+    right: 16px;
+    transform: none;
+    text-align: center;
+  }
 }
 
 .title {

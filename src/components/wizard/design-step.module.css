@@ -260,17 +260,18 @@
   width: 100%;
   min-height: 40px;
   padding: 8px 10px;
-  border: 1.5px solid transparent;
+  border: none;
   border-radius: var(--radius);
-  background: var(--bg-muted);
+  background: var(--field-bg);
   color: var(--text);
   font: inherit;
   resize: vertical;
+  box-shadow: var(--field-ring);
 }
 
 .number:focus {
   outline: none;
-  border-color: var(--accent);
+  box-shadow: var(--field-ring-focus);
 }
 
 .color {
@@ -280,7 +281,8 @@
   padding: 2px;
   border: none;
   border-radius: var(--radius);
-  background: var(--bg-muted);
+  background: var(--field-bg);
+  box-shadow: var(--field-ring);
   cursor: pointer;
 }
 
@@ -460,7 +462,7 @@
 
 .canvasHost {
   position: relative;
-  width: 620px;
+  width: min(620px, 100%);
   max-width: 100%;
   aspect-ratio: var(--frame-aspect, 1);
   height: auto;
@@ -471,7 +473,7 @@
 }
 
 .previewVertical .canvasHost {
-  width: calc(var(--preview-h) * 9 / 16);
+  width: min(100%, calc(var(--preview-h) * 9 / 16));
   height: var(--preview-h);
   max-width: 100%;
   aspect-ratio: 9 / 16;
@@ -676,10 +678,6 @@
   .previewVertical .canvasHost {
     width: min(100%, 280px);
     aspect-ratio: 9 / 16;
-  }
-
-  .previewSquare .canvasHost {
-    width: min(100%, 620px);
   }
 
   .photos,

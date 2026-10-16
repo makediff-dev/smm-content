@@ -22,7 +22,12 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  open?: boolean;
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ open = false, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -52,7 +57,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className={styles.sidebar}>
+    <aside className={`${styles.sidebar} ${open ? styles.sidebarOpen : ""}`}>
       <div className={styles.logo}>
         <div className={styles.logoText}>SMM Content</div>
         <div className={styles.logoSub}>UX-прототип</div>
@@ -69,6 +74,7 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={`${styles.navItem} ${isActive ? styles.active : ""}`}
+              onClick={onNavigate}
             >
               <Icon
                 size={20}

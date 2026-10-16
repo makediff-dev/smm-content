@@ -16,9 +16,24 @@
   padding: 28px;
   width: 100%;
   max-width: 480px;
-  max-height: 90vh;
+  max-height: 90dvh;
   overflow-y: auto;
   box-shadow: var(--shadow-md);
+  margin: 16px;
+}
+
+@media (max-width: 640px) {
+  .modal {
+    padding: 20px 16px;
+  }
+
+  .footer {
+    flex-wrap: wrap;
+  }
+
+  .footer > * {
+    flex: 1 1 140px;
+  }
 }
 
 .title {

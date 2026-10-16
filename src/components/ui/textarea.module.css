@@ -14,18 +14,19 @@
   padding: 10px 14px;
   border: none;
   border-radius: var(--radius);
-  background: var(--bg-soft);
+  background: var(--field-bg);
   color: var(--text);
   outline: none;
   resize: vertical;
   min-height: 80px;
   line-height: 1.55;
+  box-shadow: var(--field-ring);
   transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .textarea:focus {
-  background: var(--bg-white);
-  box-shadow: inset 0 0 0 1.5px var(--border-accent);
+  background: var(--field-bg);
+  box-shadow: var(--field-ring-focus);
 }
 
 .textarea::placeholder {

@@ -168,3 +168,18 @@
   background: var(--accent-muted);
   color: var(--accent);
 }
+
+@media (max-width: 960px) {
+  .sidebar {
+    position: absolute;
+    z-index: 80;
+    inset: 0 auto 0 0;
+    transform: translateX(-105%);
+    transition: transform 0.2s ease;
+    box-shadow: var(--shadow-md);
+  }
+
+  .sidebarOpen {
+    transform: translateX(0);
+  }
+}

@@ -1,31 +1,33 @@
 .tabs {
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-bottom: 28px;
-  background: var(--bg-soft);
-  padding: 4px;
-  border-radius: var(--radius-pill);
   width: fit-content;
+  max-width: 100%;
 }
 
 .tab {
   padding: 8px 18px;
-  background: none;
+  background: #ececee;
   border: none;
   border-radius: var(--radius-pill);
   font-size: 14px;
-  color: var(--text-muted);
+  font-weight: 500;
+  color: var(--text);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
 .tab:hover {
-  color: var(--text);
+  background: #e0e0e3;
 }
 
 .active {
-  color: var(--accent);
-  font-weight: 500;
-  background: var(--bg-white);
-  box-shadow: var(--shadow-sm);
+  color: var(--accent-text);
+  background: var(--accent);
+}
+
+.active:hover {
+  background: var(--accent-hover);
 }

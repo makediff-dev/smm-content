@@ -108,10 +108,11 @@
   padding: 10px 14px;
   border: none;
   border-radius: var(--radius-pill);
-  background: var(--bg-white);
+  background: var(--field-bg);
   color: var(--text);
   font: inherit;
   outline: none;
+  box-shadow: var(--field-ring);
 }
 
 .copyrightField .input {
@@ -119,7 +120,7 @@
 }
 
 .input:focus {
-  box-shadow: inset 0 0 0 1.5px var(--border-accent);
+  box-shadow: var(--field-ring-focus);
 }
 
 .input:disabled {
@@ -203,7 +204,7 @@
 .refineInput {
   flex: 1;
   min-width: 220px;
-  background: var(--bg-muted);
+  background: transparent;
 }
 
 .footer {
@@ -409,10 +410,16 @@
   flex: 1;
   min-height: 40px;
   padding: 8px 12px;
-  border: 1.5px solid transparent;
+  border: none;
   border-radius: var(--radius);
-  background: var(--bg-muted);
+  background: var(--field-bg);
   font: inherit;
+  outline: none;
+  box-shadow: var(--field-ring);
+}
+
+.linkRow input:focus {
+  box-shadow: var(--field-ring-focus);
 }
 
 @media (max-width: 720px) {

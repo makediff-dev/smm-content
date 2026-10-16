@@ -87,7 +87,6 @@ export default function StuckPage() {
                 <p className={styles.personWait}>
                   Дольше всего: {person.longestLabel}
                 </p>
-                <p className={styles.personHint}>Отчёт по задачам</p>
               </Link>
             ))}
           </section>
@@ -143,9 +142,7 @@ function StuckRow({ row }: { row: StuckTaskRow }) {
       </div>
       <span className={styles.time}>{row.durationLabel}</span>
       <Link href={row.href} className={styles.open}>
-        <Button variant="ghost" size="small">
-          Открыть
-        </Button>
+        <Button variant="secondary">Открыть</Button>
       </Link>
     </li>
   );
