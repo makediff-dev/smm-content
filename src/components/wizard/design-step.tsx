@@ -48,12 +48,22 @@ import type {
 import styles from "./design-step.module.css";
 import wizardStyles from "./wizard.module.css";
 
+const SLIDESHOW_CROP_FORMAT = {
+  label: "1080×1920",
+  width: 1080,
+  height: 1920,
+} as const;
+
 const CROP_FORMATS = [
   { label: "1080×1080", width: 1080, height: 1080 },
   { label: "1000×700", width: 1000, height: 700 },
   { label: "1080×960", width: 1080, height: 960 },
   { label: "Свободная" },
 ] as const;
+
+type CropFormatOption =
+  | (typeof CROP_FORMATS)[number]
+  | typeof SLIDESHOW_CROP_FORMAT;
 
 const GRADIENT_OPTIONS: { value: GradientPlacement | null; label: string }[] = [
   { value: null, label: "Нет" },
@@ -192,14 +202,16 @@ export function DesignStep() {
     project?.brandStyle?.trim() || project?.imageRules?.trim()
   );
   const isMeme = format === "video_meme";
+  const isSlideshow = format === "slideshow";
+  const cropFormats: readonly CropFormatOption[] = isSlideshow
+    ? [SLIDESHOW_CROP_FORMAT]
+    : CROP_FORMATS;
 
   const [selectedId, setSelectedId] = useState("");
   const [activeIndex, setActiveIndex] = useState<number | null>(0);
-  const [cropFormat, setCropFormat] = useState<(typeof CROP_FORMATS)[number] | null>(
-    null
-  );
-  const [frameFormat, setFrameFormat] = useState<(typeof CROP_FORMATS)[number]>(
-    CROP_FORMATS[0]
+  const [cropFormat, setCropFormat] = useState<CropFormatOption | null>(null);
+  const [frameFormat, setFrameFormat] = useState<CropFormatOption>(
+    isSlideshow ? SLIDESHOW_CROP_FORMAT : CROP_FORMATS[0]
   );
   const [originals, setOriginals] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -215,14 +227,20 @@ export function DesignStep() {
   }, []);
 
   useEffect(() => {
-    if (isMeme) {
+    if (isSlideshow) {
+      setFrameFormat(SLIDESHOW_CROP_FORMAT);
+    }
+  }, [isSlideshow]);
+
+  useEffect(() => {
+    if (isMeme || isSlideshow) {
       setStageSize({ width: 1080, height: 1920 });
       return;
     }
     if ("width" in frameFormat) {
       setStageSize({ width: frameFormat.width, height: frameFormat.height });
     }
-  }, [frameFormat, isMeme]);
+  }, [frameFormat, isMeme, isSlideshow]);
 
   const patchCards = useCallback(
     (patches: Patches) => {
@@ -409,7 +427,7 @@ export function DesignStep() {
       cards.length > 0
         ? cards
         : getMockCards(format, project?.defaultCopyright ?? "");
-    replaceCards(buildGeneratedPhotos(base, contentId ?? "design"));
+    replaceCards(buildGeneratedPhotos(base, contentId ?? "design", format));
     setBusy(false);
   };
 
@@ -451,7 +469,7 @@ export function DesignStep() {
 
   const keepFocus = (event: MouseEvent) => event.preventDefault();
 
-  const frameAspect = isMeme
+  const frameAspect = isMeme || isSlideshow
     ? 9 / 16
     : "width" in frameFormat
       ? frameFormat.width / frameFormat.height
@@ -481,7 +499,9 @@ export function DesignStep() {
 
       <div className={styles.layout}>
         <div
-          className={`${styles.previewRow} ${isMeme ? styles.previewMeme : ""}`}
+          className={`${styles.previewRow} ${
+            isMeme || isSlideshow ? styles.previewVertical : styles.previewSquare
+          }`}
           style={{ "--frame-aspect": String(frameAspect) } as CSSProperties}
         >
           <div className={styles.stage}>
@@ -627,9 +647,9 @@ export function DesignStep() {
             )}
           </div>
 
-          {!isMeme && (
+          {(isMeme ? cards : withPhoto).length > 0 && (
           <ul className={styles.photos} aria-label="Фотографии карточек">
-            {withPhoto.map((card, index) => (
+            {(isMeme ? cards : withPhoto).map((card, index) => (
               <li key={card.id}>
                 <button
                   type="button"
@@ -641,8 +661,12 @@ export function DesignStep() {
                     setActiveIndex(0);
                   }}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={card.imageUrl} alt="" />
+                  {card.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={card.imageUrl} alt="" />
+                  ) : (
+                    <span className={styles.videoFallback}>▶</span>
+                  )}
                   <span className={styles.photoIndex}>#{index + 1}</span>
                   {card.designDirty && <span className={styles.photoBadge}>Изменено</span>}
                 </button>
@@ -657,7 +681,7 @@ export function DesignStep() {
           <div className={`${styles.field} ${styles.spanAll}`}>
             <span className={styles.label}>Формат фото</span>
             <div className={styles.formats}>
-              {CROP_FORMATS.map((item) => (
+              {cropFormats.map((item) => (
                 <button
                   key={item.label}
                   type="button"

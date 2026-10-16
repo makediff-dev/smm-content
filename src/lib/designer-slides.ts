@@ -1,4 +1,5 @@
 import type { Card, ContentFormat, ContentUnit } from "@/types";
+import { photoSizeForFormat } from "@/lib/workspace-generation";
 
 export type DesignerTool = "crop" | "plaque" | "text" | "dim";
 
@@ -20,9 +21,14 @@ export function getDesignerFrameLabel(format: ContentFormat): string {
   return "1080 × 1920";
 }
 
-function padGallerySlides(cards: Card[], contentId: string): Card[] {
+function padGallerySlides(
+  cards: Card[],
+  contentId: string,
+  format?: ContentFormat
+): Card[] {
   if (cards.length >= 9) return cards;
   const next = [...cards];
+  const size = photoSizeForFormat(format);
   while (next.length < 9) {
     const index = next.length;
     next.push({
@@ -30,7 +36,7 @@ function padGallerySlides(cards: Card[], contentId: string): Card[] {
       shortText: `Слайд ${index + 1}`,
       copyright: "",
       status: index === 3 ? "needs_edit" : "ready",
-      imageUrl: `https://picsum.photos/seed/${contentId}-${index + 1}/1080/1080`,
+      imageUrl: `https://picsum.photos/seed/${contentId}-${index + 1}/${size.width}/${size.height}`,
     });
   }
   return next;
@@ -43,13 +49,13 @@ export function getDesignerSlides(content: ContentUnit): Card[] {
       content.format === "slideshow" ||
       content.format === "text"
     ) {
-      return padGallerySlides(content.cards, content.id);
+      return padGallerySlides(content.cards, content.id, content.format);
     }
     return content.cards;
   }
 
   if (content.format === "text") {
-    return padGallerySlides([], content.id);
+    return padGallerySlides([], content.id, content.format);
   }
 
   if (content.format === "video_meme") {
@@ -72,12 +78,13 @@ export function getDesignerSlides(content: ContentUnit): Card[] {
 
   const labels = phrases.length > 0 ? phrases : ["Слайд"];
 
+  const size = photoSizeForFormat(content.format);
   return Array.from({ length: Math.max(9, labels.length) }, (_, index) => ({
     id: `slide-${content.id}-${index + 1}`,
     shortText: labels[index % labels.length] ?? `Слайд ${index + 1}`,
     copyright: "",
     status: index === 3 ? ("needs_edit" as const) : ("ready" as const),
-    imageUrl: `https://picsum.photos/seed/${content.id}-${index + 1}/1080/1080`,
+    imageUrl: `https://picsum.photos/seed/${content.id}-${index + 1}/${size.width}/${size.height}`,
   }));
 }
 

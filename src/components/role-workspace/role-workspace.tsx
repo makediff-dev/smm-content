@@ -33,7 +33,12 @@ import {
   getStageLabel,
 } from "@/lib/workflow";
 import { buildGeneratedPhotos } from "@/lib/workspace-generation";
+import {
+  hasPreviousStageVersion,
+  isViewingPreviousVersion,
+} from "@/lib/stage-versions";
 import { getRoleLabel, isAdminRole } from "@/lib/roles";
+import { formatTaskDeadlineLabel, isTaskDeadlineHot } from "@/lib/task-deadline";
 import {
   buildScheduledAt,
   useContentPlanStore,
@@ -187,6 +192,8 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   const project = useProjectsStore((s) => s.getProject(projectId));
   const updateContentUnit = useProjectsStore((s) => s.updateContentUnit);
   const addActionLog = useProjectsStore((s) => s.addActionLog);
+  const captureStageVersion = useProjectsStore((s) => s.captureStageVersion);
+  const toggleStageVersion = useProjectsStore((s) => s.toggleStageVersion);
   const task = useWorkflowStore((s) => s.getTaskByContentId(contentId));
   const approveStage = useWorkflowStore((s) => s.approveStage);
   const returnStage = useWorkflowStore((s) => s.returnStage);
@@ -215,7 +222,17 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
     task,
     isAdmin ? viewStage : null
   );
-  useHydrateWizardFromContent(projectId, contentId, content, activeStage);
+  const versionView =
+    content && activeStage
+      ? (content.stageVersions?.[activeStage]?.viewing ?? "current")
+      : "current";
+  useHydrateWizardFromContent(
+    projectId,
+    contentId,
+    content,
+    activeStage,
+    `${activeStage ?? "none"}:${versionView}`
+  );
   const canApprove =
     task && currentUser ? canUserApproveTask(currentUser, task) : false;
   const returnTargets =
@@ -296,6 +313,8 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   }
 
   const stage = activeStage ?? task.currentStage;
+  const canToggleVersion = hasPreviousStageVersion(content, stage);
+  const viewingPrevious = isViewingPreviousVersion(content, stage);
   const isReturned = task.status === "returned";
   const designerSlides = getDesignerSlides(content);
   const problemSlide = getProblemSlideIndex(designerSlides);
@@ -323,6 +342,7 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
 
   const handleApprove = () => {
     if (viewingOtherStage) return;
+    captureStageVersion(contentId, task.currentStage);
     if (
       content.format === "text" &&
       task.currentStage === "editor" &&
@@ -332,7 +352,7 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
         content.cards.length > 0 ? content.cards : getDesignerSlides(content);
       if (!slides.some((slide) => slide.imageUrl)) {
         updateContentUnit(contentId, {
-          cards: buildGeneratedPhotos(slides, content.id),
+          cards: buildGeneratedPhotos(slides, content.id, content.format),
         });
       }
     }
@@ -424,6 +444,7 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
         content.format === "video_meme" ||
         content.format === "gallery",
     });
+    captureStageVersion(contentId, task.currentStage);
     approveStage(task.id, currentUser, users, addActionLog);
     addActionLog(
       contentId,
@@ -438,11 +459,13 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
       designApproved: task.designApproved,
     });
     const target = previous[previous.length - 1] ?? task.currentStage;
+    captureStageVersion(contentId, task.currentStage);
     returnStage(task.id, target, comment.trim(), currentUser, users, addActionLog);
   };
 
   const handleReturn = () => {
     if (!returnComment.trim()) return;
+    captureStageVersion(contentId, task.currentStage);
     const target =
       returnTarget === AI_RETURN_VALUE ? task.currentStage : (returnTarget as WorkflowStage);
     const comment =
@@ -469,12 +492,19 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
               ? getPostingStatusLabel(task.status, postingSlot?.scheduledAt)
               : getWorkspaceStatusLabel(task.status, stage, { aiWorking })}
           </span>
-          {!isPostingStage && (
-            <span className={`${styles.badge} ${styles.badgeLater}`}>срок · позже</span>
-          )}
+          <span
+            className={`${styles.badge} ${
+              isTaskDeadlineHot(task) ? styles.badgeReturned : styles.badgeLater
+            }`}
+          >
+            {formatTaskDeadlineLabel(task)}
+          </span>
         </div>
 
         <h1 className={styles.title}>{content.title}</h1>
+        {viewingPrevious && (
+          <p className={styles.comment}>Показана прошлая версия этого этапа</p>
+        )}
 
         <div className={styles.layout}>
           <section className={styles.previewCard} aria-label="Результат">
@@ -514,6 +544,16 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
           </section>
 
           <div className={styles.sideStack}>
+            {canToggleVersion && (
+              <Button
+                type="button"
+                variant="secondary"
+                fullWidth
+                onClick={() => toggleStageVersion(contentId, stage)}
+              >
+                {viewingPrevious ? "Новая версия" : "Прошлая версия"}
+              </Button>
+            )}
             {isAdmin && (
               <section className={styles.sideCard} aria-label="Этапы">
                 <h2 className={styles.sideTitle}>Этапы</h2>

@@ -11,16 +11,18 @@ export function useHydrateWizardFromContent(
   projectId: string,
   contentId: string,
   content: ContentUnit | undefined,
-  currentStage?: WorkflowStage
+  currentStage?: WorkflowStage,
+  versionKey?: string
 ) {
   const initWizard = useWizardStore((s) => s.initWizard);
   const hydratedContentIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!content) return;
-    if (hydratedContentIdRef.current === contentId) return;
+    const key = `${contentId}:${versionKey ?? "current"}`;
+    if (hydratedContentIdRef.current === key) return;
 
-    hydratedContentIdRef.current = contentId;
+    hydratedContentIdRef.current = key;
     initWizard(projectId, contentId, {
       format: content.format,
       selectedFormats: content.formatConfirmed ? [content.format] : [],
@@ -67,5 +69,5 @@ export function useHydrateWizardFromContent(
       buildStatus: content.status === "done" ? "done" : "idle",
       selectedCardId: content.cards[0]?.id ?? null,
     });
-  }, [contentId, projectId, content, currentStage, initWizard]);
+  }, [contentId, projectId, content, currentStage, versionKey, initWizard]);
 }

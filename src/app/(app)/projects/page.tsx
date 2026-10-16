@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useWorkflowStore } from "@/stores/workflow-store";
-import { useContentPlanStore } from "@/stores/content-plan-store";
+import { isTaskDeadlineHot } from "@/lib/task-deadline";
 import { AppShell } from "@/components/layout/app-shell";
 import { useSearch } from "@/components/layout/search-context";
 import { ProjectCard } from "@/components/projects/project-card";
@@ -141,7 +141,6 @@ function RoleProjectsHome() {
   const router = useRouter();
   const currentUser = useAuthStore((s) => s.currentUser);
   const tasks = useWorkflowStore((s) => s.tasks);
-  const slots = useContentPlanStore((s) => s.slots);
   const getProjectsForUser = useProjectsStore((s) => s.getProjectsForUser);
   const createProject = useProjectsStore((s) => s.createProject);
 
@@ -163,10 +162,11 @@ function RoleProjectsHome() {
     .length;
   const returnedCount = homeTasks.filter((task) => task.status === "returned")
     .length;
+  const hotCount = homeTasks.filter((task) => isTaskDeadlineHot(task)).length;
 
   const queueItems = useMemo(
-    () => buildHomeQueueItems(homeTasks, slots),
-    [homeTasks, slots]
+    () => buildHomeQueueItems(homeTasks),
+    [homeTasks]
   );
 
   if (!currentUser) return null;
@@ -205,11 +205,10 @@ function RoleProjectsHome() {
             <strong className={styles.statValue}>{returnedCount}</strong>
           </article>
           <article
-            className={`${styles.stat} ${styles.statLater}`}
-            title="Сроки и дедлайны появятся позже. Сейчас видно длительность этапов."
+            className={`${styles.stat} ${hotCount > 0 ? styles.statReturned : ""}`}
           >
-            <span className={styles.statLabel}>Горит срок · позже</span>
-            <strong className={styles.statValue}>–</strong>
+            <span className={styles.statLabel}>Горит срок</span>
+            <strong className={styles.statValue}>{hotCount}</strong>
           </article>
         </div>
 
@@ -232,13 +231,11 @@ function RoleProjectsHome() {
                     </p>
                   </div>
                   <div className={styles.queueActions}>
-                    {item.timeLabel && (
-                      <span className={styles.timeBadge}>
-                        {item.timeLabel === "завтра"
-                          ? "завтра"
-                          : `срок ${item.timeLabel}`}
-                      </span>
-                    )}
+                    <span
+                      className={`${styles.timeBadge} ${styles[`timeBadge_${item.deadlineTone}`]}`}
+                    >
+                      {item.timeLabel}
+                    </span>
                     <Link href={item.href} className={styles.openButton}>
                       Открыть
                     </Link>

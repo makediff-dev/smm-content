@@ -9,6 +9,7 @@ import type {
   Skill,
   User,
 } from "@/types";
+import { takeStageSnapshot } from "@/lib/stage-versions";
 
 export const SEED_USERS: User[] = [
   {
@@ -924,7 +925,7 @@ export const SEED_QUEUE: QueueTask[] = [
   },
 ];
 
-export const SEED_WORKFLOW_TASKS: ProductionTask[] = [
+const SEED_WORKFLOW_TASKS_BASE: ProductionTask[] = [
   // Копирайтер — 4 задачи
   {
     id: "wf-1",
@@ -1305,6 +1306,90 @@ export const SEED_WORKFLOW_TASKS: ProductionTask[] = [
     updatedAt: daysAgo(1),
   },
 ];
+
+function dueToday(hours: number, minutes = 0): string {
+  const date = new Date(now);
+  date.setHours(hours, minutes, 0, 0);
+  return date.toISOString();
+}
+
+function dueInDays(days: number, hours = 12): string {
+  const date = new Date(now);
+  date.setDate(date.getDate() + days);
+  date.setHours(hours, 0, 0, 0);
+  return date.toISOString();
+}
+
+const DUE_BY_ID: Record<string, string> = {
+  "wf-1": dueToday(16),
+  "wf-3": dueInDays(1, 18),
+  "wf-6": dueToday(18, 30),
+  "wf-7": dueInDays(5, 12),
+  "wf-2": dueToday(12),
+  "wf-8": dueInDays(1, 15),
+  "wf-9": dueInDays(4, 12),
+  "wf-22": dueToday(19),
+  "wf-10": dueToday(15),
+  "wf-11": dueInDays(1, 11),
+  "wf-12": dueInDays(3, 12),
+  "wf-23": dueToday(11),
+  "wf-24": dueInDays(1, 17),
+  "wf-25": dueInDays(6, 12),
+  "wf-4": dueToday(17),
+  "wf-13": dueInDays(1, 14),
+  "wf-14": dueInDays(3, 12),
+  "wf-15": dueToday(13),
+  "wf-16": dueInDays(1, 16),
+  "wf-17": dueInDays(5, 12),
+  "wf-5": dueToday(20),
+  "wf-18": dueInDays(1, 10),
+  "wf-19": dueInDays(4, 12),
+  "wf-20": dueToday(10),
+  "wf-done-1": dueInDays(-8),
+  "wf-done-2": dueInDays(-4),
+  "wf-done-3": dueInDays(-4),
+  "wf-done-4": dueInDays(-1),
+};
+
+export const SEED_WORKFLOW_TASKS: ProductionTask[] = SEED_WORKFLOW_TASKS_BASE.map(
+  (task) => ({
+    ...task,
+    dueAt: DUE_BY_ID[task.id] ?? dueInDays(2),
+  })
+);
+
+SEED_WORKFLOW_TASKS.forEach((task) => {
+  const unit = SEED_CONTENT.find((item) => item.id === task.contentUnitId);
+  if (!unit) return;
+  const current = takeStageSnapshot(unit);
+  const previous = {
+    ...current,
+    postText: current.postText
+      ? current.postText.replace(/\.\s*$/, " — черновая версия.")
+      : "Черновой текст до правки.",
+    cards: current.cards.map((card, index) =>
+      index === 0
+        ? {
+            ...card,
+            shortText: card.shortText
+              ? `${card.shortText} (старое)`
+              : "Старый кадр",
+          }
+        : { ...card }
+    ),
+    narrationText: current.narrationText
+      ? `${current.narrationText} Черновик.`
+      : current.narrationText,
+  };
+  unit.stageVersions = {
+    ...unit.stageVersions,
+    [task.currentStage]: {
+      previous,
+      current,
+      viewing: "current",
+    },
+  };
+});
 
 export function getSeedData() {
   return {

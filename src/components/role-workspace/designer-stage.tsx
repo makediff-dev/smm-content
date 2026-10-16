@@ -13,7 +13,7 @@ import {
   type SlideOverlay,
 } from "@/lib/designer-slides";
 import { simulateTask } from "@/lib/simulate-generation";
-import { buildGeneratedPhotos } from "@/lib/workspace-generation";
+import { buildGeneratedPhotos, photoSizeForFormat } from "@/lib/workspace-generation";
 import { useAuthStore } from "@/stores/auth-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import styles from "./role-workspace.module.css";
@@ -72,7 +72,7 @@ export function DesignerStage({
     if (locked) return;
     setBusy("Генерация фотографий…");
     await simulateTask(() => {}, ["queued", "in_progress", "done"], 800);
-    commit(buildGeneratedPhotos(slides, content.id));
+    commit(buildGeneratedPhotos(slides, content.id, content.format));
     log("Генерация фотографий для карточек");
     setBusy(null);
   };
@@ -81,8 +81,9 @@ export function DesignerStage({
     if (locked || !selected) return;
     setBusy("Генерация кадра…");
     await simulateTask(() => {}, ["queued", "in_progress"], 450);
+    const size = photoSizeForFormat(content.format);
     updateCard(selected.id, {
-      imageUrl: `https://picsum.photos/seed/${selected.id}-${Date.now()}/1080/1080`,
+      imageUrl: `https://picsum.photos/seed/${selected.id}-${Date.now()}/${size.width}/${size.height}`,
       status: "ready",
     });
     log(`Сгенерировано фото слайда ${selectedIndex + 1}`);

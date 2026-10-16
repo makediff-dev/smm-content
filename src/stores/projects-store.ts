@@ -2,10 +2,14 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ContentUnit, Project } from "@/types";
+import type { ContentUnit, Project, WorkflowStage } from "@/types";
 import { SEED_CONTENT, SEED_PROJECTS } from "@/data/seed";
 import { mergeSeedContentUnits, mergeSeedProjects } from "@/lib/seed-sync";
 import { generateId } from "@/lib/simulate-generation";
+import {
+  captureStageVersionState,
+  toggleStageVersionState,
+} from "@/lib/stage-versions";
 
 interface ProjectsState {
   projects: Project[];
@@ -23,6 +27,8 @@ interface ProjectsState {
     action: string,
     user: string
   ) => void;
+  captureStageVersion: (id: string, stage: WorkflowStage) => void;
+  toggleStageVersion: (id: string, stage: WorkflowStage) => void;
   resetData: () => void;
 }
 
@@ -130,6 +136,7 @@ export const useProjectsStore = create<ProjectsState>()(
           generationPrompt: data?.generationPrompt ?? "",
           memeAssets: data?.memeAssets ?? [],
           memeMusic: data?.memeMusic ?? null,
+          stageVersions: data?.stageVersions ?? {},
         };
         set((s) => {
           const contentUnits = [...s.contentUnits, unit];
@@ -152,6 +159,30 @@ export const useProjectsStore = create<ProjectsState>()(
       },
 
       getContentUnit: (id) => get().contentUnits.find((c) => c.id === id),
+
+      captureStageVersion: (id, stage) => {
+        const unit = get().contentUnits.find((item) => item.id === id);
+        if (!unit) return;
+        set((s) => ({
+          contentUnits: s.contentUnits.map((item) =>
+            item.id === id
+              ? { ...item, stageVersions: captureStageVersionState(item, stage) }
+              : item
+          ),
+        }));
+      },
+
+      toggleStageVersion: (id, stage) => {
+        const unit = get().contentUnits.find((item) => item.id === id);
+        if (!unit) return;
+        const patch = toggleStageVersionState(unit, stage);
+        if (!patch) return;
+        set((s) => ({
+          contentUnits: s.contentUnits.map((item) =>
+            item.id === id ? { ...item, ...patch } : item
+          ),
+        }));
+      },
 
       addActionLog: (contentId, action, user) => {
         set((s) => ({

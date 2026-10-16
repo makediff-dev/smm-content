@@ -8,6 +8,9 @@ import { FORMAT_LABELS } from "@/types";
 import { getAssigneeName, getStageLabel } from "@/lib/workflow";
 import { getRoleWorkspaceHref } from "@/lib/role-workspace";
 import { formatDate } from "@/lib/simulate-generation";
+import { createStageDueAt, formatTaskDeadline } from "@/lib/task-deadline";
+
+export { STAGE_SLA_HOURS } from "@/lib/task-deadline";
 
 const HOT_HOURS = 24;
 
@@ -97,16 +100,6 @@ export function groupStuckByPerson(rows: StuckTaskRow[]): StuckPersonGroup[] {
     .sort((a, b) => b.hotCount - a.hotCount || b.count - a.count);
 }
 
-/** Hours allowed on the current stage before the task is late. */
-export const STAGE_SLA_HOURS: Record<WorkflowStage, number> = {
-  copywriter: 24,
-  designer: 24,
-  editor: 16,
-  video_editor: 24,
-  project_manager: 16,
-  posting_manager: 48,
-};
-
 export type Punctuality =
   | "done_on_time"
   | "done_late"
@@ -138,9 +131,7 @@ export interface PersonTaskReport {
 }
 
 export function getStageDueAt(startedAt: string, stage: WorkflowStage): number {
-  return (
-    new Date(startedAt).getTime() + STAGE_SLA_HOURS[stage] * 3_600_000
-  );
+  return new Date(createStageDueAt(stage, new Date(startedAt))).getTime();
 }
 
 function getPunctuality(
@@ -167,7 +158,9 @@ export function getPersonTaskReports(
     .map((task) => {
       const isDone = task.status === "done";
       const startedAt = isDone ? task.createdAt : task.updatedAt;
-      const dueAt = getStageDueAt(startedAt, task.currentStage);
+      const dueAt = task.dueAt
+        ? new Date(task.dueAt).getTime()
+        : getStageDueAt(startedAt, task.currentStage);
       const finishedAt = isDone ? new Date(task.updatedAt).getTime() : now;
       const hours = Math.max(0, (finishedAt - new Date(startedAt).getTime()) / 3_600_000);
       const verdict = getPunctuality(isDone, finishedAt, dueAt);
@@ -183,7 +176,7 @@ export function getPersonTaskReports(
         isReturned: task.status === "returned",
         returnComment: task.returnComment,
         startedLabel: formatDate(startedAt),
-        dueLabel: formatDate(new Date(dueAt).toISOString()),
+        dueLabel: formatTaskDeadline(new Date(dueAt)),
         finishedLabel: isDone ? formatDate(task.updatedAt) : null,
         durationLabel: formatStuckDuration(hours),
         verdict,

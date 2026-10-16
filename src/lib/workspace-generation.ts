@@ -1,4 +1,4 @@
-import type { Card, ContentUnit } from "@/types";
+import type { Card, ContentFormat, ContentUnit } from "@/types";
 import { generateId } from "@/lib/simulate-generation";
 import {
   getMockCards,
@@ -43,11 +43,23 @@ export function buildGeneratedCards(
   }));
 }
 
-export function buildGeneratedPhotos(cards: Card[], seed: string): Card[] {
+export function photoSizeForFormat(format?: ContentFormat): { width: number; height: number } {
+  if (format === "slideshow" || format === "video_meme") {
+    return { width: 1080, height: 1920 };
+  }
+  return { width: 1080, height: 1080 };
+}
+
+export function buildGeneratedPhotos(
+  cards: Card[],
+  seed: string,
+  format?: ContentFormat
+): Card[] {
   const stamp = Date.now();
+  const { width, height } = photoSizeForFormat(format);
   return cards.map((card, index) => ({
     ...card,
-    imageUrl: `https://picsum.photos/seed/${seed}-${card.id}-${stamp}-${index}/1080/1080`,
+    imageUrl: `https://picsum.photos/seed/${seed}-${card.id}-${stamp}-${index}/${width}/${height}`,
     status: "ready",
   }));
 }

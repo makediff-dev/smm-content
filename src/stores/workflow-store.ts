@@ -19,6 +19,7 @@ import {
   canUserReturnWorkflowTask,
 } from "@/lib/workflow-access";
 import { generateId } from "@/lib/simulate-generation";
+import { createStageDueAt } from "@/lib/task-deadline";
 import {
   getFormatPath,
   getDesignApprovedForPathIndex,
@@ -195,6 +196,7 @@ export const useWorkflowStore = create<WorkflowState>()(
                   returnedByUserId: undefined,
                   returnedByStage: undefined,
                   updatedAt: now,
+                  dueAt: createStageDueAt(nextStage),
                 }
               : item
           ),
@@ -250,6 +252,7 @@ export const useWorkflowStore = create<WorkflowState>()(
                   returnedByUserId: user.id,
                   returnedByStage: task.currentStage,
                   updatedAt: now,
+                  dueAt: createStageDueAt(targetStage),
                 }
               : item
           ),
@@ -329,6 +332,7 @@ export const useWorkflowStore = create<WorkflowState>()(
                   returnedByUserId: undefined,
                   returnedByStage: undefined,
                   updatedAt: now,
+                  dueAt: createStageDueAt(targetStage),
                 }
               : item
           ),
@@ -380,6 +384,7 @@ export const useWorkflowStore = create<WorkflowState>()(
                     returnedByUserId: undefined,
                     returnedByStage: undefined,
                     updatedAt: new Date().toISOString(),
+                    dueAt: createStageDueAt("posting_manager"),
                   }
                 : item
             ),
@@ -418,6 +423,7 @@ export const useWorkflowStore = create<WorkflowState>()(
                   returnedByUserId: undefined,
                   returnedByStage: undefined,
                   updatedAt: now,
+                  dueAt: createStageDueAt(nextStage),
                 }
               : item
           ),
@@ -455,6 +461,7 @@ export const useWorkflowStore = create<WorkflowState>()(
           status: "in_progress",
           createdAt: now,
           updatedAt: now,
+          dueAt: data.dueAt ?? createStageDueAt(data.currentStage),
         };
 
         set((state) => ({

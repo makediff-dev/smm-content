@@ -247,6 +247,10 @@
   gap: 8px;
 }
 
+.toolbar .filters {
+  margin-top: 14px;
+}
+
 .filterChip {
   display: inline-flex;
   align-items: center;

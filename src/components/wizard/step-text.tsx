@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useWizardStore } from "@/stores/content-wizard-store";
 import { useProjectsStore } from "@/stores/projects-store";
+import { useWorkflowStore } from "@/stores/workflow-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -108,6 +109,13 @@ export function StepText({ hideSource = false }: StepTextProps) {
   };
 
   const handleGeneratePost = async (extraPrompt?: string) => {
+    if (contentId && postText) {
+      const stage = useWorkflowStore.getState().getTaskByContentId(contentId)
+        ?.currentStage;
+      if (stage) {
+        useProjectsStore.getState().captureStageVersion(contentId, stage);
+      }
+    }
     setField("isGeneratingPost", true);
     await simulateTask(() => {}, ["queued", "in_progress"], 600);
 

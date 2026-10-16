@@ -39,14 +39,22 @@
 
 .previewRow {
   --frame-aspect: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
-  align-items: end;
-  gap: 16px;
+  --preview-h: min(72vh, 720px);
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 12px;
+  width: fit-content;
+  max-width: 100%;
 }
 
-.previewMeme {
-  grid-template-columns: minmax(0, 1fr);
+.previewSquare {
+  --frame-aspect: 1;
+}
+
+.previewVertical {
+  --frame-aspect: 0.5625;
 }
 
 .videoFallback {
@@ -445,19 +453,28 @@
   position: relative;
   display: flex;
   justify-content: flex-start;
-  align-items: flex-end;
+  align-items: flex-start;
+  flex: 0 0 auto;
   min-width: 0;
 }
 
 .canvasHost {
   position: relative;
-  width: min(100%, calc(620px * var(--frame-aspect, 1)));
+  width: 620px;
+  max-width: 100%;
   aspect-ratio: var(--frame-aspect, 1);
   height: auto;
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
   background: var(--bg-muted);
+}
+
+.previewVertical .canvasHost {
+  width: calc(var(--preview-h) * 9 / 16);
+  height: var(--preview-h);
+  max-width: 100%;
+  aspect-ratio: 9 / 16;
 }
 
 .photoImg {
@@ -538,11 +555,24 @@
 .photos {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 8px;
-  max-height: 100%;
+  flex: 0 0 96px;
+  width: 96px;
+  align-self: flex-start;
+  overflow-x: hidden;
   overflow-y: auto;
   list-style: none;
+}
+
+.previewVertical .photos {
+  flex-basis: 84px;
+  width: 84px;
+  max-height: var(--preview-h);
+}
+
+.previewSquare .photos {
+  max-height: 620px;
 }
 
 .photos li {
@@ -634,14 +664,33 @@
 
 @media (max-width: 720px) {
   .previewRow {
-    grid-template-columns: minmax(0, 1fr);
+    flex-wrap: wrap;
+    width: 100%;
   }
 
-  .photos {
+  .previewVertical .canvasHost,
+  .previewVertical .photos {
+    height: auto;
+  }
+
+  .previewVertical .canvasHost {
+    width: min(100%, 280px);
+    aspect-ratio: 9 / 16;
+  }
+
+  .previewSquare .canvasHost {
+    width: min(100%, 620px);
+  }
+
+  .photos,
+  .previewVertical .photos {
+    flex: 1 1 100%;
     flex-direction: row;
+    width: 100%;
+    height: auto;
     justify-content: flex-start;
-    max-height: none;
     overflow-x: auto;
+    overflow-y: hidden;
   }
 
   .photos li {

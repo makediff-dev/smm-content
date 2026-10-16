@@ -155,13 +155,29 @@
 .timeBadge {
   display: inline-flex;
   align-items: center;
-  height: 32px;
-  padding: 0 12px;
+  justify-content: center;
+  height: 36px;
+  padding: 0 18px;
   border-radius: var(--radius-pill);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.timeBadge_overdue,
+.timeBadge_today {
+  background: #f4dce0;
+  color: #c2414a;
+}
+
+.timeBadge_tomorrow {
+  background: #f5ead0;
+  color: #8a5a12;
+}
+
+.timeBadge_later {
   background: var(--bg-soft);
   color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 500;
 }
 
 .openButton {

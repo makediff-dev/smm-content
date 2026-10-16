@@ -18,6 +18,7 @@ import type { ProductionTask, QueueTask } from "@/types";
 import { FORMAT_LABELS, QUEUE_TYPE_LABELS, STATUS_LABELS } from "@/types";
 import { formatDate, formatDateKey, toDateKey } from "@/lib/simulate-generation";
 import { getAssigneeName, getStageLabel } from "@/lib/workflow";
+import { formatTaskDeadlineLabel, isTaskDeadlineHot } from "@/lib/task-deadline";
 import { matchesSearch, normalizeSearchQuery } from "@/lib/search";
 import { isManagementRole } from "@/lib/roles";
 import styles from "./queue.module.css";
@@ -115,6 +116,15 @@ export default function QueuePage() {
       key: "assignee",
       header: "Ответственный",
       render: (row) => getAssigneeName(row.assigneeId, users),
+    },
+    {
+      key: "dueAt",
+      header: "Срок",
+      render: (row) => (
+        <span className={isTaskDeadlineHot(row) ? styles.dueHot : undefined}>
+          {formatTaskDeadlineLabel(row)}
+        </span>
+      ),
     },
     {
       key: "actions",

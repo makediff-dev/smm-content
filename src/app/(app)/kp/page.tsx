@@ -28,6 +28,8 @@ import {
   toDateKey,
 } from "@/lib/content-plan";
 import { getRoleWorkspaceHref } from "@/lib/role-workspace";
+import { useAuthStore } from "@/stores/auth-store";
+import { isAdminRole } from "@/lib/roles";
 import styles from "./kp.module.css";
 
 const FORMAT_OPTIONS = [
@@ -69,12 +71,24 @@ export default function ContentPlanPage() {
     comment: "",
   });
 
+  const [projectFilter, setProjectFilter] = useState("all");
   const slots = useContentPlanStore((s) => s.slots);
   const addSlot = useContentPlanStore((s) => s.addSlot);
   const moveSlotToDate = useContentPlanStore((s) => s.moveSlotToDate);
-  const projects = useProjectsStore((s) => s.projects);
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const allProjects = useProjectsStore((s) => s.projects);
+  const getProjectsForUser = useProjectsStore((s) => s.getProjectsForUser);
   const contentUnits = useProjectsStore((s) => s.contentUnits);
   const getTaskByContentId = useWorkflowStore((s) => s.getTaskByContentId);
+
+  const projects = useMemo(() => {
+    if (!currentUser) return allProjects;
+    return getProjectsForUser(
+      currentUser.id,
+      isAdminRole(currentUser.role),
+      currentUser.projectIds
+    );
+  }, [allProjects, currentUser, getProjectsForUser]);
 
   const projectContent = useMemo(() => {
     if (!addForm.projectId) return [];
@@ -104,9 +118,11 @@ export default function ContentPlanPage() {
     () =>
       activeSlots.filter((slot) => {
         const date = new Date(slot.scheduledAt);
-        return date >= weekStart && date < addDays(weekStart, 7);
+        const inWeek = date >= weekStart && date < addDays(weekStart, 7);
+        if (!inWeek) return false;
+        return projectFilter === "all" || slot.projectId === projectFilter;
       }),
-    [activeSlots, weekStart]
+    [activeSlots, weekStart, projectFilter]
   );
 
   const openAddModal = (dateKey: string) => {
@@ -171,6 +187,29 @@ export default function ContentPlanPage() {
               Неделя на одном экране. Цвет полоски — формат, подпись — статус.
               Карточку можно перетащить на другой день.
             </p>
+            <div className={styles.filters} role="group" aria-label="Фильтр по проектам">
+              <button
+                type="button"
+                className={`${styles.filterChip} ${
+                  projectFilter === "all" ? styles.filterChipActive : ""
+                }`}
+                onClick={() => setProjectFilter("all")}
+              >
+                Все проекты
+              </button>
+              {projects.map((project) => (
+                <button
+                  key={project.id}
+                  type="button"
+                  className={`${styles.filterChip} ${
+                    projectFilter === project.id ? styles.filterChipActive : ""
+                  }`}
+                  onClick={() => setProjectFilter(project.id)}
+                >
+                  {project.name}
+                </button>
+              ))}
+            </div>
           </div>
           <div className={styles.actions}>
             <Link href="/archive">

@@ -37,6 +37,8 @@ export interface ProductionTask {
   currentPathId?: string;
   createdAt: string;
   updatedAt: string;
+  /** Deadline of the current role/stage. */
+  dueAt?: string;
 }
 
 export interface AppNotification {
@@ -321,6 +323,40 @@ export interface ContentUnit {
   generationPrompt: string;
   memeAssets?: MemeAsset[];
   memeMusic?: MemeMusicTrack | null;
+  stageVersions?: Partial<Record<WorkflowStage, StageVersionRecord>>;
+}
+
+export type StageVersionView = "current" | "previous";
+
+export interface StageContentSnapshot {
+  title: string;
+  postText: string;
+  cards: Card[];
+  extractedTitle: string;
+  extractedText: string;
+  extractedImages: string[];
+  additionalInstructions: string;
+  generationPrompt: string;
+  narrationText: string;
+  voiceModel: string;
+  speechSpeed: number;
+  textTone: TextTone;
+  textLength: TextLength;
+  textOptions: {
+    includeHashtags: boolean;
+    includeEmoji: boolean;
+    addSourceLink: boolean;
+  };
+  sourceUrl: string;
+  sourceLinks?: string[];
+  memeAssets?: MemeAsset[];
+  memeMusic?: MemeMusicTrack | null;
+}
+
+export interface StageVersionRecord {
+  previous: StageContentSnapshot;
+  current: StageContentSnapshot;
+  viewing: StageVersionView;
 }
 
 export type ContentPlanScenario = "news" | "scheduled";

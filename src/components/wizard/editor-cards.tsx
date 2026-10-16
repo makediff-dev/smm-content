@@ -140,7 +140,7 @@ export function EditorCards() {
     if (disabled || isGeneratingImages || cards.length === 0) return;
     setField("isGeneratingCardImages", true);
     await simulateTask(() => undefined, ["queued", "in_progress", "done"], 700);
-    const generated = buildGeneratedPhotos(cards, contentId ?? "editor");
+    const generated = buildGeneratedPhotos(cards, contentId ?? "editor", format);
     persist(
       cards.map((card, index) =>
         onlyMissing && card.imageUrl ? card : generated[index] ?? card
@@ -156,7 +156,11 @@ export function EditorCards() {
     if (!selected || disabled) return;
     setField("isGeneratingCardImages", true);
     await simulateTask(() => undefined, ["queued", "in_progress", "done"], 500);
-    const [updated] = buildGeneratedPhotos([selected], `${contentId ?? "editor"}-one`);
+    const [updated] = buildGeneratedPhotos(
+      [selected],
+      `${contentId ?? "editor"}-one`,
+      format
+    );
     persist(cards.map((card) => (card.id === selected.id ? updated : card)));
     setField("isGeneratingCardImages", false);
     setReplaceOpen(false);

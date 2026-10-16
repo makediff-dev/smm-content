@@ -49,6 +49,11 @@
   margin-top: 0;
 }
 
+.dueHot {
+  color: #c2414a;
+  font-weight: 500;
+}
+
 @media (max-width: 640px) {
   .pageHeader {
     flex-direction: column;
