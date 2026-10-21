@@ -607,7 +607,7 @@ export function StepCards({ mode = "all" }: StepCardsProps) {
                   <Sparkle size={16} weight="fill" aria-hidden />
                   {isGeneratingCardImages
                     ? "Генерация..."
-                    : "Сгенерировать фотографии для карточек"}
+                    : "Сгенерировать фотографии"}
                 </Button>
               </div>
             </div>

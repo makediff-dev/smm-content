@@ -176,9 +176,7 @@ export default function SpendPage() {
                   </div>
                   <span className={styles.time}>{formatRub(post.amount)}</span>
                   <Link href={post.href} className={styles.open}>
-                    <Button variant="ghost" size="small">
-                      Открыть
-                    </Button>
+                    <Button variant="secondary">Открыть</Button>
                   </Link>
                 </li>
               ))}

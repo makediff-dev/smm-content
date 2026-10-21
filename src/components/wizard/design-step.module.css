@@ -45,7 +45,7 @@
   align-items: flex-start;
   justify-content: flex-start;
   gap: 12px;
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
 }
 
@@ -456,13 +456,15 @@
   display: flex;
   justify-content: flex-start;
   align-items: flex-start;
-  flex: 0 0 auto;
+  flex: 1 1 620px;
+  width: min(620px, 100%);
+  max-width: 620px;
   min-width: 0;
 }
 
 .canvasHost {
   position: relative;
-  width: min(620px, 100%);
+  width: 100%;
   max-width: 100%;
   aspect-ratio: var(--frame-aspect, 1);
   height: auto;

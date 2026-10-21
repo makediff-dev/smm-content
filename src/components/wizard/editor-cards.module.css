@@ -209,7 +209,7 @@
 
 .footer {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -235,7 +235,7 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 640px) {
+@container (max-width: 680px) {
   .phraseRow {
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
@@ -422,7 +422,7 @@
   box-shadow: var(--field-ring-focus);
 }
 
-@media (max-width: 720px) {
+@container (max-width: 760px) {
   .split {
     grid-template-columns: minmax(0, 1fr);
   }

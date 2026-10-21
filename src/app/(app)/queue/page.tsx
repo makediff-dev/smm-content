@@ -131,7 +131,7 @@ export default function QueuePage() {
       header: "Действия",
       render: (row) => (
         <Link href={`/projects/${row.projectId}/content/${row.contentUnitId}`}>
-          <Button variant="ghost" size="small">
+          <Button variant="secondary" size="small">
             Открыть
           </Button>
         </Link>
@@ -178,7 +178,7 @@ export default function QueuePage() {
       render: (row) => (
         <div className={tableStyles.actions}>
           <Link href={`/history/${row.contentUnitId}`}>
-            <Button variant="ghost" size="small">
+            <Button variant="secondary" size="small">
               Открыть
             </Button>
           </Link>

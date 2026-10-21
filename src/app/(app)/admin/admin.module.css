@@ -84,3 +84,21 @@
   color: var(--text-light);
   margin-bottom: 10px;
 }
+
+@media (max-width: 960px) {
+  .pageHeader,
+  .promptHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pageHeaderActions,
+  .promptActions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .promptCard {
+    padding: 18px;
+  }
+}

@@ -144,3 +144,35 @@
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
+
+@media (max-width: 480px) {
+  .workflowPanel {
+    padding: 16px;
+  }
+
+  .header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .statusBadge {
+    align-self: flex-start;
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .metaRow {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .metaLabel {
+    min-width: 0;
+  }
+
+  .actions > * {
+    flex: 1 1 120px;
+  }
+}

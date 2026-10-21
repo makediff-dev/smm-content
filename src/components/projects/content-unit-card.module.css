@@ -147,10 +147,19 @@
 }
 
 @media (max-width: 720px) {
+  .toolbarFormats {
+    flex-wrap: wrap;
+  }
+
   .toolbarFormats,
   .toolbarActions {
     width: 100%;
     margin-left: 0;
+  }
+
+  .filterField {
+    width: 100%;
+    flex-basis: 100%;
   }
 
   .toolbarActions {

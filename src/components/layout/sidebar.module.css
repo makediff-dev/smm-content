@@ -169,7 +169,7 @@
   color: var(--accent);
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1199px) {
   .sidebar {
     position: absolute;
     z-index: 80;

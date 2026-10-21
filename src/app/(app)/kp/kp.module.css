@@ -5,18 +5,41 @@
 }
 
 .toolbar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "copy actions"
+    "filters filters";
+  align-items: start;
+  column-gap: 16px;
+  row-gap: 14px;
+}
+
+.toolbarCopy {
+  grid-area: copy;
+  min-width: 0;
 }
 
 .actions {
+  grid-area: actions;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.actionLink {
+  display: inline-flex;
+  width: fit-content;
+  flex: 0 0 auto;
+}
+
+.toolbarButton {
+  width: fit-content;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .pageTitle {
@@ -92,11 +115,14 @@
 }
 
 .board {
+  width: 100%;
+  max-width: 100%;
   background: var(--bg-white);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: 18px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .boardHead {
@@ -130,9 +156,10 @@
 
 .weekGrid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(148px, 1fr));
+  grid-template-columns: repeat(7, minmax(150px, 1fr));
   gap: 8px;
-  min-width: 1080px;
+  width: 100%;
+  min-width: calc(7 * 150px + 6 * 8px);
 }
 
 .dayCol {
@@ -242,13 +269,11 @@
 }
 
 .filters {
+  grid-area: filters;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.toolbar .filters {
-  margin-top: 14px;
+  min-width: 0;
 }
 
 .filterChip {
@@ -325,12 +350,81 @@
   color: var(--text-muted);
 }
 
-@media (max-width: 960px) {
+@media (min-width: 1600px) {
+  .board {
+    padding: 22px;
+  }
+
+  .weekGrid {
+    gap: 10px;
+  }
+
+  .dayCol {
+    min-height: 360px;
+    padding: 12px;
+  }
+}
+
+@media (max-width: 1199px) and (min-width: 768px) {
+  .page {
+    min-height: calc(100dvh - var(--header-height) - 48px - env(safe-area-inset-bottom, 0px));
+  }
+
   .toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "copy copy"
+      "filters actions";
+    align-items: center;
+  }
+
+  .actions {
+    flex-wrap: nowrap;
+    align-self: start;
+    justify-content: flex-end;
+  }
+
+  .board {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .boardHead {
+    flex-shrink: 0;
+  }
+
+  .weekGrid {
+    flex: 1 1 auto;
+    align-items: stretch;
+    grid-auto-rows: 1fr;
+    grid-template-columns: repeat(7, minmax(150px, 1fr));
+    min-width: calc(7 * 150px + 6 * 8px);
+    min-height: 320px;
+  }
+
+  .dayCol {
+    min-height: 100%;
+    height: 100%;
+    display: flex;
     flex-direction: column;
   }
 
-  .actions,
+  .dayList {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 960px) and (min-width: 768px) {
+  .page {
+    min-height: calc(100dvh - var(--header-height) - 40px - env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 960px) {
   .weekNav,
   .boardHead,
   .legend {
@@ -351,5 +445,95 @@
 
   .pageTitle {
     font-size: 24px;
+  }
+}
+
+@media (max-width: 767px) {
+  .page {
+    min-height: calc(100dvh - var(--header-height) - 40px - env(safe-area-inset-bottom, 0px));
+  }
+
+  .toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "filters"
+      "actions";
+  }
+
+  .board {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .boardHead {
+    flex-shrink: 0;
+  }
+
+  .weekGrid {
+    flex: 1 1 auto;
+    align-items: stretch;
+    grid-auto-rows: 1fr;
+    grid-template-columns: repeat(7, minmax(150px, 1fr));
+    min-width: calc(7 * 150px + 6 * 8px);
+    min-height: 280px;
+  }
+
+  .dayCol {
+    min-height: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dayList {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .weekNav,
+  .legend,
+  .filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .weekNav::-webkit-scrollbar,
+  .legend::-webkit-scrollbar,
+  .filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .weekNow,
+  .weekButton,
+  .weekRange,
+  .legendItem {
+    flex-shrink: 0;
+  }
+
+  .weekRange {
+    min-width: 0;
+    text-align: center;
+  }
+
+  .filterChip {
+    flex-shrink: 0;
+  }
+
+  .actions {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    width: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    min-height: calc(100dvh - var(--header-height) - 32px - env(safe-area-inset-bottom, 0px));
   }
 }

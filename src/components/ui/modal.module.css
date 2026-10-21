@@ -24,7 +24,9 @@
 
 @media (max-width: 640px) {
   .modal {
+    width: calc(100% - 24px);
     padding: 20px 16px;
+    margin: 12px;
   }
 
   .footer {

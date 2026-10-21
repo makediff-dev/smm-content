@@ -2,6 +2,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  container-type: inline-size;
+  container-name: role-workspace;
 }
 
 .metaRow {
@@ -51,9 +53,33 @@
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) 280px;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 22cqi, 340px);
+  grid-template-areas:
+    "preview stages"
+    "preview checks"
+    "preview rest";
   gap: 16px;
   align-items: start;
+}
+
+.previewCard {
+  grid-area: preview;
+  min-width: 0;
+}
+
+.stagesCard {
+  grid-area: stages;
+  min-width: 0;
+}
+
+.checksCard {
+  grid-area: checks;
+  min-width: 0;
+}
+
+.sideStack {
+  grid-area: rest;
+  min-width: 0;
 }
 
 .previewCard,
@@ -387,6 +413,10 @@
   flex-direction: column;
   gap: 10px;
   margin-top: 14px;
+}
+
+.adminMove .note {
+  flex: 1 1 100%;
 }
 
 .copywriterLayout,
@@ -1137,6 +1167,187 @@
   margin-bottom: 0;
 }
 
+@container role-workspace (max-width: 980px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "stages"
+      "preview"
+      "checks"
+      "rest";
+    min-width: 0;
+  }
+
+  .previewCard,
+  .stagesCard,
+  .checksCard,
+  .sideStack {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .chain {
+    flex-direction: row;
+    align-items: flex-start;
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+
+  .chainItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 0 0 auto;
+    width: 108px;
+    gap: 6px;
+    padding: 0 8px;
+    text-align: center;
+  }
+
+  .chainItem::after {
+    z-index: 0;
+    left: calc(50% + 8px);
+    top: 8px;
+    bottom: auto;
+    width: calc(100% - 16px);
+    height: 0;
+    border-left: none;
+    border-top: 2px dashed #b4b4be;
+  }
+
+  .chainGap {
+    padding-bottom: 0;
+    width: 132px;
+  }
+
+  .chainMark {
+    position: relative;
+    z-index: 1;
+    margin-top: 0;
+    background: var(--bg-white);
+    box-shadow: 0 0 0 4px var(--bg-white);
+  }
+
+  .chainButton {
+    text-align: center;
+  }
+
+  .chainHint {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .adminMove {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .adminMove > :global(button) {
+    flex: 1 1 140px;
+  }
+}
+
+@container role-workspace (max-width: 760px) {
+  .designerLayout,
+  .planRow,
+  .splitLayout,
+  .editorMemeLayout,
+  .cardPhraseRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .photoGrid,
+  .slideGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1199px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "stages"
+      "preview"
+      "checks"
+      "rest";
+    min-width: 0;
+  }
+
+  .previewCard,
+  .stagesCard,
+  .checksCard,
+  .sideStack {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .chain {
+    flex-direction: row;
+    align-items: flex-start;
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+
+  .chainItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 0 0 auto;
+    width: 108px;
+    gap: 6px;
+    padding: 0 8px;
+    text-align: center;
+  }
+
+  .chainItem::after {
+    z-index: 0;
+    left: calc(50% + 8px);
+    top: 8px;
+    bottom: auto;
+    width: calc(100% - 16px);
+    height: 0;
+    border-left: none;
+    border-top: 2px dashed #b4b4be;
+  }
+
+  .chainGap {
+    padding-bottom: 0;
+    width: 132px;
+  }
+
+  .chainMark {
+    position: relative;
+    z-index: 1;
+    margin-top: 0;
+    background: var(--bg-white);
+    box-shadow: 0 0 0 4px var(--bg-white);
+  }
+
+  .chainButton {
+    text-align: center;
+  }
+
+  .chainHint {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .adminMove {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .adminMove > :global(button) {
+    flex: 1 1 140px;
+  }
+}
+
 @media (max-width: 960px) {
   .layout,
   .designerLayout,
@@ -1166,5 +1377,37 @@
   .photoGrid,
   .slideGrid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cardsPhaseStepper {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .cardsPhaseStep {
+    flex: 0 0 auto;
+  }
+
+  .cardsPhaseConnector {
+    flex: 0 0 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .formatGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .actions > * {
+    flex: 1 1 120px;
+  }
+
+  .packRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .packRow button {
+    width: 100%;
   }
 }

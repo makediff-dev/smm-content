@@ -46,3 +46,42 @@
   font-size: 13px;
   text-align: center;
 }
+
+@media (max-width: 640px) {
+  .entry {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 8px;
+  }
+
+  .time {
+    min-width: 0;
+  }
+
+  .action {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .user {
+    grid-column: 2;
+    grid-row: 1;
+    max-width: 100%;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 360px) {
+  .entry {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .action,
+  .user {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+  }
+}

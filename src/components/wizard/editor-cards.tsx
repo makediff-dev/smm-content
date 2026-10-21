@@ -254,11 +254,7 @@ export function EditorCards() {
                 onClick={() => generatePhotos(true)}
               >
                 <Sparkle size={16} weight="fill" aria-hidden />
-                {isGeneratingImages
-                  ? "Генерация…"
-                  : cards.every((card) => !card.imageUrl)
-                    ? "Сгенерировать фотографии для карточек"
-                    : "Сгенерировать недостающие фотографии"}
+                {isGeneratingImages ? "Генерация…" : "Сгенерировать фотографии"}
               </Button>
             </div>
           )}

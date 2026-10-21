@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import {
@@ -204,6 +204,8 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   const [viewStage, setViewStage] = useState<WorkflowStage | null>(null);
   const [viewPathId, setViewPathId] = useState<string | null>(null);
   const [chainExpanded, setChainExpanded] = useState(false);
+  const [compactStages, setCompactStages] = useState(false);
+  const pageRef = useRef<HTMLDivElement>(null);
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnTarget, setReturnTarget] = useState(AI_RETURN_VALUE);
   const [returnComment, setReturnComment] = useState("");
@@ -240,6 +242,23 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   const canReturn =
     task && currentUser ? canUserReturnTask(currentUser, task) : false;
   const waitingForFix = isWaitingForReturnedFix(currentUser, task);
+
+  useEffect(() => {
+    const page = pageRef.current;
+    const media = window.matchMedia("(max-width: 1199px)");
+    const update = () => {
+      const narrowContainer = (page?.clientWidth ?? 0) <= 980;
+      setCompactStages(media.matches || narrowContainer);
+    };
+    update();
+    const observer = page ? new ResizeObserver(update) : null;
+    observer?.observe(page as Element);
+    media.addEventListener("change", update);
+    return () => {
+      observer?.disconnect();
+      media.removeEventListener("change", update);
+    };
+  }, []);
 
   const chain = useMemo(
     () =>
@@ -478,7 +497,7 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
 
   return (
     <AppShell projectId={projectId} breadcrumb={project.name}>
-      <div className={styles.page}>
+      <div className={styles.page} ref={pageRef}>
         <div className={styles.metaRow}>
           <span className={styles.badge}>{FORMAT_LABELS[content.format]}</span>
           <span
@@ -507,6 +526,66 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
         )}
 
         <div className={styles.layout}>
+          {(isAdmin || (!isPostingStage && !isPlanVisit)) && (
+            <section
+              className={`${styles.sideCard} ${styles.stagesCard}`}
+              aria-label={isAdmin ? "Этапы" : "Цепочка"}
+            >
+              <h2 className={styles.sideTitle}>
+                {isAdmin ? "Этапы" : "Цепочка"}
+              </h2>
+              <ChainList
+                items={chain}
+                expanded={isAdmin || chainExpanded || compactStages}
+                currentSuffix={
+                  compactStages
+                    ? ""
+                    : isAdmin
+                      ? " — сейчас"
+                      : canOperate
+                        ? " — ты здесь"
+                        : " — сейчас"
+                }
+                viewingPathId={isAdmin ? viewPathId : undefined}
+                onSelectStage={isAdmin ? handleSelectStage : undefined}
+                onToggle={
+                  isAdmin || compactStages
+                    ? undefined
+                    : () => setChainExpanded((open) => !open)
+                }
+              />
+              {isAdmin && (
+                <div className={styles.adminMove}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    fullWidth
+                    onClick={handleGoBack}
+                    disabled={!previousPathTarget}
+                  >
+                    Вернуться
+                  </Button>
+                  <Button
+                    fullWidth
+                    onClick={handleMoveForward}
+                    disabled={!nextPathTarget}
+                    title={
+                      nextPathTarget
+                        ? `Переместить на «${getAdminPathTargetLabel(nextPathTarget)}»`
+                        : "Дальше по текущей цепочке некуда"
+                    }
+                  >
+                    Переместить далее
+                  </Button>
+                  <p className={styles.note}>
+                    Задача сейчас на этапе «{currentPathLabel}». Сдвиг только на
+                    соседний шаг цепочки, без перескока.
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
+
           <section className={styles.previewCard} aria-label="Результат">
             {isPostingStage && postingSlot ? (
               <PostingPacks content={content} slot={postingSlot} />
@@ -543,6 +622,16 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
             ) : null}
           </section>
 
+          {!isPostingStage && !isPlanVisit && (
+            <section
+              className={`${styles.sideCard} ${styles.checksCard}`}
+              aria-label="Автопроверка"
+            >
+              <h2 className={styles.sideTitle}>Автопроверка</h2>
+              <CheckList items={checks} />
+            </section>
+          )}
+
           <div className={styles.sideStack}>
             {canToggleVersion && (
               <Button
@@ -553,45 +642,6 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
               >
                 {viewingPrevious ? "Новая версия" : "Прошлая версия"}
               </Button>
-            )}
-            {isAdmin && (
-              <section className={styles.sideCard} aria-label="Этапы">
-                <h2 className={styles.sideTitle}>Этапы</h2>
-                <ChainList
-                  items={chain}
-                  expanded
-                  currentSuffix=" — сейчас"
-                  viewingPathId={viewPathId}
-                  onSelectStage={handleSelectStage}
-                />
-                <div className={styles.adminMove}>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    fullWidth
-                    onClick={handleGoBack}
-                    disabled={!previousPathTarget}
-                  >
-                    Вернуться
-                  </Button>
-                  <Button
-                    fullWidth
-                    onClick={handleMoveForward}
-                    disabled={!nextPathTarget}
-                    title={
-                      nextPathTarget
-                        ? `Переместить на «${getAdminPathTargetLabel(nextPathTarget)}»`
-                        : "Дальше по текущей цепочке некуда"
-                    }
-                  >
-                    Переместить далее
-                  </Button>
-                  <p className={styles.note}>
-                    Задача сейчас на этапе «{currentPathLabel}». Сдвиг только на
-                    соседний шаг цепочки, без перескока.
-                  </p>
-                </div>
-              </section>
             )}
             {isPostingStage && postingSlot ? (
               <PostingSide
@@ -611,23 +661,6 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
               />
             ) : (
               <>
-            {!isAdmin && (
-            <section className={styles.sideCard} aria-label="Цепочка">
-              <h2 className={styles.sideTitle}>Цепочка</h2>
-              <ChainList
-                items={chain}
-                expanded={chainExpanded}
-                currentSuffix={canOperate ? " — ты здесь" : " — сейчас"}
-                onToggle={() => setChainExpanded((open) => !open)}
-              />
-            </section>
-            )}
-
-            <section className={styles.sideCard} aria-label="Автопроверка">
-              <h2 className={styles.sideTitle}>Автопроверка</h2>
-              <CheckList items={checks} />
-            </section>
-
             {waitingForFix ? (
               <p className={styles.waitNote}>
                 Действия откроются, когда исправят возврат.

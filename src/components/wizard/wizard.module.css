@@ -1345,12 +1345,71 @@
 
 @container (max-width: 520px) {
   .phaseStepper {
-    grid-template-columns: minmax(min-content, 1fr) auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
   }
 
+  .phaseStepperItem,
+  .phaseStepperItem:first-child,
+  .phaseStepperItem:nth-child(2),
   .phaseStepperItem:last-child {
-    grid-column: 1 / -1;
-    justify-content: flex-end;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .phaseButton {
+    width: 100%;
+    justify-content: flex-start;
+    min-height: 44px;
+    white-space: normal;
+  }
+
+  .phaseStepperLine {
+    flex: none;
+    align-self: flex-start;
+    width: 1px;
+    min-width: 0;
+    height: 14px;
+    margin: 0 0 0 11px;
+  }
+}
+
+@media (max-width: 767px) {
+  .phaseStepper {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .phaseStepperItem,
+  .phaseStepperItem:first-child,
+  .phaseStepperItem:nth-child(2),
+  .phaseStepperItem:last-child {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .phaseButton {
+    width: 100%;
+    justify-content: flex-start;
+    min-height: 44px;
+    white-space: normal;
+  }
+
+  .phaseStepperLine {
+    flex: none;
+    align-self: flex-start;
+    width: 1px;
+    min-width: 0;
+    height: 14px;
+    margin: 0 0 0 11px;
   }
 }
 
@@ -1581,6 +1640,27 @@
   }
 }
 
+@container (max-width: 800px) {
+  .splitLayout,
+  .resultLayout,
+  .pickerBody {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cardPhraseFields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .phraseRow {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      ". headline-label ."
+      "index headline controls"
+      ". copyright-label ."
+      ". copyright .";
+  }
+}
+
 @media (max-width: 640px) {
   .phraseRow {
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1589,5 +1669,24 @@
       "index headline controls"
       ". copyright-label ."
       ". copyright .";
+  }
+
+  .stepContent {
+    padding: 20px 16px;
+  }
+
+  .sourceRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .sourceRow > * {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .formatCards {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

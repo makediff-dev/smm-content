@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CaretLeft, CaretRight, DownloadSimple } from "@phosphor-icons/react";
+import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -181,45 +181,47 @@ export default function ContentPlanPage() {
     <AppShell breadcrumb="Контент-план">
       <div className={styles.page}>
         <div className={styles.toolbar}>
-          <div>
+          <div className={styles.toolbarCopy}>
             <h1 className={styles.pageTitle}>Контент-план</h1>
             <p className={styles.pageDescription}>
               Неделя на одном экране. Цвет полоски — формат, подпись — статус.
               Карточку можно перетащить на другой день.
             </p>
-            <div className={styles.filters} role="group" aria-label="Фильтр по проектам">
+          </div>
+          <div className={styles.filters} role="group" aria-label="Фильтр по проектам">
+            <button
+              type="button"
+              className={`${styles.filterChip} ${
+                projectFilter === "all" ? styles.filterChipActive : ""
+              }`}
+              onClick={() => setProjectFilter("all")}
+            >
+              Все проекты
+            </button>
+            {projects.map((project) => (
               <button
+                key={project.id}
                 type="button"
                 className={`${styles.filterChip} ${
-                  projectFilter === "all" ? styles.filterChipActive : ""
+                  projectFilter === project.id ? styles.filterChipActive : ""
                 }`}
-                onClick={() => setProjectFilter("all")}
+                onClick={() => setProjectFilter(project.id)}
               >
-                Все проекты
+                {project.name}
               </button>
-              {projects.map((project) => (
-                <button
-                  key={project.id}
-                  type="button"
-                  className={`${styles.filterChip} ${
-                    projectFilter === project.id ? styles.filterChipActive : ""
-                  }`}
-                  onClick={() => setProjectFilter(project.id)}
-                >
-                  {project.name}
-                </button>
-              ))}
-            </div>
+            ))}
           </div>
           <div className={styles.actions}>
-            <Link href="/archive">
-              <Button variant="secondary">Архив</Button>
+            <Link href="/archive" className={styles.actionLink}>
+              <Button variant="secondary" className={styles.toolbarButton}>
+                Архив
+              </Button>
             </Link>
             <Button
               variant="primary"
+              className={styles.toolbarButton}
               onClick={() => downloadWeekPlan(weekStart, weekSlots)}
             >
-              <DownloadSimple size={16} />
               Скачать контент-план
             </Button>
           </div>
