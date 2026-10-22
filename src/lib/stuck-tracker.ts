@@ -130,8 +130,12 @@ export interface PersonTaskReport {
   href: string;
 }
 
-export function getStageDueAt(startedAt: string, stage: WorkflowStage): number {
-  return new Date(createStageDueAt(stage, new Date(startedAt))).getTime();
+export function getStageDueAt(
+  startedAt: string,
+  stage: WorkflowStage,
+  project?: Project
+): number {
+  return new Date(createStageDueAt(stage, new Date(startedAt), project)).getTime();
 }
 
 function getPunctuality(
@@ -160,7 +164,11 @@ export function getPersonTaskReports(
       const startedAt = isDone ? task.createdAt : task.updatedAt;
       const dueAt = task.dueAt
         ? new Date(task.dueAt).getTime()
-        : getStageDueAt(startedAt, task.currentStage);
+        : getStageDueAt(
+            startedAt,
+            task.currentStage,
+            projects.find((item) => item.id === task.projectId)
+          );
       const finishedAt = isDone ? new Date(task.updatedAt).getTime() : now;
       const hours = Math.max(0, (finishedAt - new Date(startedAt).getTime()) / 3_600_000);
       const verdict = getPunctuality(isDone, finishedAt, dueAt);

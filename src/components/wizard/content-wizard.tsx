@@ -55,6 +55,7 @@ export function ContentWizard({ projectId, contentId, step }: ContentWizardProps
   const updateContentUnit = useProjectsStore((s) => s.updateContentUnit);
   const createTask = useWorkflowStore((s) => s.createTask);
   const users = useAuthStore((s) => s.users);
+  const currentUser = useAuthStore((s) => s.currentUser);
   const task = useWorkflowStore((s) => s.getTaskByContentId(contentId));
 
   const content = getContentUnit(contentId);
@@ -236,7 +237,8 @@ export function ContentWizard({ projectId, contentId, step }: ContentWizardProps
               extraFormat,
               extra.title
             ),
-            users
+            users,
+            currentUser ?? undefined
           );
         }
       });

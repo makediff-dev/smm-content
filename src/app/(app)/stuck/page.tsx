@@ -10,7 +10,7 @@ import { useSearch } from "@/components/layout/search-context";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { matchesSearch } from "@/lib/search";
-import { isManagementRole } from "@/lib/roles";
+import { filterByProjectAccess, isManagementRole } from "@/lib/roles";
 import {
   getPersonHref,
   getStuckTaskRows,
@@ -34,8 +34,13 @@ export default function StuckPage() {
     }
   }, [currentUser, router]);
 
+  const visibleTasks = useMemo(
+    () => filterByProjectAccess(currentUser, tasks),
+    [currentUser, tasks]
+  );
+
   const rows = useMemo(() => {
-    const all = getStuckTaskRows(tasks, users);
+    const all = getStuckTaskRows(visibleTasks, users);
     return all.filter((row) =>
       matchesSearch(
         query,
@@ -46,8 +51,8 @@ export default function StuckPage() {
         row.isHot ? "горит" : ""
       )
     );
-  }, [tasks, users, query]);
-  const people = useMemo(() => groupTrackerByPerson(tasks, users), [tasks, users]);
+  }, [visibleTasks, users, query]);
+  const people = useMemo(() => groupTrackerByPerson(visibleTasks, users), [visibleTasks, users]);
   const hot = rows.filter((row) => row.isHot);
   const rest = rows.filter((row) => !row.isHot);
 

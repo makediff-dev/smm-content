@@ -98,6 +98,139 @@
   margin-bottom: 28px;
 }
 
+.groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.group {
+  background: var(--bg-white);
+  border-radius: var(--radius-lg);
+  padding: 8px 10px;
+  box-shadow: var(--shadow-sm);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.drillHead {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.drillBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.drillTitle {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.drillMeta {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.drillCopy {
+  flex: 1;
+  min-width: 0;
+}
+
+.caret {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.groupHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+}
+
+.groupHeadActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.groupTitle {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.groupMeta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.groupAmount {
+  font-size: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.nested {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  margin-left: 26px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+}
+
+.nestedRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.taskBlock + .taskBlock {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.shares {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 8px 8px 26px;
+  padding: 8px 0 8px 10px;
+  border-left: 1px solid var(--border);
+}
+
+.share {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .personCard {
   background: var(--bg-white);
   border-radius: var(--radius-lg);
@@ -143,14 +276,96 @@
 }
 
 .row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  display: flex;
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
   background: var(--bg-white);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 148px;
+  padding: 16px 18px;
+  background: var(--bg-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.cardMain {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  flex: 1;
+  padding: 0;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.cardTitle {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.cardAmount {
+  margin-top: 10px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.cardMeta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.cardDetail {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.rowMain {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.rowCopy {
+  flex: 1;
+  min-width: 0;
 }
 
 .rowTitle {
@@ -172,6 +387,13 @@
 }
 
 .open {
+  display: block;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.rowOpen {
   flex-shrink: 0;
 }
 
@@ -180,13 +402,33 @@
     grid-template-columns: 1fr;
   }
 
-  .row {
+  .row,
+  .nestedRow,
+  .rowMain {
     grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .row {
+    flex-wrap: wrap;
+  }
+
+  .rowMain {
+    flex: 1 1 180px;
   }
 
   .open {
     grid-column: 2;
     grid-row: 1 / 3;
+  }
+
+  .drillHead,
+  .groupHead {
+    flex-wrap: wrap;
+  }
+
+  .groupHeadActions {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 
@@ -205,7 +447,9 @@
     width: 100%;
   }
 
-  .row {
+  .row,
+  .nestedRow,
+  .rowMain {
     grid-template-columns: minmax(0, 1fr);
   }
 

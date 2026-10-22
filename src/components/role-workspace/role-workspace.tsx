@@ -23,6 +23,8 @@ import { getReturnTargetStages } from "@/lib/workflow-access";
 import {
   getAdminPathNeighbors,
   getAdminPathTargetLabel,
+  getAdminRollbackOptionLabel,
+  getAdminRollbackTargets,
   getFormatPath,
   getPersonStageForPathIndex,
   isAiPathCurrent,
@@ -38,6 +40,7 @@ import {
   isViewingPreviousVersion,
 } from "@/lib/stage-versions";
 import { getRoleLabel, isAdminRole } from "@/lib/roles";
+import { useRequireProjectAccess } from "@/hooks/use-require-project-access";
 import { formatTaskDeadlineLabel, isTaskDeadlineHot } from "@/lib/task-deadline";
 import {
   buildScheduledAt,
@@ -188,6 +191,7 @@ interface RoleWorkspaceProps {
 export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const users = useAuthStore((s) => s.users);
+  const canOpenProject = useRequireProjectAccess(projectId);
   const content = useProjectsStore((s) => s.getContentUnit(contentId));
   const project = useProjectsStore((s) => s.getProject(projectId));
   const updateContentUnit = useProjectsStore((s) => s.updateContentUnit);
@@ -209,6 +213,8 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnTarget, setReturnTarget] = useState(AI_RETURN_VALUE);
   const [returnComment, setReturnComment] = useState("");
+  const [rollbackOpen, setRollbackOpen] = useState(false);
+  const [rollbackTargetKey, setRollbackTargetKey] = useState("");
   const {
     confirmContent,
     confirmOpen,
@@ -293,7 +299,15 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
       })
     : null;
   const nextPathTarget = pathNeighbors?.next ?? null;
-  const previousPathTarget = pathNeighbors?.previous ?? null;
+  const rollbackTargets = useMemo(() => {
+    if (!task) return [];
+    return getAdminRollbackTargets(task.format, task.currentStage, {
+      hasText: Boolean(content?.postText.trim()),
+      isComplete: task.status === "done",
+      designApproved: task.designApproved,
+      pathId: task.currentPathId,
+    });
+  }, [task, content?.postText]);
   const currentPathLabel = task
     ? (getFormatPath(task.format).find((step) => step.id === task.currentPathId)
         ?.label ?? getStageLabel(task.currentStage))
@@ -321,7 +335,7 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
     setChainExpanded(false);
   }, [task?.id]);
 
-  if (!currentUser) return null;
+  if (!currentUser || !canOpenProject) return null;
 
   if (!content || !project || !task) {
     return (
@@ -384,32 +398,21 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   };
 
   const handleGoBack = () => {
-    if (!isAdmin || !previousPathTarget) return;
-    requestConfirm(
-      getAdminShiftConfirmContent(
-        currentPathLabel,
-        getAdminPathTargetLabel(previousPathTarget),
-        "back"
-      ),
-      () => {
-        moveAlongPath(
-          task.id,
-          previousPathTarget,
-          currentUser,
-          users,
-          addActionLog
-        );
-        if (previousPathTarget.type === "path") {
-          setViewStage(
-            getPersonStageForPathIndex(task.format, previousPathTarget.index)
-          );
-          setViewPathId(previousPathTarget.step.id);
-        } else {
-          setViewStage("posting_manager");
-          setViewPathId(null);
-        }
-      }
+    if (!isAdmin || rollbackTargets.length === 0) return;
+    setRollbackTargetKey(String(rollbackTargets[0].index));
+    setRollbackOpen(true);
+  };
+
+  const handleConfirmRollback = () => {
+    if (!isAdmin) return;
+    const target = rollbackTargets.find(
+      (item) => String(item.index) === rollbackTargetKey
     );
+    if (!target) return;
+    moveAlongPath(task.id, target, currentUser, users, addActionLog);
+    setViewStage(getPersonStageForPathIndex(task.format, target.index));
+    setViewPathId(target.step.id);
+    setRollbackOpen(false);
   };
 
   const handleMoveForward = () => {
@@ -526,66 +529,6 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
         )}
 
         <div className={styles.layout}>
-          {(isAdmin || (!isPostingStage && !isPlanVisit)) && (
-            <section
-              className={`${styles.sideCard} ${styles.stagesCard}`}
-              aria-label={isAdmin ? "Этапы" : "Цепочка"}
-            >
-              <h2 className={styles.sideTitle}>
-                {isAdmin ? "Этапы" : "Цепочка"}
-              </h2>
-              <ChainList
-                items={chain}
-                expanded={isAdmin || chainExpanded || compactStages}
-                currentSuffix={
-                  compactStages
-                    ? ""
-                    : isAdmin
-                      ? " — сейчас"
-                      : canOperate
-                        ? " — ты здесь"
-                        : " — сейчас"
-                }
-                viewingPathId={isAdmin ? viewPathId : undefined}
-                onSelectStage={isAdmin ? handleSelectStage : undefined}
-                onToggle={
-                  isAdmin || compactStages
-                    ? undefined
-                    : () => setChainExpanded((open) => !open)
-                }
-              />
-              {isAdmin && (
-                <div className={styles.adminMove}>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    fullWidth
-                    onClick={handleGoBack}
-                    disabled={!previousPathTarget}
-                  >
-                    Вернуться
-                  </Button>
-                  <Button
-                    fullWidth
-                    onClick={handleMoveForward}
-                    disabled={!nextPathTarget}
-                    title={
-                      nextPathTarget
-                        ? `Переместить на «${getAdminPathTargetLabel(nextPathTarget)}»`
-                        : "Дальше по текущей цепочке некуда"
-                    }
-                  >
-                    Переместить далее
-                  </Button>
-                  <p className={styles.note}>
-                    Задача сейчас на этапе «{currentPathLabel}». Сдвиг только на
-                    соседний шаг цепочки, без перескока.
-                  </p>
-                </div>
-              )}
-            </section>
-          )}
-
           <section className={styles.previewCard} aria-label="Результат">
             {isPostingStage && postingSlot ? (
               <PostingPacks content={content} slot={postingSlot} />
@@ -622,6 +565,78 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
             ) : null}
           </section>
 
+          <div className={styles.sideColumn}>
+            {canToggleVersion && (
+              <Button
+                type="button"
+                variant="secondary"
+                fullWidth
+                className={styles.versionToggle}
+                onClick={() => toggleStageVersion(contentId, stage)}
+              >
+                {viewingPrevious ? "Новая версия" : "Прошлая версия"}
+              </Button>
+            )}
+          {(isAdmin || (!isPostingStage && !isPlanVisit)) && (
+            <section
+              className={`${styles.sideCard} ${styles.stagesCard}`}
+              aria-label={isAdmin ? "Этапы" : "Цепочка"}
+            >
+              <h2 className={styles.sideTitle}>
+                {isAdmin ? "Этапы" : "Цепочка"}
+              </h2>
+              <ChainList
+                items={chain}
+                expanded={isAdmin || chainExpanded || compactStages}
+                currentSuffix={
+                  compactStages
+                    ? ""
+                    : isAdmin
+                      ? " — сейчас"
+                      : canOperate
+                        ? " — ты здесь"
+                        : " — сейчас"
+                }
+                viewingPathId={isAdmin ? viewPathId : undefined}
+                onSelectStage={isAdmin ? handleSelectStage : undefined}
+                onToggle={
+                  isAdmin || compactStages
+                    ? undefined
+                    : () => setChainExpanded((open) => !open)
+                }
+              />
+              {isAdmin && (
+                <div className={styles.adminMove}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    fullWidth
+                    onClick={handleGoBack}
+                    disabled={rollbackTargets.length === 0}
+                  >
+                    Вернуться
+                  </Button>
+                  <Button
+                    fullWidth
+                    onClick={handleMoveForward}
+                    disabled={!nextPathTarget}
+                    title={
+                      nextPathTarget
+                        ? `Переместить на «${getAdminPathTargetLabel(nextPathTarget)}»`
+                        : "Дальше по текущей цепочке некуда"
+                    }
+                  >
+                    Переместить далее
+                  </Button>
+                  <p className={styles.note}>
+                    Задача сейчас на этапе «{currentPathLabel}». Сдвиг только на
+                    соседний шаг цепочки, без перескока.
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
+
           {!isPostingStage && !isPlanVisit && (
             <section
               className={`${styles.sideCard} ${styles.checksCard}`}
@@ -633,16 +648,6 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
           )}
 
           <div className={styles.sideStack}>
-            {canToggleVersion && (
-              <Button
-                type="button"
-                variant="secondary"
-                fullWidth
-                onClick={() => toggleStageVersion(contentId, stage)}
-              >
-                {viewingPrevious ? "Новая версия" : "Прошлая версия"}
-              </Button>
-            )}
             {isPostingStage && postingSlot ? (
               <PostingSide
                 content={content}
@@ -704,8 +709,44 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
               </>
             )}
           </div>
+          </div>
         </div>
       </div>
+
+      <Modal
+        title="Откатить задачу?"
+        open={rollbackOpen}
+        onClose={() => setRollbackOpen(false)}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setRollbackOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              onClick={handleConfirmRollback}
+              disabled={!rollbackTargetKey}
+            >
+              Вернуться
+            </Button>
+          </>
+        }
+      >
+        <div className={styles.modalFields}>
+          <p className={styles.note}>
+            Можно вернуть проверяющему или отправить задачу на любой пройденный
+            этап цепочки.
+          </p>
+          <Select
+            label="На какой этап вернуть"
+            value={rollbackTargetKey}
+            onChange={(event) => setRollbackTargetKey(event.target.value)}
+            options={rollbackTargets.map((item) => ({
+              value: String(item.index),
+              label: getAdminRollbackOptionLabel(item),
+            }))}
+          />
+        </div>
+      </Modal>
 
       <Modal
         title="Вернуть"

@@ -7,7 +7,11 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useQueueStore } from "@/stores/queue-store";
 import { useWorkflowStore } from "@/stores/workflow-store";
 import { getNavigationForRole } from "@/lib/navigation";
-import { getRoleLabel, isManagementRole } from "@/lib/roles";
+import {
+  filterByProjectAccess,
+  getRoleLabel,
+  isManagementRole,
+} from "@/lib/roles";
 import { getStuckTaskRows } from "@/lib/stuck-tracker";
 import { navIconMap } from "@/lib/nav-icons";
 import { NotificationsPanel } from "./notifications-panel";
@@ -37,15 +41,20 @@ export function Sidebar({ open = false, onNavigate }: SidebarProps) {
   );
   const isManagement = currentUser ? isManagementRole(currentUser.role) : false;
   const aiQueueCount = useQueueStore((s) =>
-    currentUser
-      ? s.getActiveCountForUser(currentUser.id, isManagement)
-      : 0
+    filterByProjectAccess(currentUser, s.tasks).filter(
+      (task) =>
+        task.status === "queued" ||
+        task.status === "in_progress" ||
+        task.status === "error"
+    ).length
   );
   const navItems = currentUser ? getNavigationForRole(currentUser.role) : [];
   const users = useAuthStore((s) => s.users);
   const tasks = useWorkflowStore((s) => s.tasks);
   const stuckHotCount = isManagement
-    ? getStuckTaskRows(tasks, users).filter((row) => row.isHot).length
+    ? getStuckTaskRows(filterByProjectAccess(currentUser, tasks), users).filter(
+        (row) => row.isHot
+      ).length
     : 0;
   const queueBadgeCount = isManagement
     ? workflowCount + aiQueueCount

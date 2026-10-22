@@ -29,7 +29,7 @@ import {
 } from "@/lib/content-plan";
 import { getRoleWorkspaceHref } from "@/lib/role-workspace";
 import { useAuthStore } from "@/stores/auth-store";
-import { isAdminRole } from "@/lib/roles";
+import { canAccessProject, isAdminRole } from "@/lib/roles";
 import styles from "./kp.module.css";
 
 const FORMAT_OPTIONS = [
@@ -120,9 +120,12 @@ export default function ContentPlanPage() {
         const date = new Date(slot.scheduledAt);
         const inWeek = date >= weekStart && date < addDays(weekStart, 7);
         if (!inWeek) return false;
+        if (currentUser && !canAccessProject(currentUser, slot.projectId)) {
+          return false;
+        }
         return projectFilter === "all" || slot.projectId === projectFilter;
       }),
-    [activeSlots, weekStart, projectFilter]
+    [activeSlots, weekStart, projectFilter, currentUser]
   );
 
   const openAddModal = (dateKey: string) => {
@@ -142,6 +145,7 @@ export default function ContentPlanPage() {
   const handleAddSlot = () => {
     if (!addDateKey || !addForm.projectId || !addForm.time.trim()) return;
     if (!addForm.contentUnitId && !addForm.title.trim()) return;
+    if (currentUser && !canAccessProject(currentUser, addForm.projectId)) return;
 
     const title = selectedContent?.title ?? addForm.title.trim();
     const format = selectedContent?.format ?? addForm.format;

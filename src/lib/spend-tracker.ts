@@ -6,6 +6,7 @@ import type {
   QueueTask,
   QueueTaskType,
   User,
+  UserRole,
 } from "@/types";
 import { FORMAT_LABELS, QUEUE_TYPE_LABELS } from "@/types";
 import { getRoleWorkspaceHref } from "@/lib/role-workspace";
@@ -39,6 +40,14 @@ const REQUESTER_BY_TYPE: Record<QueueTaskType, string> = {
   export: "user-pm",
 };
 
+const ROLE_BY_TYPE: Record<QueueTaskType, UserRole> = {
+  text_generation: "copywriter",
+  image_processing: "designer",
+  voice_generation: "video_editor",
+  video_assembly: "video_editor",
+  export: "project_manager",
+};
+
 export interface SpendLine {
   id: string;
   contentUnitId: string;
@@ -50,6 +59,8 @@ export interface SpendLine {
   typeLabel: string;
   requesterId: string;
   requesterLabel: string;
+  role: UserRole;
+  roleLabel: string;
   amount: number;
   createdAt: string;
   href: string;
@@ -63,6 +74,7 @@ export interface SpendPostRow {
   amount: number;
   generations: number;
   href: string;
+  roles?: SpendRoleShare[];
 }
 
 export interface SpendPersonRow {
@@ -70,6 +82,34 @@ export interface SpendPersonRow {
   label: string;
   amount: number;
   generations: number;
+}
+
+export interface SpendRoleRow {
+  role: UserRole;
+  label: string;
+  amount: number;
+  generations: number;
+  tasks: SpendPostRow[];
+}
+
+export interface SpendRoleShare {
+  role: UserRole;
+  label: string;
+  amount: number;
+  generations: number;
+}
+
+export interface SpendProjectTaskRow extends SpendPostRow {
+  roles: SpendRoleShare[];
+}
+
+export interface SpendProjectRow {
+  projectId: string;
+  label: string;
+  amount: number;
+  generations: number;
+  href: string;
+  tasks: SpendProjectTaskRow[];
 }
 
 export function formatRub(amount: number): string {
@@ -118,6 +158,7 @@ export function getSpendLines(
     );
     const title = unit?.title ?? workflowTask?.title ?? task.label;
     const format = unit?.format ?? workflowTask?.format ?? "text";
+    const role = ROLE_BY_TYPE[task.type];
     return {
       id: task.id,
       contentUnitId: task.contentUnitId,
@@ -129,6 +170,8 @@ export function getSpendLines(
       typeLabel: QUEUE_TYPE_LABELS[task.type],
       requesterId: task.managerId,
       requesterLabel: requesterLabel(task.managerId, users),
+      role,
+      roleLabel: getRoleLabel(role),
       amount: GENERATION_COST[task.type],
       createdAt: task.createdAt,
       href: getRoleWorkspaceHref(task.projectId, task.contentUnitId),
@@ -145,6 +188,7 @@ export function getSpendLines(
       .filter((type) => !queuedKeys.has(`${task.contentUnitId}:${type}`))
       .map((type) => {
         const requesterId = REQUESTER_BY_TYPE[type];
+        const role = ROLE_BY_TYPE[type];
         return {
           id: `est-${task.id}-${type}`,
           contentUnitId: task.contentUnitId,
@@ -156,6 +200,8 @@ export function getSpendLines(
           typeLabel: QUEUE_TYPE_LABELS[type],
           requesterId,
           requesterLabel: requesterLabel(requesterId, users),
+          role,
+          roleLabel: getRoleLabel(role),
           amount: GENERATION_COST[type],
           createdAt: task.createdAt,
           href: getRoleWorkspaceHref(task.projectId, task.contentUnitId),
@@ -176,15 +222,44 @@ export function filterSpendByMonth(
 }
 
 export function groupSpendByPost(lines: SpendLine[]): SpendPostRow[] {
-  const map = new Map<string, SpendPostRow>();
-  lines.forEach((line) => {
-    const current = map.get(line.contentUnitId);
-    if (current) {
-      current.amount += line.amount;
-      current.generations += 1;
-      return;
-    }
-    map.set(line.contentUnitId, {
+  const map = new Map<string, SpendProjectTaskRow>();
+  lines.forEach((line) => addProjectTaskFromLine(map, line));
+  return [...map.values()]
+    .map((task) => ({
+      ...task,
+      roles: [...task.roles].sort((a, b) => b.amount - a.amount),
+    }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
+function addTaskFromLine(
+  tasks: Map<string, SpendPostRow>,
+  line: SpendLine
+) {
+  const current = tasks.get(line.contentUnitId);
+  if (current) {
+    current.amount += line.amount;
+    current.generations += 1;
+    return;
+  }
+  tasks.set(line.contentUnitId, {
+    contentUnitId: line.contentUnitId,
+    title: line.title,
+    projectName: line.projectName,
+    formatLabel: line.formatLabel,
+    amount: line.amount,
+    generations: 1,
+    href: line.href,
+  });
+}
+
+function addProjectTaskFromLine(
+  tasks: Map<string, SpendProjectTaskRow>,
+  line: SpendLine
+) {
+  const current = tasks.get(line.contentUnitId);
+  if (!current) {
+    tasks.set(line.contentUnitId, {
       contentUnitId: line.contentUnitId,
       title: line.title,
       projectName: line.projectName,
@@ -192,9 +267,99 @@ export function groupSpendByPost(lines: SpendLine[]): SpendPostRow[] {
       amount: line.amount,
       generations: 1,
       href: line.href,
+      roles: [
+        {
+          role: line.role,
+          label: line.roleLabel,
+          amount: line.amount,
+          generations: 1,
+        },
+      ],
+    });
+    return;
+  }
+
+  current.amount += line.amount;
+  current.generations += 1;
+  const share = current.roles.find((item) => item.role === line.role);
+  if (share) {
+    share.amount += line.amount;
+    share.generations += 1;
+    return;
+  }
+  current.roles.push({
+    role: line.role,
+    label: line.roleLabel,
+    amount: line.amount,
+    generations: 1,
+  });
+}
+
+export function groupSpendByRole(lines: SpendLine[]): SpendRoleRow[] {
+  const map = new Map<UserRole, SpendRoleRow & { taskMap: Map<string, SpendPostRow> }>();
+  lines.forEach((line) => {
+    const current = map.get(line.role);
+    if (current) {
+      current.amount += line.amount;
+      current.generations += 1;
+      addTaskFromLine(current.taskMap, line);
+      return;
+    }
+    const taskMap = new Map<string, SpendPostRow>();
+    addTaskFromLine(taskMap, line);
+    map.set(line.role, {
+      role: line.role,
+      label: line.roleLabel,
+      amount: line.amount,
+      generations: 1,
+      tasks: [],
+      taskMap,
     });
   });
-  return [...map.values()].sort((a, b) => b.amount - a.amount);
+  return [...map.values()]
+    .map(({ taskMap, ...row }) => ({
+      ...row,
+      tasks: [...taskMap.values()].sort((a, b) => b.amount - a.amount),
+    }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
+export function groupSpendByProject(lines: SpendLine[]): SpendProjectRow[] {
+  const map = new Map<
+    string,
+    SpendProjectRow & { taskMap: Map<string, SpendProjectTaskRow> }
+  >();
+  lines.forEach((line) => {
+    const current = map.get(line.projectId);
+    if (current) {
+      current.amount += line.amount;
+      current.generations += 1;
+      addProjectTaskFromLine(current.taskMap, line);
+      return;
+    }
+    const taskMap = new Map<string, SpendProjectTaskRow>();
+    addProjectTaskFromLine(taskMap, line);
+    map.set(line.projectId, {
+      projectId: line.projectId,
+      label: line.projectName,
+      amount: line.amount,
+      generations: 1,
+      href: `/projects/${line.projectId}`,
+      tasks: [],
+      taskMap,
+    });
+  });
+  return [...map.values()]
+    .map(({ taskMap, ...row }) => ({
+      ...row,
+      tasks: [...taskMap.values()]
+        .map((task) => ({
+          ...task,
+          roles: [...task.roles].sort((a, b) => b.amount - a.amount),
+        }))
+        .sort((a, b) => b.amount - a.amount),
+    }))
+    .sort((a, b) => b.amount - a.amount);
 }
 
 export function groupSpendByPerson(lines: SpendLine[]): SpendPersonRow[] {

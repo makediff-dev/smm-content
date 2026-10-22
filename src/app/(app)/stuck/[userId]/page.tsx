@@ -11,7 +11,7 @@ import { useSearch } from "@/components/layout/search-context";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { matchesSearch } from "@/lib/search";
-import { isManagementRole } from "@/lib/roles";
+import { filterByProjectAccess, isManagementRole } from "@/lib/roles";
 import { getAssigneeName } from "@/lib/workflow";
 import {
   countVerdicts,
@@ -52,8 +52,13 @@ export default function TrackerPersonPage({
   const personLabel =
     userId === "none" ? "Не назначен" : getAssigneeName(userId, users);
 
+  const visibleTasks = useMemo(
+    () => filterByProjectAccess(currentUser, tasks),
+    [currentUser, tasks]
+  );
+
   const reports = useMemo(() => {
-    return getPersonTaskReports(userId, tasks, projects).filter((report) =>
+    return getPersonTaskReports(userId, visibleTasks, projects).filter((report) =>
       matchesSearch(
         query,
         report.title,
@@ -64,7 +69,7 @@ export default function TrackerPersonPage({
         report.returnComment
       )
     );
-  }, [userId, tasks, projects, query]);
+  }, [userId, visibleTasks, projects, query]);
 
   const totals = useMemo(() => countVerdicts(reports), [reports]);
 

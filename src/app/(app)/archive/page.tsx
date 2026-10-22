@@ -6,7 +6,9 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { useAuthStore } from "@/stores/auth-store";
 import { useContentPlanStore } from "@/stores/content-plan-store";
+import { canAccessProject } from "@/lib/roles";
 import type { ContentFormat, ContentPlanSlot } from "@/types";
 import { FORMAT_LABELS } from "@/types";
 import {
@@ -27,6 +29,7 @@ const FILTERS: { id: "all" | ContentFormat; label: string }[] = [
 ];
 
 export default function ArchivePage() {
+  const currentUser = useAuthStore((s) => s.currentUser);
   const slots = useContentPlanStore((s) => s.slots);
   const placeSlotOnDate = useContentPlanStore((s) => s.placeSlotOnDate);
   const [filter, setFilter] = useState<"all" | ContentFormat>("all");
@@ -37,8 +40,13 @@ export default function ArchivePage() {
   const archived = useMemo(() => getArchivedPlanSlots(slots), [slots]);
   const visible = useMemo(
     () =>
-      archived.filter((slot) => (filter === "all" ? true : slot.format === filter)),
-    [archived, filter]
+      archived.filter((slot) => {
+        if (currentUser && !canAccessProject(currentUser, slot.projectId)) {
+          return false;
+        }
+        return filter === "all" ? true : slot.format === filter;
+      }),
+    [archived, filter, currentUser]
   );
 
   const openPlace = (slot: ContentPlanSlot) => {

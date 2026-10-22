@@ -41,6 +41,8 @@ export interface ProductionTask {
   dueAt?: string;
 }
 
+export type NotificationKind = "assignment" | "return" | "move" | "overdue";
+
 export interface AppNotification {
   id: string;
   userId: string;
@@ -50,6 +52,9 @@ export interface AppNotification {
   message: string;
   read: boolean;
   createdAt: string;
+  kind?: NotificationKind;
+  /** Stage deadline this overdue notice belongs to; used to send once. */
+  dueAt?: string;
 }
 
 export type TaskStatus = "draft" | "queued" | "in_progress" | "done" | "error";
@@ -126,6 +131,8 @@ export interface Project {
   cardTemplates: string;
   imageRules: string;
   formattingRules: string;
+  /** Minutes allowed on each role/stage before the deadline. */
+  roleSlaMinutes?: Partial<Record<WorkflowStage, number>>;
 }
 
 export type TextAlign = "left" | "center" | "right";

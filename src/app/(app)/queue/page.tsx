@@ -20,7 +20,7 @@ import { formatDate, formatDateKey, toDateKey } from "@/lib/simulate-generation"
 import { getAssigneeName, getStageLabel } from "@/lib/workflow";
 import { formatTaskDeadlineLabel, isTaskDeadlineHot } from "@/lib/task-deadline";
 import { matchesSearch, normalizeSearchQuery } from "@/lib/search";
-import { isManagementRole } from "@/lib/roles";
+import { canAccessProject, filterByProjectAccess, isManagementRole } from "@/lib/roles";
 import styles from "./queue.module.css";
 
 const WORKFLOW_STATUS_LABELS: Record<ProductionTask["status"], string> = {
@@ -32,7 +32,7 @@ const WORKFLOW_STATUS_LABELS: Record<ProductionTask["status"], string> = {
 export default function QueuePage() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const users = useAuthStore((s) => s.users);
-  const getTasksForUser = useQueueStore((s) => s.getTasksForUser);
+  const queueTasks = useQueueStore((s) => s.tasks);
   const getAllActiveTasks = useWorkflowStore((s) => s.getAllActiveTasks);
   const retryTask = useQueueStore((s) => s.retryTask);
   const projects = useProjectsStore((s) => s.projects);
@@ -40,10 +40,12 @@ export default function QueuePage() {
   const { query } = useSearch();
 
   const isManagement = currentUser ? isManagementRole(currentUser.role) : false;
-  const aiTasks = currentUser
-    ? getTasksForUser(currentUser.id, isManagement)
+  const aiTasks = filterByProjectAccess(currentUser, queueTasks);
+  const workflowTasks = currentUser
+    ? getAllActiveTasks().filter((task) =>
+        canAccessProject(currentUser, task.projectId)
+      )
     : [];
-  const workflowTasks = getAllActiveTasks();
 
   const filteredWorkflowTasks = useMemo(() => {
     return workflowTasks.filter((task) => {

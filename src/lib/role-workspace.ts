@@ -68,25 +68,27 @@ export function getWorkspaceChain(
   const steps = getFormatPath(format);
   const currentIndex = resolveFormatPathIndex(format, currentStage, options);
 
-  return steps.map((step, index) => {
-    let state: WorkspaceChainState = "upcoming";
-    if (options?.isComplete || currentStage === "posting_manager") {
-      state = "done";
-    } else if (index < currentIndex) {
-      state = "done";
-    } else if (index === currentIndex) {
-      state = "current";
-    }
+  return steps
+    .map((step, index) => {
+      let state: WorkspaceChainState = "upcoming";
+      if (options?.isComplete || currentStage === "posting_manager") {
+        state = "done";
+      } else if (index < currentIndex) {
+        state = "done";
+      } else if (index === currentIndex) {
+        state = "current";
+      }
 
-    return {
-      id: step.id,
-      kind: step.kind,
-      stage: step.stage,
-      label: step.label,
-      hint: step.hint,
-      state,
-    };
-  });
+      return {
+        id: step.id,
+        kind: step.kind,
+        stage: step.stage,
+        label: step.label,
+        hint: step.hint,
+        state,
+      };
+    })
+    .filter((item) => item.kind !== "ai");
 }
 
 export interface WorkspaceChainViewItem {

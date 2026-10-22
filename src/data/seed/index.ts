@@ -178,6 +178,13 @@ export const SEED_PROJECTS: Project[] = [
     cardTemplates: "Вертикальный формат 1080x1350, заголовок сверху",
     imageRules: "Удалять водяные знаки, обрезать до 4:5",
     formattingRules: "Логотип в правом нижнем углу, отступ 24px",
+    roleSlaMinutes: {
+      copywriter: 30,
+      editor: 10,
+      designer: 15,
+      video_editor: 30,
+      project_manager: 30,
+    },
   },
   {
     id: "proj-2",
@@ -198,6 +205,13 @@ export const SEED_PROJECTS: Project[] = [
     cardTemplates: "Квадрат 1080x1080, текст по центру",
     imageRules: "Усилить контраст, кадрировать продукт",
     formattingRules: "Подпись источника внизу карточки",
+    roleSlaMinutes: {
+      copywriter: 30,
+      editor: 10,
+      designer: 15,
+      video_editor: 30,
+      project_manager: 30,
+    },
   },
   {
     id: "proj-3",
@@ -212,6 +226,13 @@ export const SEED_PROJECTS: Project[] = [
     cardTemplates: "Вертикальный 9:16 для Stories",
     imageRules: "Убрать пластик, добавить зелёный акцент (в прототипе — серый)",
     formattingRules: "Хештег #EcoLife в конце поста",
+    roleSlaMinutes: {
+      copywriter: 30,
+      editor: 10,
+      designer: 15,
+      video_editor: 30,
+      project_manager: 30,
+    },
   },
 ];
 

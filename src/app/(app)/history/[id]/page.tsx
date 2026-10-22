@@ -20,6 +20,12 @@ import { WorkflowPanel } from "@/components/workflow/workflow-panel";
 import { Modal } from "@/components/ui/modal";
 import { FORMAT_LABELS } from "@/types";
 import { formatDate } from "@/lib/simulate-generation";
+import { canCreateProductionTask } from "@/lib/roles";
+import { useRequireProjectAccess } from "@/hooks/use-require-project-access";
+import {
+  createProductionTaskForContent,
+  useWorkflowStore,
+} from "@/stores/workflow-store";
 import styles from "./history.module.css";
 
 function getDefaultCpDate() {
@@ -53,12 +59,14 @@ export default function HistoryPage({
   const searchParams = useSearchParams();
   const fromKp = searchParams.get("from") === "kp";
   const currentUser = useAuthStore((s) => s.currentUser);
+  const users = useAuthStore((s) => s.users);
   const getContentUnit = useProjectsStore((s) => s.getContentUnit);
   const getProject = useProjectsStore((s) => s.getProject);
   const createContentUnit = useProjectsStore((s) => s.createContentUnit);
   const addActionLog = useProjectsStore((s) => s.addActionLog);
   const prompts = useSettingsStore((s) => s.prompts);
   const initWizard = useWizardStore((s) => s.initWizard);
+  const createTask = useWorkflowStore((s) => s.createTask);
   const addContentPlanSlot = useContentPlanStore((s) => s.addSlot);
   const cpSlots = useContentPlanStore((s) => s.slots);
   const [cpModalOpen, setCpModalOpen] = useState(false);
@@ -68,6 +76,7 @@ export default function HistoryPage({
 
   const content = getContentUnit(contentId);
   const project = content ? getProject(content.projectId) : undefined;
+  const canOpenProject = useRequireProjectAccess(content?.projectId);
   const prompt = content
     ? prompts.find((p) => p.id === content.promptId)
     : undefined;
@@ -80,9 +89,16 @@ export default function HistoryPage({
     );
   }
 
+  if (!canOpenProject) return null;
+
   const isInContentPlan = cpSlots.some((slot) => slot.contentUnitId === contentId);
 
+  const canCreateCopy = currentUser
+    ? canCreateProductionTask(currentUser.role)
+    : false;
+
   const handleCreateCopy = () => {
+    if (!currentUser || !canCreateCopy) return;
     const newId = createContentUnit(content.projectId, {
       title: `${content.title} (копия)`,
       format: content.format,
@@ -120,6 +136,16 @@ export default function HistoryPage({
       textOptions: content.textOptions,
       generationPrompt: content.generationPrompt,
     });
+    createTask(
+      createProductionTaskForContent(
+        newId,
+        content.projectId,
+        content.format,
+        `${content.title} (копия)`
+      ),
+      users,
+      currentUser
+    );
     router.push(
       `/projects/${content.projectId}/content/${newId}`
     );
@@ -295,9 +321,11 @@ export default function HistoryPage({
         {!isInContentPlan && (
           <>
             <Button onClick={openCpModal}>Добавить в КП</Button>
-            <Button variant="secondary" onClick={handleCreateCopy}>
-              Создать копию
-            </Button>
+            {canCreateCopy && (
+              <Button variant="secondary" onClick={handleCreateCopy}>
+                Создать копию
+              </Button>
+            )}
           </>
         )}
         {content.status === "done" && (

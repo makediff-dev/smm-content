@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { CaretLeft } from "@phosphor-icons/react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useQueueStore } from "@/stores/queue-store";
@@ -13,19 +14,26 @@ import { useSearch } from "@/components/layout/search-context";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Input } from "@/components/ui/input";
+import { Tabs } from "@/components/ui/tabs";
 import { matchesSearch } from "@/lib/search";
-import { isAdminRole, isManagementRole } from "@/lib/roles";
+import { filterByProjectAccess, isAdminRole, isManagementRole } from "@/lib/roles";
 import {
   currentMonthKey,
   filterSpendByMonth,
   formatMonthKey,
   formatRub,
   getSpendLines,
-  groupSpendByPerson,
   groupSpendByPost,
+  groupSpendByProject,
+  groupSpendByRole,
   spendLimitState,
   sumSpend,
+  type SpendPostRow,
+  type SpendProjectRow,
+  type SpendRoleRow,
+  type SpendRoleShare,
 } from "@/lib/spend-tracker";
+import type { UserRole } from "@/types";
 import styles from "./spend.module.css";
 
 export default function SpendPage() {
@@ -40,6 +48,10 @@ export default function SpendPage() {
   const updateAISettings = useSettingsStore((s) => s.updateAISettings);
   const { query } = useSearch();
   const [limitDraft, setLimitDraft] = useState("");
+  const [view, setView] = useState<"roles" | "tasks" | "projects">("projects");
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [roleId, setRoleId] = useState<UserRole | null>(null);
 
   const allowed = Boolean(currentUser && isManagementRole(currentUser.role));
   const isAdmin = Boolean(currentUser && isAdminRole(currentUser.role));
@@ -56,8 +68,12 @@ export default function SpendPage() {
 
   const month = currentMonthKey();
   const lines = useMemo(
-    () => getSpendLines(queue, workflow, users, projects, units),
-    [queue, workflow, users, projects, units]
+    () =>
+      filterByProjectAccess(
+        currentUser,
+        getSpendLines(queue, workflow, users, projects, units)
+      ),
+    [currentUser, queue, workflow, users, projects, units]
   );
   const monthLines = useMemo(
     () =>
@@ -67,14 +83,19 @@ export default function SpendPage() {
           line.title,
           line.projectName,
           line.requesterLabel,
+          line.roleLabel,
           line.typeLabel,
           line.formatLabel
         )
       ),
     [lines, month, query]
   );
-  const people = useMemo(() => groupSpendByPerson(monthLines), [monthLines]);
+  const roles = useMemo(() => groupSpendByRole(monthLines), [monthLines]);
   const posts = useMemo(() => groupSpendByPost(monthLines), [monthLines]);
+  const projectRows = useMemo(
+    () => groupSpendByProject(monthLines),
+    [monthLines]
+  );
   const spent = sumSpend(monthLines);
   const limit = aiSettings.monthlySpendLimit || 0;
   const { remaining, willAsk, isWarn, ratio } = spendLimitState(spent, limit);
@@ -93,8 +114,8 @@ export default function SpendPage() {
         <div>
           <h1 className={styles.pageTitle}>Счётчик расходов</h1>
           <p className={styles.pageDescription}>
-            Сколько стоил каждый пост и месяц. Лимит, после которого платформа
-            спросит.
+            Расходы ИИ за месяц: по ролям, по задачам и по проектам. Лимит,
+            после которого платформа спросит.
           </p>
         </div>
       </div>
@@ -150,42 +171,70 @@ export default function SpendPage() {
         />
       ) : (
         <>
-          <section className={styles.people} aria-label="Расходы команды">
-            {people.map((person) => (
-              <article key={person.requesterId} className={styles.personCard}>
-                <h2 className={styles.personName}>{person.label}</h2>
-                <p className={styles.personAmount}>{formatRub(person.amount)}</p>
-                <p className={styles.personMeta}>
-                  {formatGenerationCount(person.generations)}
-                </p>
-              </article>
-            ))}
-          </section>
+          {!projectId && !taskId && !roleId && (
+            <Tabs
+              tabs={[
+                { id: "projects", label: "По проектам" },
+                { id: "tasks", label: "По задачам" },
+                { id: "roles", label: "По ролям" },
+              ]}
+              activeTab={view}
+              onChange={(id) => setView(id as "roles" | "tasks" | "projects")}
+            />
+          )}
 
-          <section className={styles.list} aria-label="Посты">
-            <h2 className={styles.listTitle}>Сколько стоил пост</h2>
-            <ul className={styles.rows}>
-              {posts.map((post) => (
-                <li key={post.contentUnitId} className={styles.row}>
-                  <div className={styles.rowCopy}>
-                    <p className={styles.rowTitle}>{post.title}</p>
-                    <p className={styles.rowMeta}>
-                      {post.projectName} · {post.formatLabel} ·{" "}
-                      {post.generations} ген.
-                    </p>
-                  </div>
-                  <span className={styles.time}>{formatRub(post.amount)}</span>
-                  <Link href={post.href} className={styles.open}>
-                    <Button variant="secondary">Открыть</Button>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
+          {view === "roles" && (
+            <RolesDrill
+              roles={roles}
+              roleId={roleId}
+              onEnter={setRoleId}
+              onBack={() => setRoleId(null)}
+            />
+          )}
+
+          {view === "tasks" && (
+            <TasksDrill
+              posts={posts}
+              taskId={taskId}
+              onEnter={setTaskId}
+              onBack={() => setTaskId(null)}
+            />
+          )}
+
+          {view === "projects" && (
+            <ProjectsDrill
+              projects={projectRows}
+              projectId={projectId}
+              taskId={taskId}
+              onEnterProject={(id) => {
+                setProjectId(id);
+                setTaskId(null);
+              }}
+              onEnterTask={setTaskId}
+              onBack={() => {
+                if (taskId) {
+                  setTaskId(null);
+                  return;
+                }
+                setProjectId(null);
+              }}
+            />
+          )}
         </>
       )}
     </AppShell>
   );
+}
+
+function projectNamesFromTasks(tasks: SpendPostRow[]): string {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  tasks.forEach((task) => {
+    if (seen.has(task.projectName)) return;
+    seen.add(task.projectName);
+    names.push(task.projectName);
+  });
+  return names.join(", ");
 }
 
 function formatGenerationCount(count: number): string {
@@ -196,4 +245,299 @@ function formatGenerationCount(count: number): string {
     return `${count} генерации`;
   }
   return `${count} генераций`;
+}
+
+function RolesDrill({
+  roles,
+  roleId,
+  onEnter,
+  onBack,
+}: {
+  roles: SpendRoleRow[];
+  roleId: UserRole | null;
+  onEnter: (id: UserRole) => void;
+  onBack: () => void;
+}) {
+  const role = roles.find((item) => item.role === roleId);
+  if (role) {
+    return (
+      <section className={styles.stack} aria-label={`Расходы: ${role.label}`}>
+        <DrillHead
+          title={role.label}
+          meta={`${formatGenerationCount(role.generations)} · ${formatRub(role.amount)}`}
+          onBack={onBack}
+        />
+        <TaskList tasks={role.tasks} />
+      </section>
+    );
+  }
+
+  return (
+    <section className={styles.groups} aria-label="Расходы по ролям">
+      {roles.map((item) => (
+        <DrillRow
+          key={item.role}
+          title={item.label}
+          meta={formatGenerationCount(item.generations)}
+          detail={projectNamesFromTasks(item.tasks)}
+          amount={item.amount}
+          onOpen={() => onEnter(item.role)}
+        />
+      ))}
+    </section>
+  );
+}
+
+function TasksDrill({
+  posts,
+  taskId,
+  onEnter,
+  onBack,
+}: {
+  posts: SpendPostRow[];
+  taskId: string | null;
+  onEnter: (id: string) => void;
+  onBack: () => void;
+}) {
+  const task = posts.find((item) => item.contentUnitId === taskId);
+  if (task) {
+    return (
+      <section className={styles.stack} aria-label={`Расходы: ${task.title}`}>
+        <DrillHead
+          title={task.title}
+          meta={`${task.projectName} · ${task.formatLabel} · ${formatGenerationCount(task.generations)} · ${formatRub(task.amount)}`}
+          href={task.href}
+          onBack={onBack}
+        />
+        <ShareList shares={task.roles ?? []} />
+      </section>
+    );
+  }
+
+  return (
+    <section className={styles.groups} aria-label="Расходы по задачам">
+      {posts.map((item) => (
+        <DrillRow
+          key={item.contentUnitId}
+          title={item.title}
+          meta={`${item.projectName} · ${item.formatLabel} · ${formatGenerationCount(item.generations)}`}
+          amount={item.amount}
+          href={item.href}
+          onOpen={() => onEnter(item.contentUnitId)}
+        />
+      ))}
+    </section>
+  );
+}
+
+function ProjectsDrill({
+  projects,
+  projectId,
+  taskId,
+  onEnterProject,
+  onEnterTask,
+  onBack,
+}: {
+  projects: SpendProjectRow[];
+  projectId: string | null;
+  taskId: string | null;
+  onEnterProject: (id: string) => void;
+  onEnterTask: (id: string) => void;
+  onBack: () => void;
+}) {
+  const project = projects.find((item) => item.projectId === projectId);
+  const task = project?.tasks.find((item) => item.contentUnitId === taskId);
+
+  if (project && task) {
+    return (
+      <section className={styles.stack} aria-label={`Расходы: ${task.title}`}>
+        <DrillHead
+          title={task.title}
+          meta={`${project.label} · ${task.formatLabel} · ${formatGenerationCount(task.generations)} · ${formatRub(task.amount)}`}
+          href={task.href}
+          onBack={onBack}
+        />
+        <ShareList shares={task.roles} />
+      </section>
+    );
+  }
+
+  if (project) {
+    return (
+      <section className={styles.stack} aria-label={`Расходы: ${project.label}`}>
+        <DrillHead
+          title={project.label}
+          meta={`${formatGenerationCount(project.generations)} · ${formatRub(project.amount)}`}
+          onBack={onBack}
+        />
+        {project.tasks.map((item) => (
+          <DrillRow
+            key={item.contentUnitId}
+            layout="row"
+            title={item.title}
+            meta={`${item.formatLabel} · ${formatGenerationCount(item.generations)}`}
+            amount={item.amount}
+            href={item.href}
+            onOpen={() => onEnterTask(item.contentUnitId)}
+          />
+        ))}
+      </section>
+    );
+  }
+
+  return (
+    <section className={styles.groups} aria-label="Расходы по проектам">
+      {projects.map((item) => (
+        <DrillRow
+          key={item.projectId}
+          title={item.label}
+          meta={formatGenerationCount(item.generations)}
+          amount={item.amount}
+          onOpen={() => onEnterProject(item.projectId)}
+        />
+      ))}
+    </section>
+  );
+}
+
+function DrillHead({
+  title,
+  meta,
+  href,
+  onBack,
+}: {
+  title: string;
+  meta: string;
+  href?: string;
+  onBack: () => void;
+}) {
+  return (
+    <header className={styles.drillHead}>
+      <div className={styles.drillBar}>
+        <Button type="button" variant="ghost" size="small" onClick={onBack}>
+          <CaretLeft size={16} aria-hidden />
+          Назад
+        </Button>
+        {href && (
+          <Link href={href}>
+            <Button variant="secondary" size="small">
+              Открыть
+            </Button>
+          </Link>
+        )}
+      </div>
+      <h2 className={styles.drillTitle}>{title}</h2>
+      <p className={styles.drillMeta}>{meta}</p>
+    </header>
+  );
+}
+
+function DrillRow({
+  title,
+  meta,
+  detail,
+  amount,
+  href,
+  onOpen,
+  layout = "card",
+}: {
+  title: string;
+  meta: string;
+  detail?: string;
+  amount: number;
+  href?: string;
+  onOpen: () => void;
+  layout?: "card" | "row";
+}) {
+  if (layout === "row") {
+    return (
+      <article className={styles.row}>
+        <button type="button" className={styles.rowMain} onClick={onOpen}>
+          <div className={styles.rowCopy}>
+            <p className={styles.rowTitle}>{title}</p>
+            <p className={styles.rowMeta}>{meta}</p>
+          </div>
+          <span className={styles.time}>{formatRub(amount)}</span>
+        </button>
+        {href && (
+          <Link href={href} className={styles.rowOpen}>
+            <Button variant="secondary" size="small">
+              Открыть
+            </Button>
+          </Link>
+        )}
+      </article>
+    );
+  }
+
+  return (
+    <article className={styles.card}>
+      <button type="button" className={styles.cardMain} onClick={onOpen}>
+        <span className={styles.cardTitle}>{title}</span>
+        <span className={styles.cardAmount}>{formatRub(amount)}</span>
+        <span className={styles.cardMeta}>{meta}</span>
+        {detail && <span className={styles.cardDetail}>{detail}</span>}
+      </button>
+      {href ? (
+        <Link href={href} className={styles.open}>
+          <Button variant="secondary" size="small" fullWidth>
+            Открыть
+          </Button>
+        </Link>
+      ) : (
+        <div className={styles.open}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="small"
+            fullWidth
+            onClick={onOpen}
+          >
+            Открыть
+          </Button>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function TaskList({ tasks }: { tasks: SpendPostRow[] }) {
+  return (
+    <>
+      {tasks.map((task) => (
+        <article key={task.contentUnitId} className={styles.row}>
+          <div className={styles.rowCopy}>
+            <p className={styles.rowTitle}>{task.title}</p>
+            <p className={styles.rowMeta}>
+              {task.projectName} · {task.formatLabel} · {task.generations} ген.
+            </p>
+          </div>
+          <span className={styles.time}>{formatRub(task.amount)}</span>
+          <Link href={task.href} className={styles.rowOpen}>
+            <Button variant="secondary" size="small">
+              Открыть
+            </Button>
+          </Link>
+        </article>
+      ))}
+    </>
+  );
+}
+
+function ShareList({ shares }: { shares: SpendRoleShare[] }) {
+  return (
+    <>
+      {shares.map((share) => (
+        <article key={share.role} className={styles.row}>
+          <div className={styles.rowCopy}>
+            <p className={styles.rowTitle}>{share.label}</p>
+            <p className={styles.rowMeta}>
+              {formatGenerationCount(share.generations)}
+            </p>
+          </div>
+          <span className={styles.time}>{formatRub(share.amount)}</span>
+        </article>
+      ))}
+    </>
+  );
 }

@@ -6,6 +6,7 @@ import type {
   AppNotification,
   ContentFormat,
   ContentPlanScenario,
+  NotificationKind,
   ProductionTask,
   User,
   UserRole,
@@ -13,13 +14,16 @@ import type {
 } from "@/types";
 import { SEED_WORKFLOW_TASKS } from "@/data/seed";
 import { mergeSeedWorkflowTasks } from "@/lib/seed-sync";
-import { isAdminRole } from "@/lib/roles";
+import { canAccessProject, canCreateProductionTask, isAdminRole } from "@/lib/roles";
 import {
   canUserApproveWorkflowTask,
   canUserReturnWorkflowTask,
 } from "@/lib/workflow-access";
 import { generateId } from "@/lib/simulate-generation";
+import { arrivalDrafts } from "@/lib/arrival-notifications";
 import { createStageDueAt } from "@/lib/task-deadline";
+import { buildOverdueNotificationDrafts } from "@/lib/overdue-notifications";
+import { useProjectsStore } from "@/stores/projects-store";
 import {
   getFormatPath,
   getDesignApprovedForPathIndex,
@@ -75,13 +79,20 @@ interface WorkflowState {
       ProductionTask,
       "id" | "createdAt" | "updatedAt" | "assigneeId" | "status"
     >,
-    users: User[]
+    users: User[],
+    actor?: User
   ) => string;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: (userId: string) => void;
+  notifyOverdueTasks: (users: User[]) => void;
   getUnreadCount: (userId: string) => number;
   getNotificationsForUser: (userId: string) => AppNotification[];
   resetWorkflow: () => void;
+}
+
+function dueAtForStage(projectId: string, stage: WorkflowStage, from = new Date()) {
+  const project = useProjectsStore.getState().getProject(projectId);
+  return createStageDueAt(stage, from, project);
 }
 
 function pushNotification(
@@ -95,6 +106,27 @@ function pushNotification(
     createdAt: new Date().toISOString(),
   };
   return [notification, ...notifications];
+}
+
+function pushArrivalNotifications(
+  notifications: AppNotification[],
+  params: {
+    users: User[];
+    projectId: string;
+    assigneeId: string | null;
+    taskId: string;
+    contentUnitId: string;
+    title: string;
+    kind: NotificationKind;
+    assigneeMessage: string;
+    managerMessage: string;
+  }
+): AppNotification[] {
+  let next = notifications;
+  for (const draft of arrivalDrafts(params)) {
+    next = pushNotification(next, draft);
+  }
+  return next;
 }
 
 function syncWorkflowState(
@@ -124,6 +156,7 @@ export const useWorkflowStore = create<WorkflowState>()(
         return tasks.filter(
           (task) =>
             task.status !== "done" &&
+            canAccessProject(user, task.projectId) &&
             !isAiPathCurrent(task.format, task.currentStage, task.currentPathId) &&
             user.role === stageToRole(task.currentStage)
         );
@@ -196,20 +229,21 @@ export const useWorkflowStore = create<WorkflowState>()(
                   returnedByUserId: undefined,
                   returnedByStage: undefined,
                   updatedAt: now,
-                  dueAt: createStageDueAt(nextStage),
+                  dueAt: dueAtForStage(task.projectId, nextStage),
                 }
               : item
           ),
-          notifications:
-            assigneeId != null
-              ? pushNotification(state.notifications, {
-                  userId: assigneeId,
-                  taskId: task.id,
-                  contentUnitId: task.contentUnitId,
-                  title: task.title,
-                  message: `Новая задача на этапе «${nextLabel}»`,
-                })
-              : state.notifications,
+          notifications: pushArrivalNotifications(state.notifications, {
+            users,
+            projectId: task.projectId,
+            assigneeId,
+            taskId: task.id,
+            contentUnitId: task.contentUnitId,
+            title: task.title,
+            kind: "assignment",
+            assigneeMessage: `Новая задача на этапе «${nextLabel}»`,
+            managerMessage: `Исполнителю поступила задача «${task.title}» на этапе «${nextLabel}»`,
+          }),
         }));
 
         onLog?.(
@@ -252,20 +286,21 @@ export const useWorkflowStore = create<WorkflowState>()(
                   returnedByUserId: user.id,
                   returnedByStage: task.currentStage,
                   updatedAt: now,
-                  dueAt: createStageDueAt(targetStage),
+                  dueAt: dueAtForStage(task.projectId, targetStage),
                 }
               : item
           ),
-          notifications:
-            assigneeId != null
-              ? pushNotification(state.notifications, {
-                  userId: assigneeId,
-                  taskId: task.id,
-                  contentUnitId: task.contentUnitId,
-                  title: task.title,
-                  message: `Возврат на этап «${targetLabel}»: ${comment}`,
-                })
-              : state.notifications,
+          notifications: pushArrivalNotifications(state.notifications, {
+            users,
+            projectId: task.projectId,
+            assigneeId,
+            taskId: task.id,
+            contentUnitId: task.contentUnitId,
+            title: task.title,
+            kind: "return",
+            assigneeMessage: `Возврат на этап «${targetLabel}»: ${comment}`,
+            managerMessage: `Задачу «${task.title}» вернули на этап «${targetLabel}»`,
+          }),
         }));
 
         onLog?.(
@@ -332,20 +367,21 @@ export const useWorkflowStore = create<WorkflowState>()(
                   returnedByUserId: undefined,
                   returnedByStage: undefined,
                   updatedAt: now,
-                  dueAt: createStageDueAt(targetStage),
+                  dueAt: dueAtForStage(task.projectId, targetStage),
                 }
               : item
           ),
-          notifications:
-            assigneeId != null
-              ? pushNotification(state.notifications, {
-                  userId: assigneeId,
-                  taskId: task.id,
-                  contentUnitId: task.contentUnitId,
-                  title: task.title,
-                  message: `Задачу перенесли на этап «${toLabel}»`,
-                })
-              : state.notifications,
+          notifications: pushArrivalNotifications(state.notifications, {
+            users,
+            projectId: task.projectId,
+            assigneeId,
+            taskId: task.id,
+            contentUnitId: task.contentUnitId,
+            title: task.title,
+            kind: "move",
+            assigneeMessage: `Задачу перенесли на этап «${toLabel}»`,
+            managerMessage: `Задачу «${task.title}» перенесли на этап «${toLabel}»`,
+          }),
         }));
 
         onLog?.(
@@ -365,6 +401,11 @@ export const useWorkflowStore = create<WorkflowState>()(
             ?.label ?? getStageLabel(task.currentStage);
 
         if (target.type === "posting") {
+          const postingAssigneeId = findAssigneeForStage(
+            "posting_manager",
+            task.projectId,
+            users
+          );
           set((state) => ({
             tasks: state.tasks.map((item) =>
               item.id === taskId
@@ -373,21 +414,28 @@ export const useWorkflowStore = create<WorkflowState>()(
                     currentStage: "posting_manager" as const,
                     currentPathId: undefined,
                     designApproved: true,
-                    assigneeId: findAssigneeForStage(
-                      "posting_manager",
-                      task.projectId,
-                      users
-                    ),
+                    assigneeId: postingAssigneeId,
                     status: "in_progress" as const,
                     returnComment: undefined,
                     returnToStage: undefined,
                     returnedByUserId: undefined,
                     returnedByStage: undefined,
                     updatedAt: new Date().toISOString(),
-                    dueAt: createStageDueAt("posting_manager"),
+                    dueAt: dueAtForStage(task.projectId, "posting_manager"),
                   }
                 : item
             ),
+            notifications: pushArrivalNotifications(state.notifications, {
+              users,
+              projectId: task.projectId,
+              assigneeId: postingAssigneeId,
+              taskId: task.id,
+              contentUnitId: task.contentUnitId,
+              title: task.title,
+              kind: "move",
+              assigneeMessage: "Задачу перенесли на этап «Менеджер постинга»",
+              managerMessage: `Задачу «${task.title}» перенесли на этап «Менеджер постинга»`,
+            }),
           }));
           onLog?.(
             task.contentUnitId,
@@ -423,20 +471,21 @@ export const useWorkflowStore = create<WorkflowState>()(
                   returnedByUserId: undefined,
                   returnedByStage: undefined,
                   updatedAt: now,
-                  dueAt: createStageDueAt(nextStage),
+                  dueAt: dueAtForStage(task.projectId, nextStage),
                 }
               : item
           ),
-          notifications:
-            assigneeId != null
-              ? pushNotification(state.notifications, {
-                  userId: assigneeId,
-                  taskId: task.id,
-                  contentUnitId: task.contentUnitId,
-                  title: task.title,
-                  message: `Задачу перенесли на этап «${toLabel}»`,
-                })
-              : state.notifications,
+          notifications: pushArrivalNotifications(state.notifications, {
+            users,
+            projectId: task.projectId,
+            assigneeId,
+            taskId: task.id,
+            contentUnitId: task.contentUnitId,
+            title: task.title,
+            kind: "move",
+            assigneeMessage: `Задачу перенесли на этап «${toLabel}»`,
+            managerMessage: `Задачу «${task.title}» перенесли на этап «${toLabel}»`,
+          }),
         }));
 
         onLog?.(
@@ -446,7 +495,10 @@ export const useWorkflowStore = create<WorkflowState>()(
         );
       },
 
-      createTask: (data, users) => {
+      createTask: (data, users, actor) => {
+        if (actor && !canCreateProductionTask(actor.role)) return "";
+        if (actor && !canAccessProject(actor, data.projectId)) return "";
+
         const id = generateId("wf");
         const assigneeId = findAssigneeForStage(
           data.currentStage,
@@ -461,21 +513,22 @@ export const useWorkflowStore = create<WorkflowState>()(
           status: "in_progress",
           createdAt: now,
           updatedAt: now,
-          dueAt: data.dueAt ?? createStageDueAt(data.currentStage),
+          dueAt: data.dueAt ?? dueAtForStage(data.projectId, data.currentStage),
         };
 
         set((state) => ({
           tasks: [...state.tasks, task],
-          notifications:
-            assigneeId != null
-              ? pushNotification(state.notifications, {
-                  userId: assigneeId,
-                  taskId: id,
-                  contentUnitId: data.contentUnitId,
-                  title: data.title,
-                  message: `Новая задача на этапе «${getStageLabel(data.currentStage)}»`,
-                })
-              : state.notifications,
+          notifications: pushArrivalNotifications(state.notifications, {
+            users,
+            projectId: data.projectId,
+            assigneeId,
+            taskId: id,
+            contentUnitId: data.contentUnitId,
+            title: data.title,
+            kind: "assignment",
+            assigneeMessage: `Новая задача на этапе «${getStageLabel(data.currentStage)}»`,
+            managerMessage: `Исполнителю поступила задача «${data.title}» на этапе «${getStageLabel(data.currentStage)}»`,
+          }),
         }));
 
         return id;
@@ -495,6 +548,35 @@ export const useWorkflowStore = create<WorkflowState>()(
             item.userId === userId ? { ...item, read: true } : item
           ),
         }));
+      },
+
+      notifyOverdueTasks: (users) => {
+        const { tasks, notifications } = get();
+        const drafts = buildOverdueNotificationDrafts(
+          tasks,
+          notifications,
+          users
+        );
+        if (drafts.length === 0) return;
+
+        set((state) => {
+          let next = state.notifications;
+          for (const draft of drafts) {
+            if (
+              next.some(
+                (item) =>
+                  item.kind === "overdue" &&
+                  item.taskId === draft.taskId &&
+                  item.dueAt === draft.dueAt &&
+                  item.userId === draft.userId
+              )
+            ) {
+              continue;
+            }
+            next = pushNotification(next, draft);
+          }
+          return next === state.notifications ? state : { notifications: next };
+        });
       },
 
       getUnreadCount: (userId) =>

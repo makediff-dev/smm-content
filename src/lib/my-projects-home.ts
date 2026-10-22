@@ -1,6 +1,6 @@
 import type { ContentFormat, ProductionTask, User } from "@/types";
 import { FORMAT_LABELS } from "@/types";
-import { isAdminRole, isManagementRole } from "@/lib/roles";
+import { canAccessProject, isAdminRole, isManagementRole } from "@/lib/roles";
 import { getPreviousStages, getStageLabel, stageToRole } from "@/lib/workflow";
 import { getRoleWorkspaceHref } from "@/lib/role-workspace";
 import {
@@ -40,13 +40,17 @@ export function getHomeTasksForUser(
     return active;
   }
 
+  const inProjects = active.filter((task) =>
+    canAccessProject(user, task.projectId)
+  );
+
   if (isManagementRole(user.role)) {
-    return active.filter(
+    return inProjects.filter(
       (task) => stageToRole(task.currentStage) === user.role
     );
   }
 
-  return active.filter(
+  return inProjects.filter(
     (task) =>
       task.assigneeId === user.id &&
       stageToRole(task.currentStage) === user.role

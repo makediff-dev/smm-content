@@ -2,6 +2,8 @@
 
 import { ReactNode, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useAuthStore } from "@/stores/auth-store";
+import { useWorkflowStore } from "@/stores/workflow-store";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./top-bar";
 import styles from "./app-shell.module.css";
@@ -28,6 +30,35 @@ export function AppShell({ children, projectId, breadcrumb }: AppShellProps) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [navOpen]);
+
+  useEffect(() => {
+    const run = () => {
+      if (
+        !useAuthStore.persist.hasHydrated() ||
+        !useWorkflowStore.persist.hasHydrated()
+      ) {
+        return;
+      }
+      const users = useAuthStore.getState().users;
+      useWorkflowStore.getState().notifyOverdueTasks(users);
+    };
+
+    const unsubAuth = useAuthStore.persist.onFinishHydration(run);
+    const unsubWorkflow = useWorkflowStore.persist.onFinishHydration(run);
+    run();
+    const intervalId = window.setInterval(run, 30_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") run();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      unsubAuth();
+      unsubWorkflow();
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
 
   return (
     <div className={styles.shell}>

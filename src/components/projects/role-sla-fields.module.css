@@ -1,0 +1,17 @@
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lead {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}

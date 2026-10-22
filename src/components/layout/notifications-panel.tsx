@@ -5,24 +5,29 @@ import { useRouter } from "next/navigation";
 import { Bell } from "@phosphor-icons/react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useWorkflowStore } from "@/stores/workflow-store";
+import { canAccessProject } from "@/lib/roles";
+import { getRoleWorkspaceHref } from "@/lib/role-workspace";
 import { formatDate } from "@/lib/simulate-generation";
 import styles from "./notifications-panel.module.css";
 
 export function NotificationsPanel() {
   const router = useRouter();
   const currentUser = useAuthStore((s) => s.currentUser);
-  const getUnreadCount = useWorkflowStore((s) => s.getUnreadCount);
   const getNotificationsForUser = useWorkflowStore((s) => s.getNotificationsForUser);
   const markNotificationRead = useWorkflowStore((s) => s.markNotificationRead);
   const markAllNotificationsRead = useWorkflowStore((s) => s.markAllNotificationsRead);
+  const getTaskByContentId = useWorkflowStore((s) => s.getTaskByContentId);
 
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  const unreadCount = currentUser ? getUnreadCount(currentUser.id) : 0;
   const notifications = currentUser
-    ? getNotificationsForUser(currentUser.id)
+    ? getNotificationsForUser(currentUser.id).filter((item) => {
+        const task = getTaskByContentId(item.contentUnitId);
+        return !task || canAccessProject(currentUser, task.projectId);
+      })
     : [];
+  const unreadCount = notifications.filter((item) => !item.read).length;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -40,6 +45,11 @@ export function NotificationsPanel() {
   const handleOpenNotification = (id: string, contentUnitId: string) => {
     markNotificationRead(id);
     setOpen(false);
+    const task = getTaskByContentId(contentUnitId);
+    if (task && task.status !== "done") {
+      router.push(getRoleWorkspaceHref(task.projectId, contentUnitId));
+      return;
+    }
     router.push(`/history/${contentUnitId}`);
   };
 

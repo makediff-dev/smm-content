@@ -26,7 +26,10 @@ import type { LogoAsset, QueueTask, ContentFormat, TaskStatus } from "@/types";
 import { FORMAT_LABELS, QUEUE_TYPE_LABELS, STATUS_LABELS } from "@/types";
 import { formatDate } from "@/lib/simulate-generation";
 import { matchesSearch, normalizeSearchQuery } from "@/lib/search";
-import { getRoleLabel } from "@/lib/roles";
+import { canCreateProductionTask, getRoleLabel } from "@/lib/roles";
+import { RoleSlaFields } from "@/components/projects/role-sla-fields";
+import { normalizeRoleSlaMinutes } from "@/lib/task-deadline";
+import { useRequireProjectAccess } from "@/hooks/use-require-project-access";
 import Link from "next/link";
 import { ListBullets, SquaresFour } from "@phosphor-icons/react";
 import styles from "./project.module.css";
@@ -63,6 +66,7 @@ export default function ProjectPage({
   const { id: projectId } = use(params);
   const router = useRouter();
   const currentUser = useAuthStore((s) => s.currentUser);
+  const canOpenProject = useRequireProjectAccess(projectId);
   const users = useAuthStore((s) => s.users);
   const updateUser = useAuthStore((s) => s.updateUser);
   const project = useProjectsStore((s) => s.getProject(projectId));
@@ -94,6 +98,7 @@ export default function ProjectPage({
     cardTemplates: project?.cardTemplates ?? "",
     imageRules: project?.imageRules ?? "",
     formattingRules: project?.formattingRules ?? "",
+    roleSlaMinutes: normalizeRoleSlaMinutes(project?.roleSlaMinutes),
   });
 
   const allProjectContent = project ? getContentForProject(projectId) : [];
@@ -163,6 +168,11 @@ export default function ProjectPage({
   const settingsSections = useMemo(
     () => [
       { id: "main", title: "Основное", keywords: ["название", "описание", "логотип"] },
+      {
+        id: "sla",
+        title: "Сроки по ролям",
+        keywords: ["срок", "роли", "минуты", "копирайтер", "дизайнер", "редактор"],
+      },
       { id: "brand", title: "Фирменный стиль", keywords: ["оформление", "шрифты", "цвета"] },
       { id: "templates", title: "Шаблоны карточек", keywords: ["шаблоны", "карточки"] },
       { id: "copyright", title: "Копирайты / подписи источника", keywords: ["подпись", "источник"] },
@@ -182,7 +192,7 @@ export default function ProjectPage({
     );
   }, [query, settingsSections]);
 
-  if (!project || !currentUser) return null;
+  if (!project || !currentUser || !canOpenProject) return null;
 
   const availableMembers = users.filter(
     (user) => !project.managerIds.includes(user.id)
@@ -213,8 +223,12 @@ export default function ProjectPage({
     setSelectedMemberId("");
   };
 
+  const canCreateContent = canCreateProductionTask(currentUser.role);
+
   const handleCreateContent = () => {
+    if (!canCreateContent) return;
     const contentId = createContentWithWorkflow();
+    if (!contentId) return;
     initWizard(projectId, contentId);
     router.push(`/projects/${projectId}/content/${contentId}`);
   };
@@ -342,7 +356,9 @@ export default function ProjectPage({
                   <SquaresFour size={18} weight={contentView === "grid" ? "fill" : "regular"} />
                 </button>
               </div>
-              <Button onClick={handleCreateContent}>Создать контент</Button>
+              {canCreateContent && (
+                <Button onClick={handleCreateContent}>Создать контент</Button>
+              )}
             </div>
           </div>
 
@@ -360,9 +376,12 @@ export default function ProjectPage({
                 formatFilter !== "all" ||
                 statusFilter !== "all"
                   ? "Попробуйте изменить запрос или фильтры"
-                  : "Создайте первую контент-единицу для этого проекта"
+                  : canCreateContent
+                    ? "Создайте первую контент-единицу для этого проекта"
+                    : "Задачи создают копирайтер, менеджер проекта или администратор"
               }
               action={
+                canCreateContent &&
                 !normalizeSearchQuery(query) &&
                 formatFilter === "all" &&
                 statusFilter === "all" ? (
@@ -440,6 +459,18 @@ export default function ProjectPage({
                       setLogoAssets(assets);
                       updateProject(projectId, { logoAssets: assets });
                     }}
+                  />
+                </div>
+              )}
+
+              {visibleSettingsSections.some((section) => section.id === "sla") && (
+                <div className={styles.settingsSection}>
+                  <h3 className={styles.settingsSectionTitle}>Сроки по ролям</h3>
+                  <RoleSlaFields
+                    values={settings.roleSlaMinutes}
+                    onChange={(roleSlaMinutes) =>
+                      setSettings((s) => ({ ...s, roleSlaMinutes }))
+                    }
                   />
                 </div>
               )}

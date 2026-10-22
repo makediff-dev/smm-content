@@ -54,31 +54,25 @@
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(280px, 22cqi, 340px);
-  grid-template-areas:
-    "preview stages"
-    "preview checks"
-    "preview rest";
   gap: 16px;
   align-items: start;
 }
 
 .previewCard {
-  grid-area: preview;
   min-width: 0;
 }
 
-.stagesCard {
-  grid-area: stages;
+.sideColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   min-width: 0;
 }
 
-.checksCard {
-  grid-area: checks;
-  min-width: 0;
-}
-
-.sideStack {
-  grid-area: rest;
+.stagesCard,
+.checksCard,
+.sideStack,
+.versionToggle {
   min-width: 0;
 }
 
@@ -1170,18 +1164,38 @@
 @container role-workspace (max-width: 980px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "stages"
-      "preview"
-      "checks"
-      "rest";
     min-width: 0;
+  }
+
+  .sideColumn {
+    display: contents;
+  }
+
+  .versionToggle {
+    order: 1;
+  }
+
+  .stagesCard {
+    order: 2;
+  }
+
+  .previewCard {
+    order: 3;
+  }
+
+  .checksCard {
+    order: 4;
+  }
+
+  .sideStack {
+    order: 5;
   }
 
   .previewCard,
   .stagesCard,
   .checksCard,
-  .sideStack {
+  .sideStack,
+  .versionToggle {
     min-width: 0;
     max-width: 100%;
   }
@@ -1268,18 +1282,38 @@
 @media (max-width: 1199px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "stages"
-      "preview"
-      "checks"
-      "rest";
     min-width: 0;
+  }
+
+  .sideColumn {
+    display: contents;
+  }
+
+  .versionToggle {
+    order: 1;
+  }
+
+  .stagesCard {
+    order: 2;
+  }
+
+  .previewCard {
+    order: 3;
+  }
+
+  .checksCard {
+    order: 4;
+  }
+
+  .sideStack {
+    order: 5;
   }
 
   .previewCard,
   .stagesCard,
   .checksCard,
-  .sideStack {
+  .sideStack,
+  .versionToggle {
     min-width: 0;
     max-width: 100%;
   }

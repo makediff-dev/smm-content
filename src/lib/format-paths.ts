@@ -393,6 +393,39 @@ export function getAdminPathTargetLabel(target: AdminPathTarget): string {
   return target.step.label;
 }
 
+export function getAdminRollbackOptionLabel(target: AdminPathTarget): string {
+  if (target.type === "posting") return "Менеджер постинга";
+  return target.step.hint
+    ? `${target.step.label} — ${target.step.hint}`
+    : target.step.label;
+}
+
+/** Previous person steps, nearest first. AI steps are skipped. */
+export function getAdminRollbackTargets(
+  format: ContentFormat,
+  currentStage: WorkflowStage,
+  options?: {
+    hasText?: boolean;
+    isComplete?: boolean;
+    designApproved?: boolean;
+    pathId?: string | null;
+  }
+): Extract<AdminPathTarget, { type: "path" }>[] {
+  const steps = getFormatPath(format);
+  const currentIndex =
+    currentStage === "posting_manager"
+      ? steps.length
+      : resolveFormatPathIndex(format, currentStage, options);
+
+  const targets: Extract<AdminPathTarget, { type: "path" }>[] = [];
+  for (let index = currentIndex - 1; index >= 0; index -= 1) {
+    const step = steps[index];
+    if (step.kind !== "person") continue;
+    targets.push({ type: "path", step, index });
+  }
+  return targets;
+}
+
 export function isAiPathCurrent(
   format: ContentFormat,
   currentStage: WorkflowStage,

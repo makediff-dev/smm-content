@@ -13,12 +13,23 @@ import { ProjectCard } from "@/components/projects/project-card";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageSearchBar } from "@/components/shared/page-search-bar";
 import { matchesSearch, normalizeSearchQuery } from "@/lib/search";
-import { isAdminRole, isManagementRole } from "@/lib/roles";
+import {
+  canCreateProductionTask,
+  isAdminRole,
+  isManagementRole,
+} from "@/lib/roles";
 import { buildHomeQueueItems, getHomeTasksForUser } from "@/lib/my-projects-home";
+import { RoleSlaFields } from "@/components/projects/role-sla-fields";
+import {
+  DEFAULT_ROLE_SLA_MINUTES,
+  normalizeRoleSlaMinutes,
+} from "@/lib/task-deadline";
+import type { WorkflowStage } from "@/types";
 import styles from "./projects.module.css";
 
 export default function ProjectsPage() {
@@ -40,6 +51,9 @@ function AdminProjectsHome() {
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const { query } = useSearch();
+  const [newSla, setNewSla] = useState(() =>
+    normalizeRoleSlaMinutes(DEFAULT_ROLE_SLA_MINUTES)
+  );
 
   const projects = currentUser
     ? getProjectsForUser(currentUser.id, true, currentUser.projectIds)
@@ -68,10 +82,15 @@ function AdminProjectsHome() {
 
   const handleCreate = () => {
     if (!newName.trim()) return;
-    const id = createProject({ name: newName, description: newDesc });
+    const id = createProject({
+      name: newName,
+      description: newDesc,
+      roleSlaMinutes: newSla,
+    });
     setModalOpen(false);
     setNewName("");
     setNewDesc("");
+    setNewSla(normalizeRoleSlaMinutes(DEFAULT_ROLE_SLA_MINUTES));
     router.push(`/projects/${id}`);
   };
 
@@ -128,8 +147,10 @@ function AdminProjectsHome() {
         open={modalOpen}
         name={newName}
         description={newDesc}
+        sla={newSla}
         onNameChange={setNewName}
         onDescriptionChange={setNewDesc}
+        onSlaChange={setNewSla}
         onClose={() => setModalOpen(false)}
         onCreate={handleCreate}
       />
@@ -145,12 +166,24 @@ function RoleProjectsHome() {
   const createProject = useProjectsStore((s) => s.createProject);
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [taskProjectId, setTaskProjectId] = useState("");
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
+  const [newSla, setNewSla] = useState(() =>
+    normalizeRoleSlaMinutes(DEFAULT_ROLE_SLA_MINUTES)
+  );
 
   const canManageAll = currentUser ? isManagementRole(currentUser.role) : false;
+  const canCreateTask = currentUser
+    ? canCreateProductionTask(currentUser.role)
+    : false;
   const projects = currentUser
-    ? getProjectsForUser(currentUser.id, canManageAll, currentUser.projectIds)
+    ? getProjectsForUser(
+        currentUser.id,
+        isAdminRole(currentUser.role),
+        currentUser.projectIds
+      )
     : [];
 
   const homeTasks = useMemo(() => {
@@ -173,11 +206,30 @@ function RoleProjectsHome() {
 
   const handleCreate = () => {
     if (!newName.trim()) return;
-    const id = createProject({ name: newName, description: newDesc });
+    const id = createProject({
+      name: newName,
+      description: newDesc,
+      roleSlaMinutes: newSla,
+    });
     setModalOpen(false);
     setNewName("");
     setNewDesc("");
+    setNewSla(normalizeRoleSlaMinutes(DEFAULT_ROLE_SLA_MINUTES));
     router.push(`/projects/${id}`);
+  };
+
+  const goCreateTask = (projectId: string) => {
+    router.push(`/projects/${projectId}/content/new`);
+  };
+
+  const handleCreateTask = () => {
+    if (projects.length === 1) {
+      goCreateTask(projects[0].id);
+      return;
+    }
+    if (projects.length === 0) return;
+    setTaskProjectId(projects[0].id);
+    setTaskModalOpen(true);
   };
 
   return (
@@ -189,8 +241,22 @@ function RoleProjectsHome() {
             Сразу видно, что ждёт именно вас
           </p>
         </div>
-        {canManageAll && (
-          <Button onClick={() => setModalOpen(true)}>Создать проект</Button>
+        {(canCreateTask || canManageAll) && (
+          <div className={styles.pageHeaderActions}>
+            {canCreateTask && (
+              <Button
+                onClick={handleCreateTask}
+                disabled={projects.length === 0}
+              >
+                Создать задачу
+              </Button>
+            )}
+            {canManageAll && (
+              <Button variant="secondary" onClick={() => setModalOpen(true)}>
+                Создать проект
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
@@ -269,12 +335,48 @@ function RoleProjectsHome() {
           open={modalOpen}
           name={newName}
           description={newDesc}
+          sla={newSla}
           onNameChange={setNewName}
           onDescriptionChange={setNewDesc}
+          onSlaChange={setNewSla}
           onClose={() => setModalOpen(false)}
           onCreate={handleCreate}
         />
       )}
+
+      <Modal
+        title="Создать задачу"
+        open={taskModalOpen}
+        onClose={() => setTaskModalOpen(false)}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setTaskModalOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              onClick={() => {
+                if (!taskProjectId) return;
+                setTaskModalOpen(false);
+                goCreateTask(taskProjectId);
+              }}
+              disabled={!taskProjectId}
+            >
+              Создать
+            </Button>
+          </>
+        }
+      >
+        <Select
+          id="home-task-project"
+          label="Проект"
+          value={taskProjectId}
+          onChange={(event) => setTaskProjectId(event.target.value)}
+          options={projects.map((project) => ({
+            value: project.id,
+            label: project.name,
+          }))}
+        />
+      </Modal>
     </AppShell>
   );
 }
@@ -283,16 +385,20 @@ function CreateProjectModal({
   open,
   name,
   description,
+  sla,
   onNameChange,
   onDescriptionChange,
+  onSlaChange,
   onClose,
   onCreate,
 }: {
   open: boolean;
   name: string;
   description: string;
+  sla: Record<WorkflowStage, number>;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
+  onSlaChange: (value: Record<WorkflowStage, number>) => void;
   onClose: () => void;
   onCreate: () => void;
 }) {
@@ -325,6 +431,7 @@ function CreateProjectModal({
           onChange={(event) => onDescriptionChange(event.target.value)}
           placeholder="Краткое описание проекта"
         />
+        <RoleSlaFields values={sla} onChange={onSlaChange} />
       </div>
     </Modal>
   );

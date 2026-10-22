@@ -14,7 +14,11 @@ import {
 interface ProjectsState {
   projects: Project[];
   contentUnits: ContentUnit[];
-  createProject: (data: { name: string; description: string }) => string;
+  createProject: (data: {
+    name: string;
+    description: string;
+    roleSlaMinutes?: Project["roleSlaMinutes"];
+  }) => string;
   updateProject: (id: string, data: Partial<Project>) => void;
   getProject: (id: string) => Project | undefined;
   getProjectsForUser: (userId: string, isAdmin: boolean, projectIds?: string[]) => Project[];
@@ -62,6 +66,7 @@ export const useProjectsStore = create<ProjectsState>()(
           cardTemplates: "",
           imageRules: "",
           formattingRules: "",
+          roleSlaMinutes: data.roleSlaMinutes,
         };
         set((s) => ({ projects: [...s.projects, project] }));
         return id;
