@@ -54,7 +54,7 @@ export function ProjectCard({
 
       <div className={styles.footer}>
         <Link href={`/projects/${project.id}`}>
-          <Button variant="secondary" fullWidth>
+          <Button variant="muted" fullWidth>
             Открыть проект
           </Button>
         </Link>

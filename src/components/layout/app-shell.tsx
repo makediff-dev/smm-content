@@ -12,9 +12,15 @@ interface AppShellProps {
   children: ReactNode;
   projectId?: string;
   breadcrumb?: string;
+  wide?: boolean;
 }
 
-export function AppShell({ children, projectId, breadcrumb }: AppShellProps) {
+export function AppShell({
+  children,
+  projectId,
+  breadcrumb,
+  wide = false,
+}: AppShellProps) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
 
@@ -78,8 +84,10 @@ export function AppShell({ children, projectId, breadcrumb }: AppShellProps) {
           />
         )}
         <Sidebar open={navOpen} onNavigate={() => setNavOpen(false)} />
-        <main className={styles.main}>
-          <div className={styles.content}>{children}</div>
+        <main className={`${styles.main} ${wide ? styles.mainWide : ""}`}>
+          <div className={`${styles.content} ${wide ? styles.contentWide : ""}`}>
+            {children}
+          </div>
         </main>
       </div>
     </div>

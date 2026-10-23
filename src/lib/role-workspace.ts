@@ -40,7 +40,7 @@ const ROLE_FIELD_LABEL: Record<WorkflowStage, string> = {
   designer: "Кадр, плашка, вёрстка",
   editor: "Ошибки, тон, оформление",
   video_editor: "Ударения, темп, эффекты",
-  project_manager: "Согласование и слот в плане",
+  project_manager: "Согласование текста или всей работы",
   posting_manager: "Публикация",
 };
 
@@ -423,14 +423,68 @@ export function getAutoChecks(
     ];
   }
 
+  if (stage === "project_manager" && !options?.designApproved) {
+    const hasSource = Boolean(content.sourceUrl || content.sourceFileName);
+    const hasDigits = /\d/.test(content.postText);
+    const titlesOk =
+      content.format === "text" ||
+      content.format === "video_meme" ||
+      content.cards.every((card) => card.shortText.trim().length > 0);
+    return [
+      {
+        ok: hasSource,
+        text:
+          content.format === "video_meme"
+            ? hasSource
+              ? "Видео на месте"
+              : "Нет видео для согласования"
+            : hasSource
+              ? "Источник указан"
+              : "Нет источника",
+      },
+      {
+        ok: words > 0,
+        text:
+          words > 0
+            ? content.format === "video_meme"
+              ? "Подводка написана"
+              : "Текст копирайтера на месте"
+            : content.format === "video_meme"
+              ? "Нет подводки"
+              : "Нет текста копирайтера",
+      },
+      {
+        ok: words === 0 || hasDigits || content.format === "video_meme",
+        text:
+          content.format === "video_meme"
+            ? "Тема ролика подходит под рубрику"
+            : hasDigits
+              ? "Цифры в тексте есть"
+              : "Нет цифр — сверьте факты",
+      },
+      {
+        ok: titlesOk,
+        text: titlesOk
+          ? "Заголовки слайдов на месте"
+          : "Пустые заголовки слайдов",
+      },
+    ];
+  }
+
   return [
     {
       ok: words > 0,
-      text: "Материал собран, можно согласовывать",
+      text: "Текст на месте, можно смотреть весь пакет",
+    },
+    {
+      ok: hasVisual || content.format === "text",
+      text: hasVisual || content.format === "text"
+        ? "Визуал и текст можно сверить"
+        : "Нет визуала для финальной проверки",
     },
     {
       ok: true,
-      text: "После принятия — слот в плане",
+      text: "После согласования — слот в плане",
     },
   ];
 }

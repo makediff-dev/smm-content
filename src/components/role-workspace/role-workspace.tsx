@@ -15,10 +15,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { StepConfirmModal } from "@/components/shared/step-confirm-modal";
 import { useStepConfirmModal } from "@/hooks/use-step-confirm-modal";
-import {
-  getAdminShiftConfirmContent,
-  getWorkflowStageConfirmContent,
-} from "@/lib/step-confirm";
+import { getWorkflowStageConfirmContent } from "@/lib/step-confirm";
 import { getReturnTargetStages } from "@/lib/workflow-access";
 import {
   getAdminPathNeighbors,
@@ -65,6 +62,7 @@ import { EditorStage } from "@/components/role-workspace/editor-stage";
 import { RoleLegacyTools } from "@/components/role-workspace/role-legacy-tools";
 import { useHydrateWizardFromContent } from "@/hooks/use-hydrate-wizard";
 import {
+  ManagerApprove,
   ManagerPlan,
   ManagerPreview,
 } from "@/components/role-workspace/manager-stage";
@@ -215,6 +213,9 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   const [returnComment, setReturnComment] = useState("");
   const [rollbackOpen, setRollbackOpen] = useState(false);
   const [rollbackTargetKey, setRollbackTargetKey] = useState("");
+  const [rollbackComment, setRollbackComment] = useState("");
+  const [forwardOpen, setForwardOpen] = useState(false);
+  const [forwardComment, setForwardComment] = useState("");
   const {
     confirmContent,
     confirmOpen,
@@ -354,8 +355,7 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   const isManagerStage = stage === "project_manager";
   const isPlanVisit =
     isManagerStage &&
-    (content.format !== "video_meme" ||
-      Boolean(task.designApproved) ||
+    (Boolean(task.designApproved) ||
       isLastVisitOfStage(chain, viewPathId, "project_manager"));
   const isPostingStage = stage === "posting_manager";
   const postingSlot =
@@ -365,9 +365,11 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   const canEdit = canOperate;
   const latestComment = task.returnComment
     ? `Возврат: ${task.returnComment}`
-    : isManagerStage
-      ? "Редактор: всё проверил, можно ставить"
-      : getLatestComment(content) ??
+    : isPlanVisit
+      ? "Редактор: всё проверил, можно ставить в план"
+      : isManagerStage
+        ? "Копирайтер: текст готов к согласованию"
+        : getLatestComment(content) ??
         (stage === "designer"
           ? `Редактор: на ${problemSlide + 1}-м слайде текст на машине`
           : null);
@@ -400,6 +402,7 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   const handleGoBack = () => {
     if (!isAdmin || rollbackTargets.length === 0) return;
     setRollbackTargetKey(String(rollbackTargets[0].index));
+    setRollbackComment("");
     setRollbackOpen(true);
   };
 
@@ -409,39 +412,47 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
       (item) => String(item.index) === rollbackTargetKey
     );
     if (!target) return;
-    moveAlongPath(task.id, target, currentUser, users, addActionLog);
+    moveAlongPath(
+      task.id,
+      target,
+      currentUser,
+      users,
+      addActionLog,
+      rollbackComment
+    );
     setViewStage(getPersonStageForPathIndex(task.format, target.index));
     setViewPathId(target.step.id);
     setRollbackOpen(false);
+    setRollbackComment("");
   };
 
   const handleMoveForward = () => {
     if (!isAdmin || !nextPathTarget) return;
-    requestConfirm(
-      getAdminShiftConfirmContent(
-        currentPathLabel,
-        getAdminPathTargetLabel(nextPathTarget),
-        "forward"
-      ),
-      () => {
-        moveAlongPath(
-          task.id,
-          nextPathTarget,
-          currentUser,
-          users,
-          addActionLog
-        );
-        if (nextPathTarget.type === "path") {
-          setViewStage(
-            getPersonStageForPathIndex(task.format, nextPathTarget.index)
-          );
-          setViewPathId(nextPathTarget.step.id);
-        } else {
-          setViewStage("posting_manager");
-          setViewPathId(null);
-        }
-      }
+    setForwardComment("");
+    setForwardOpen(true);
+  };
+
+  const handleConfirmForward = () => {
+    if (!isAdmin || !nextPathTarget) return;
+    moveAlongPath(
+      task.id,
+      nextPathTarget,
+      currentUser,
+      users,
+      addActionLog,
+      forwardComment
     );
+    if (nextPathTarget.type === "path") {
+      setViewStage(
+        getPersonStageForPathIndex(task.format, nextPathTarget.index)
+      );
+      setViewPathId(nextPathTarget.step.id);
+    } else {
+      setViewStage("posting_manager");
+      setViewPathId(null);
+    }
+    setForwardOpen(false);
+    setForwardComment("");
   };
 
   const handleApproveToPlan = (payload: {
@@ -533,7 +544,11 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
             {isPostingStage && postingSlot ? (
               <PostingPacks content={content} slot={postingSlot} />
             ) : isManagerStage ? (
-              <ManagerPreview content={content} task={task} />
+              <ManagerPreview
+                content={content}
+                task={task}
+                visit={isPlanVisit ? "full" : "text"}
+              />
             ) : stage === "editor" && content.format === "video_meme" ? (
               <EditorStage
                 content={content}
@@ -556,8 +571,10 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
             )}
 
             {task.returnComment && !isPostingStage ? (
-              <aside className={styles.returnNote} aria-label="Возврат">
-                <p className={styles.kicker}>Возврат</p>
+              <aside className={styles.returnNote} aria-label="Комментарий">
+                <p className={styles.kicker}>
+                  {task.status === "returned" ? "Возврат" : "Комментарий"}
+                </p>
                 <p className={styles.returnText}>{task.returnComment}</p>
               </aside>
             ) : latestComment && !isPostingStage ? (
@@ -664,6 +681,22 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
                 onApproveToPlan={handleApproveToPlan}
                 onRework={handleManagerRework}
               />
+            ) : isManagerStage ? (
+              <ManagerApprove
+                format={content.format}
+                canOperate={canOperate && !viewingOtherStage}
+                onApprove={() =>
+                  requestConfirm(
+                    getWorkflowStageConfirmContent(
+                      task.currentStage,
+                      task.format,
+                      { designApproved: task.designApproved }
+                    ),
+                    handleApprove
+                  )
+                }
+                onRework={handleManagerRework}
+              />
             ) : (
               <>
             {waitingForFix ? (
@@ -744,6 +777,43 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
               value: String(item.index),
               label: getAdminRollbackOptionLabel(item),
             }))}
+          />
+          <Textarea
+            label="Комментарий"
+            rows={4}
+            placeholder="Что исправить или почему переносите"
+            value={rollbackComment}
+            onChange={(event) => setRollbackComment(event.target.value)}
+          />
+        </div>
+      </Modal>
+
+      <Modal
+        title="Переместить задачу дальше?"
+        open={forwardOpen}
+        onClose={() => setForwardOpen(false)}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setForwardOpen(false)}>
+              Отмена
+            </Button>
+            <Button onClick={handleConfirmForward} disabled={!nextPathTarget}>
+              Переместить далее
+            </Button>
+          </>
+        }
+      >
+        <div className={styles.modalFields}>
+          <p className={styles.note}>
+            Задача перейдёт на этап «
+            {nextPathTarget ? getAdminPathTargetLabel(nextPathTarget) : ""}».
+          </p>
+          <Textarea
+            label="Комментарий"
+            rows={4}
+            placeholder="Можно коротко написать, зачем переносите"
+            value={forwardComment}
+            onChange={(event) => setForwardComment(event.target.value)}
           />
         </div>
       </Modal>

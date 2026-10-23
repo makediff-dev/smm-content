@@ -13,9 +13,14 @@ import styles from "./role-sla-fields.module.css";
 interface RoleSlaFieldsProps {
   values: Partial<Record<WorkflowStage, number>>;
   onChange: (values: Record<WorkflowStage, number>) => void;
+  layout?: "row" | "stack";
 }
 
-export function RoleSlaFields({ values, onChange }: RoleSlaFieldsProps) {
+export function RoleSlaFields({
+  values,
+  onChange,
+  layout = "row",
+}: RoleSlaFieldsProps) {
   const update = (stage: WorkflowStage, raw: string) => {
     const next = { ...DEFAULT_ROLE_SLA_MINUTES, ...values };
     next[stage] = clampSlaMinutes(
@@ -31,17 +36,18 @@ export function RoleSlaFields({ values, onChange }: RoleSlaFieldsProps) {
         Срок на роль в минутах. Отсчёт начинается, когда задача поступает
         исполнителю.
       </p>
-      <div className={styles.grid}>
+      <div className={layout === "stack" ? styles.stack : styles.grid}>
         {CONFIGURABLE_SLA_STAGES.map((stage) => (
-          <Input
-            key={stage}
-            type="number"
-            min={1}
-            step={1}
-            label={`${getRoleLabel(stage)}, мин`}
-            value={values[stage] ?? DEFAULT_ROLE_SLA_MINUTES[stage]}
-            onChange={(event) => update(stage, event.target.value)}
-          />
+          <div key={stage} className={styles.cell}>
+            <Input
+              type="number"
+              min={1}
+              step={1}
+              label={`${getRoleLabel(stage)}, мин`}
+              value={values[stage] ?? DEFAULT_ROLE_SLA_MINUTES[stage]}
+              onChange={(event) => update(stage, event.target.value)}
+            />
+          </div>
         ))}
       </div>
     </div>

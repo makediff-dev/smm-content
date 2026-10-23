@@ -124,7 +124,11 @@ export default function ArchivePage() {
                       {formatArchiveSince(slot.archivedAt)}
                     </p>
                   </div>
-                  <Button variant="secondary" onClick={() => openPlace(slot)}>
+                  <Button
+                    variant="secondary"
+                    className={styles.placeButton}
+                    onClick={() => openPlace(slot)}
+                  >
                     Поставить на день
                   </Button>
                 </li>

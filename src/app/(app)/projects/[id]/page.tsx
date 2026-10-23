@@ -266,7 +266,7 @@ export default function ProjectPage({
       render: (row) => (
         <div className={tableStyles.actions}>
           <Link href={`/history/${row.contentUnitId}`}>
-            <Button variant="secondary" size="small">
+            <Button variant="muted" size="small">
               Открыть
             </Button>
           </Link>

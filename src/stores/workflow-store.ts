@@ -72,7 +72,8 @@ interface WorkflowState {
     target: AdminPathTarget,
     user: User,
     users: User[],
-    onLog?: (contentUnitId: string, message: string, userName: string) => void
+    onLog?: (contentUnitId: string, message: string, userName: string) => void,
+    comment?: string
   ) => void;
   createTask: (
     data: Omit<
@@ -391,14 +392,16 @@ export const useWorkflowStore = create<WorkflowState>()(
         );
       },
 
-      moveAlongPath: (taskId, target, user, users, onLog) => {
+      moveAlongPath: (taskId, target, user, users, onLog, comment) => {
         const task = get().tasks.find((item) => item.id === taskId);
         if (!task) return;
         if (!isAdminRole(user.role)) return;
+        const note = comment?.trim() || undefined;
 
         const fromLabel =
           getFormatPath(task.format).find((step) => step.id === task.currentPathId)
             ?.label ?? getStageLabel(task.currentStage);
+        const noteSuffix = note ? `: ${note}` : "";
 
         if (target.type === "posting") {
           const postingAssigneeId = findAssigneeForStage(
@@ -416,7 +419,7 @@ export const useWorkflowStore = create<WorkflowState>()(
                     designApproved: true,
                     assigneeId: postingAssigneeId,
                     status: "in_progress" as const,
-                    returnComment: undefined,
+                    returnComment: note,
                     returnToStage: undefined,
                     returnedByUserId: undefined,
                     returnedByStage: undefined,
@@ -433,13 +436,13 @@ export const useWorkflowStore = create<WorkflowState>()(
               contentUnitId: task.contentUnitId,
               title: task.title,
               kind: "move",
-              assigneeMessage: "Задачу перенесли на этап «Менеджер постинга»",
-              managerMessage: `Задачу «${task.title}» перенесли на этап «Менеджер постинга»`,
+              assigneeMessage: `Задачу перенесли на этап «Менеджер постинга»${noteSuffix}`,
+              managerMessage: `Задачу «${task.title}» перенесли на этап «Менеджер постинга»${noteSuffix}`,
             }),
           }));
           onLog?.(
             task.contentUnitId,
-            `Админ: ${fromLabel} → Менеджер постинга`,
+            `Админ: ${fromLabel} → Менеджер постинга${noteSuffix}`,
             user.name
           );
           return;
@@ -466,7 +469,7 @@ export const useWorkflowStore = create<WorkflowState>()(
                   ),
                   assigneeId,
                   status: "in_progress" as const,
-                  returnComment: undefined,
+                  returnComment: note,
                   returnToStage: undefined,
                   returnedByUserId: undefined,
                   returnedByStage: undefined,
@@ -483,14 +486,14 @@ export const useWorkflowStore = create<WorkflowState>()(
             contentUnitId: task.contentUnitId,
             title: task.title,
             kind: "move",
-            assigneeMessage: `Задачу перенесли на этап «${toLabel}»`,
-            managerMessage: `Задачу «${task.title}» перенесли на этап «${toLabel}»`,
+            assigneeMessage: `Задачу перенесли на этап «${toLabel}»${noteSuffix}`,
+            managerMessage: `Задачу «${task.title}» перенесли на этап «${toLabel}»${noteSuffix}`,
           }),
         }));
 
         onLog?.(
           task.contentUnitId,
-          `Админ: ${fromLabel} → ${toLabel}`,
+          `Админ: ${fromLabel} → ${toLabel}${noteSuffix}`,
           user.name
         );
       },

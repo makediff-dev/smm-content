@@ -420,7 +420,7 @@ function DrillHead({
         </Button>
         {href && (
           <Link href={href}>
-            <Button variant="secondary" size="small">
+            <Button variant="muted" size="small">
               Открыть
             </Button>
           </Link>
@@ -461,7 +461,7 @@ function DrillRow({
         </button>
         {href && (
           <Link href={href} className={styles.rowOpen}>
-            <Button variant="secondary" size="small">
+            <Button variant="muted" size="small">
               Открыть
             </Button>
           </Link>
@@ -480,7 +480,7 @@ function DrillRow({
       </button>
       {href ? (
         <Link href={href} className={styles.open}>
-          <Button variant="secondary" size="small" fullWidth>
+          <Button variant="muted" size="small" fullWidth>
             Открыть
           </Button>
         </Link>
@@ -488,7 +488,7 @@ function DrillRow({
         <div className={styles.open}>
           <Button
             type="button"
-            variant="secondary"
+            variant="muted"
             size="small"
             fullWidth
             onClick={onOpen}
@@ -514,7 +514,7 @@ function TaskList({ tasks }: { tasks: SpendPostRow[] }) {
           </div>
           <span className={styles.time}>{formatRub(task.amount)}</span>
           <Link href={task.href} className={styles.rowOpen}>
-            <Button variant="secondary" size="small">
+            <Button variant="muted" size="small">
               Открыть
             </Button>
           </Link>

@@ -42,7 +42,7 @@ const STAGE_ACCESS: Record<
       editableSteps: ["source", "text", "cards", "build", "result"],
       cardsPhases: null,
       buildCapabilities: null,
-      description: "Итоговая проверка, возврат на любой этап, слот в КП",
+      description: "Сначала текст копирайтера, затем вся работа и слот в КП"
     },
     posting_manager: {
       editableSteps: ["result"],
@@ -80,7 +80,7 @@ const STAGE_ACCESS: Record<
       editableSteps: ["source", "text", "cards", "build", "result"],
       cardsPhases: null,
       buildCapabilities: null,
-      description: "Итоговая проверка, возврат на любой этап, слот в КП",
+      description: "Сначала текст копирайтера, затем вся работа и слот в КП"
     },
     posting_manager: {
       editableSteps: ["result"],
@@ -112,7 +112,7 @@ const STAGE_ACCESS: Record<
       editableSteps: ["source", "text", "cards", "build", "result"],
       cardsPhases: null,
       buildCapabilities: null,
-      description: "Итоговая проверка, возврат на любой этап, слот в КП",
+      description: "Сначала текст копирайтера, затем вся работа и слот в КП"
     },
     posting_manager: {
       editableSteps: ["result"],
@@ -144,7 +144,7 @@ const STAGE_ACCESS: Record<
       editableSteps: ["source", "text", "build", "result"],
       cardsPhases: null,
       buildCapabilities: null,
-      description: "Согласование видео и слот в КП",
+      description: "Сначала видео и подводка, затем вся работа и слот в КП"
     },
   },
 };

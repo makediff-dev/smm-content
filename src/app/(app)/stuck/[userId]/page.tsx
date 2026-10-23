@@ -163,7 +163,7 @@ function ReportCard({ report }: { report: PersonTaskReport }) {
       {report.href && (
         <div className={styles.cardActions}>
           <Link href={report.href}>
-            <Button variant="secondary">Открыть задачу</Button>
+            <Button variant="muted">Открыть задачу</Button>
           </Link>
         </div>
       )}

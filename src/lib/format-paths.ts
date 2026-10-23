@@ -37,7 +37,7 @@ const TEXT_PATH: FormatPathStep[] = [
     kind: "person",
     stage: "project_manager",
     label: "Менеджер проекта",
-    hint: "тема и ТТХ",
+    hint: "проверяет текст копирайтера",
   },
   {
     id: "text-5",
@@ -72,7 +72,7 @@ const TEXT_PATH: FormatPathStep[] = [
     kind: "person",
     stage: "project_manager",
     label: "Менеджер проекта",
-    hint: "в план",
+    hint: "проверяет всю работу и ставит в план"
   },
 ];
 
@@ -103,7 +103,7 @@ const GALLERY_PATH: FormatPathStep[] = [
     kind: "person",
     stage: "project_manager",
     label: "Менеджер проекта",
-    hint: "тема и ТТХ",
+    hint: "проверяет текст копирайтера",
   },
   {
     id: "gallery-5",
@@ -138,7 +138,7 @@ const GALLERY_PATH: FormatPathStep[] = [
     kind: "person",
     stage: "project_manager",
     label: "Менеджер проекта",
-    hint: "в план",
+    hint: "проверяет всю работу и ставит в план"
   },
 ];
 
@@ -169,7 +169,7 @@ const SLIDESHOW_PATH: FormatPathStep[] = [
     kind: "person",
     stage: "project_manager",
     label: "Менеджер проекта",
-    hint: "тема и ТТХ",
+    hint: "проверяет текст копирайтера",
   },
   {
     id: "slideshow-5",
@@ -211,7 +211,7 @@ const SLIDESHOW_PATH: FormatPathStep[] = [
     kind: "person",
     stage: "project_manager",
     label: "Менеджер проекта",
-    hint: "в план",
+    hint: "проверяет всю работу и ставит в план"
   },
 ];
 
@@ -228,7 +228,7 @@ const VIDEO_MEME_PATH: FormatPathStep[] = [
     kind: "person",
     stage: "project_manager",
     label: "Менеджер проекта",
-    hint: "смотрит видео",
+    hint: "видео и текст подводки"
   },
   {
     id: "meme-3",
@@ -256,7 +256,7 @@ const VIDEO_MEME_PATH: FormatPathStep[] = [
     kind: "person",
     stage: "project_manager",
     label: "Менеджер проекта",
-    hint: "в план",
+    hint: "проверяет всю работу и ставит в план"
   },
 ];
 

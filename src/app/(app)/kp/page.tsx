@@ -182,7 +182,7 @@ export default function ContentPlanPage() {
       );
 
   return (
-    <AppShell breadcrumb="Контент-план">
+    <AppShell breadcrumb="Контент-план" wide>
       <div className={styles.page}>
         <div className={styles.toolbar}>
           <div className={styles.toolbarCopy}>

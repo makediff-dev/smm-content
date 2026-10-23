@@ -2,6 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
 }
 
 .toolbar {
@@ -75,8 +78,7 @@
   padding: 0 14px;
   border: none;
   border-radius: var(--radius-pill);
-  background: var(--bg-white);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
+  background: var(--btn-muted);
   font: inherit;
   font-size: 14px;
   color: var(--text);
@@ -85,7 +87,7 @@
 }
 
 .weekNow:hover {
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+  background: var(--btn-muted-hover);
 }
 
 .weekButton {
@@ -93,9 +95,8 @@
   height: 32px;
   border: none;
   border-radius: var(--radius-pill);
-  background: var(--bg-white);
+  background: var(--btn-muted);
   color: var(--text);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -103,7 +104,7 @@
 }
 
 .weekButton:hover {
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+  background: var(--btn-muted-hover);
 }
 
 .weekRange {
@@ -198,9 +199,8 @@
   height: 24px;
   border: none;
   border-radius: 8px;
-  background: var(--bg-white);
+  background: var(--btn-muted);
   color: var(--text-muted);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.16);
   cursor: pointer;
 }
 
@@ -321,6 +321,14 @@
   background: var(--bg-muted);
 }
 
+.placeButton {
+  background: #fff;
+}
+
+.placeButton:hover:not(:disabled) {
+  background: #f7f7f8;
+}
+
 .archiveTitle {
   display: flex;
   align-items: center;
@@ -350,6 +358,53 @@
   color: var(--text-muted);
 }
 
+@media (min-width: 1200px) {
+  .page {
+    min-height: 100%;
+  }
+
+  .toolbar {
+    flex-shrink: 0;
+  }
+
+  .board {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+  }
+
+  .boardHead {
+    flex-shrink: 0;
+  }
+
+  .weekGrid {
+    flex: 1 1 auto;
+    align-items: stretch;
+    grid-auto-rows: 1fr;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .dayCol {
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dayList {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
 @media (min-width: 1600px) {
   .board {
     padding: 22px;
@@ -360,7 +415,6 @@
   }
 
   .dayCol {
-    min-height: 360px;
     padding: 12px;
   }
 }

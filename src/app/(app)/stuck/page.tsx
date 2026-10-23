@@ -147,7 +147,7 @@ function StuckRow({ row }: { row: StuckTaskRow }) {
       </div>
       <span className={styles.time}>{row.durationLabel}</span>
       <Link href={row.href} className={styles.open}>
-        <Button variant="secondary">Открыть</Button>
+        <Button variant="muted">Открыть</Button>
       </Link>
     </li>
   );

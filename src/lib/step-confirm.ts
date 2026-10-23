@@ -108,6 +108,21 @@ export function getWorkflowStageConfirmContent(
   const stageLabel = getStageLabel(stage);
   const isFinalStage = stage === "posting_manager" || !nextStage;
 
+  if (stage === "project_manager" && nextStage === "editor") {
+    return {
+      title:
+        format === "video_meme"
+          ? "Согласовать видео и подводку?"
+          : "Согласовать текст копирайтера?",
+      description:
+        format === "video_meme"
+          ? "Ролик можно брать. Подводка уйдёт редактору на вычитку."
+          : "Тема и текст копирайтера уйдут редактору на вычитку. Визуал на этом шаге ещё не проверяете.",
+      confirmLabel: "Согласовать",
+      cancelLabel: "Отмена",
+    };
+  }
+
   if (isFinalStage) {
     return {
       title: "Завершить производство?",

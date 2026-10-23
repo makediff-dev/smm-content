@@ -431,7 +431,7 @@ function CreateProjectModal({
           onChange={(event) => onDescriptionChange(event.target.value)}
           placeholder="Краткое описание проекта"
         />
-        <RoleSlaFields values={sla} onChange={onSlaChange} />
+        <RoleSlaFields layout="stack" values={sla} onChange={onSlaChange} />
       </div>
     </Modal>
   );
