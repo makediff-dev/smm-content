@@ -351,7 +351,19 @@ export default function ProjectPage({
         </div>
       </div>
 
-      <Tabs tabs={PROJECT_TABS} activeTab={activeTab} onChange={setActiveTab} />
+      <div className={styles.tabsRow}>
+        <Tabs tabs={PROJECT_TABS} activeTab={activeTab} onChange={setActiveTab} />
+        {activeTab === "queue" && isAdmin && queueTasks.length > 0 && (
+          <ColumnFilters
+            groups={queueFilterGroup}
+            values={queueFilters}
+            onChange={(key, value) =>
+              setQueueFilters((current) => ({ ...current, [key]: value }))
+            }
+            onReset={() => setQueueFilters({})}
+          />
+        )}
+      </div>
 
       {activeTab === "content" && (
         <>
@@ -465,18 +477,6 @@ export default function ProjectPage({
 
       {activeTab === "queue" && (
         <>
-          {isAdmin && queueTasks.length > 0 && (
-            <div className={styles.queueToolbar}>
-              <ColumnFilters
-                groups={queueFilterGroup}
-                values={queueFilters}
-                onChange={(key, value) =>
-                  setQueueFilters((current) => ({ ...current, [key]: value }))
-                }
-                onReset={() => setQueueFilters({})}
-              />
-            </div>
-          )}
           {queueTasks.length === 0 ? (
           <EmptyState title="Очередь пуста" description="Нет задач для этого проекта" />
         ) : filteredQueueTasks.length === 0 ? (

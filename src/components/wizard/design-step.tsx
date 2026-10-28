@@ -953,6 +953,7 @@ export function DesignStep() {
       : stageSize.width && stageSize.height
         ? stageSize.width / stageSize.height
         : 1;
+  const isVerticalPreview = isMeme || isSlideshow || frameAspect < 0.85;
 
   return (
     <section className={wizardStyles.section} aria-label="Оформление">
@@ -1001,7 +1002,7 @@ export function DesignStep() {
       <div className={styles.layout}>
         <div
           className={`${styles.previewColumn} ${
-            isMeme || isSlideshow ? styles.previewVertical : styles.previewSquare
+            isVerticalPreview ? styles.previewVertical : styles.previewSquare
           }`}
           style={{ "--frame-aspect": String(frameAspect) } as CSSProperties}
         >

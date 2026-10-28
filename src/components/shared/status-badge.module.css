@@ -21,8 +21,9 @@
 }
 
 .in_progress {
-  background: var(--accent-muted);
-  color: var(--accent);
+  background: var(--bg-white);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1.5px rgba(248, 191, 0, 0.6);
 }
 
 .done {
@@ -31,9 +32,8 @@
 }
 
 .error {
-  background: var(--bg-white);
-  color: var(--text);
-  box-shadow: inset 0 0 0 1.5px rgba(248, 191, 0, 0.6);
+  background: var(--danger-muted);
+  color: var(--danger);
 }
 
 .ready {
@@ -89,12 +89,12 @@
 .tagVariant.in_progress,
 .tagVariant.testing {
   background: var(--bg-soft);
-  color: var(--text-muted);
+  color: var(--text);
 }
 
 .tagVariant.in_progress .tagIcon,
 .tagVariant.testing .tagIcon {
-  color: var(--accent);
+  color: var(--text);
 }
 
 .tagVariant.done,
@@ -106,11 +106,11 @@
 
 .tagVariant.error,
 .tagVariant.disconnected {
-  background: var(--bg-soft);
-  color: var(--text-muted);
+  background: var(--danger-muted);
+  color: var(--danger);
 }
 
 .tagVariant.error .tagIcon,
 .tagVariant.disconnected .tagIcon {
-  color: var(--accent);
+  color: var(--danger);
 }
