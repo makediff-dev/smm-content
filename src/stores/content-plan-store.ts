@@ -92,13 +92,13 @@ export const SEED_CONTENT_PLAN: ContentPlanSlot[] = [
   }),
   makeSeedSlot(4, 15, 0, "Мем про запуск", {
     format: "video_meme",
-    contentUnitId: undefined,
+    contentUnitId: "content-26",
     hasVisual: true,
     hasZip: false,
   }),
   makeSeedSlot(5, 12, 0, "Галерея выходного", {
     format: "gallery",
-    contentUnitId: undefined,
+    contentUnitId: "content-27",
   }),
   {
     id: "kp-archive-1",

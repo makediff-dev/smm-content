@@ -285,6 +285,19 @@
   box-shadow: var(--shadow-sm);
 }
 
+.rowStats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.gens {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .card {
   display: flex;
   flex-direction: column;
@@ -350,17 +363,20 @@
 .rowMain {
   flex: 1;
   min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 16px;
   padding: 0;
   background: transparent;
   border: none;
   text-align: left;
-  cursor: pointer;
   color: inherit;
   font: inherit;
+}
+
+button.rowMain {
+  cursor: pointer;
 }
 
 .rowCopy {
@@ -402,12 +418,6 @@
     grid-template-columns: 1fr;
   }
 
-  .row,
-  .nestedRow,
-  .rowMain {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
   .row {
     flex-wrap: wrap;
   }
@@ -447,10 +457,13 @@
     width: 100%;
   }
 
-  .row,
-  .nestedRow,
   .rowMain {
-    grid-template-columns: minmax(0, 1fr);
+    flex-wrap: wrap;
+  }
+
+  .rowStats {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .time,

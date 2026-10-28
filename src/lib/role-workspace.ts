@@ -40,7 +40,7 @@ const ROLE_FIELD_LABEL: Record<WorkflowStage, string> = {
   designer: "Кадр, плашка, вёрстка",
   editor: "Ошибки, тон, оформление",
   video_editor: "Ударения, темп, эффекты",
-  project_manager: "Согласование текста или всей работы",
+  project_manager: "Проверка всей работы и слот в план",
   posting_manager: "Публикация",
 };
 
@@ -91,38 +91,6 @@ export function getWorkspaceChain(
     .filter((item) => item.kind !== "ai");
 }
 
-export interface WorkspaceChainViewItem {
-  item: WorkspaceChainItem;
-  skippedAfter: number;
-}
-
-export function getChainView(
-  items: WorkspaceChainItem[],
-  expanded: boolean
-): WorkspaceChainViewItem[] {
-  if (items.length === 0) return [];
-
-  const last = items.length - 1;
-  const currentIndex = items.findIndex((item) => item.state === "current");
-  const keep = new Set<number>([0]);
-  if (last >= 1) keep.add(1);
-  if (currentIndex >= 0) keep.add(currentIndex);
-  keep.add(last);
-
-  const indices =
-    expanded || keep.size >= items.length
-      ? items.map((_, index) => index)
-      : [...keep].sort((a, b) => a - b);
-
-  return indices.map((index, position) => {
-    const next = indices[position + 1];
-    return {
-      item: items[index],
-      skippedAfter: next === undefined ? 0 : next - index - 1,
-    };
-  });
-}
-
 export function getPersonChainItems(items: WorkspaceChainItem[]) {
   return items.filter(
     (item): item is WorkspaceChainItem & { stage: WorkflowStage } =>
@@ -142,12 +110,6 @@ export function isLastVisitOfStage(
     visits.find((item) => item.state === "current") ??
     visits[visits.length - 1];
   return selected.id === visits[visits.length - 1].id;
-}
-
-export function canCollapseChain(items: WorkspaceChainItem[]): boolean {
-  if (items.length <= 3) return false;
-  const view = getChainView(items, false);
-  return view.length < items.length;
 }
 
 export function getRoleFieldLabel(stage: WorkflowStage): string {
@@ -174,8 +136,9 @@ export function getPinnedWorkspaceStage(
 ): WorkflowStage | undefined {
   if (!task) return undefined;
   if (user && isAdminRole(user.role)) {
-    return adminView ?? task.currentStage;
+    return adminView ?? (task.status === "done" ? "project_manager" : task.currentStage);
   }
+  if (task.status === "done") return "project_manager";
   if (canUserOperateCurrentStage(user, task)) {
     return task.currentStage;
   }
@@ -301,10 +264,11 @@ export function getAutoChecks(
     content.format === "video_meme";
 
   if (stage === "editor") {
-    const textFinal =
-      content.format === "text" && Boolean(options?.designApproved);
-    const memeFinal =
-      content.format === "video_meme" && Boolean(options?.designApproved);
+    const finalReview = Boolean(options?.designApproved);
+    const textReady =
+      content.format === "video_meme"
+        ? "Подводка готова к вычитке"
+        : "Текст готов к вычитке";
     return [
       {
         ok: words >= 40 && words <= 180,
@@ -314,20 +278,12 @@ export function getAutoChecks(
             : `${words} слов — проверьте длину`,
       },
       {
-        ok: hasVisual || (content.format === "text" && !textFinal),
-        text: textFinal
+        ok: finalReview ? hasVisual : words > 0,
+        text: finalReview
           ? hasVisual
             ? "Текст и картинки можно сверить"
             : "Нет визуала для сверки с текстом"
-          : memeFinal
-            ? "Подводка и ролик можно сверить"
-            : content.format === "text"
-              ? "Текст готов к вычитке"
-              : content.format === "video_meme"
-                ? "Подводка готова к вычитке"
-                : hasVisual
-                  ? "Плашка и кадры на месте"
-                  : "Нет визуала для сверки с текстом",
+          : textReady,
       },
       {
         ok: emoji <= 3,
@@ -342,9 +298,13 @@ export function getAutoChecks(
   if (stage === "copywriter") {
     const hasSource = Boolean(content.sourceUrl || content.sourceFileName);
     const hasDigits = /\d/.test(content.postText);
+    const needsTitles =
+      content.format === "gallery" ||
+      content.format === "slideshow" ||
+      content.cards.length > 0;
     const titlesOk =
-      content.format === "text" ||
       content.format === "video_meme" ||
+      !needsTitles ||
       content.cards.every((card) => card.shortText.trim().length > 0);
 
     return [
@@ -489,7 +449,3 @@ export function getAutoChecks(
   ];
 }
 
-export function getLatestComment(content: ContentUnit): string | null {
-  const last = content.actionLog[content.actionLog.length - 1];
-  return last ? `${last.user}: ${last.action}` : null;
-}

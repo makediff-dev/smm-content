@@ -1343,6 +1343,31 @@
   background: var(--border);
 }
 
+.phaseStepperSplit {
+  display: flex;
+  width: 100%;
+}
+
+.phaseStepperSplit .phaseStepperItem:first-child {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+}
+
+.phaseStepperSplit .phaseStepperItem:last-child {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  justify-content: flex-end;
+}
+
+.phaseStepperSplit .phaseStepperItem:first-child .phaseStepperLine {
+  flex: 1 1 auto;
+  min-width: 16px;
+}
+
+.phaseStepperSplit .phaseStepperItem:last-child .phaseStepperLine {
+  display: none;
+}
+
 @container (max-width: 520px) {
   .phaseStepper {
     display: flex;

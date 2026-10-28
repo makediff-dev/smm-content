@@ -181,6 +181,7 @@ export const useWorkflowStore = create<WorkflowState>()(
 
         const nextStage = getNextStage(task.format, task.currentStage, {
           designApproved: task.designApproved,
+          returnedByStage: task.returnedByStage,
         });
         const designApproved =
           task.currentStage === "designer" ? true : task.designApproved;
@@ -347,6 +348,7 @@ export const useWorkflowStore = create<WorkflowState>()(
         const movingForward =
           getNextStage(task.format, task.currentStage, {
             designApproved: task.designApproved,
+            returnedByStage: task.returnedByStage,
           }) === targetStage;
 
         set((state) => ({

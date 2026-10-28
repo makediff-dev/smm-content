@@ -10,6 +10,7 @@ import {
 } from "@/types";
 import { isAdminRole, isManagementRole } from "@/lib/roles";
 import {
+  copywriterCanReturnToDesigner,
   getMoveTargetStages,
   getPreviousStages,
   stageToRole,
@@ -28,10 +29,11 @@ export function getInitialCardsPhaseForStage(
   cards: { imageUrl?: string }[]
 ): CardsPhase {
   if (stage === "designer") return "images";
+  if (stage === "copywriter") {
+    return cards.length === 0 ? "phrases" : "edit";
+  }
   if (stage === "editor") {
-    if (cards.length === 0) return "phrases";
-    if (cards.every((card) => card.imageUrl)) return "images";
-    return "edit";
+    return cards.length === 0 ? "phrases" : "edit";
   }
   if (cards.length === 0) return "phrases";
   if (cards.every((card) => card.imageUrl)) return "images";
@@ -196,7 +198,9 @@ export function canUserReturnWorkflowTask(
   }
 
   if (!isUserResponsibleForTaskStage(user, task)) return false;
-  return user.role === stageToRole(task.currentStage);
+  if (user.role !== stageToRole(task.currentStage)) return false;
+
+  return getReturnTargetStages(user, task).length > 0;
 }
 
 export function getReturnTargetStages(
@@ -207,9 +211,17 @@ export function getReturnTargetStages(
     return getMoveTargetStages(task.format, task.currentStage);
   }
 
-  return getPreviousStages(task.format, task.currentStage, {
-    designApproved: task.designApproved,
-  }).filter((stage) => stage !== "posting_manager");
+  if (copywriterCanReturnToDesigner(task.currentStage, task.returnedByStage)) {
+    return ["designer"];
+  }
+
+  return [
+    ...new Set(
+      getPreviousStages(task.format, task.currentStage, {
+        designApproved: task.designApproved,
+      }).filter((stage) => stage !== "posting_manager")
+    ),
+  ];
 }
 
 export function getWizardStepForStage(

@@ -10,17 +10,25 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import {
+  CaretDown,
+  TextAlignCenter,
+  TextAlignLeft,
+  TextAlignRight,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { DesignCropModal } from "@/components/wizard/design-crop-modal";
 import { useWizardStepDisabled } from "@/components/wizard/wizard-step-context";
 import {
   createCardDesign,
   createTextLayer,
+  DEFAULT_PHOTO_GRADIENT,
+  DEFAULT_TEXT_SHADOW,
   DESIGN_FONTS,
   ensureCardDesign,
   fontFamily,
-  PHOTO_GRADIENT_LAYER_OPACITY,
   photoGradientForPlacement,
   photoGradientStyle,
   resolvePhotoGradient,
@@ -48,7 +56,7 @@ import type {
 import styles from "./design-step.module.css";
 import wizardStyles from "./wizard.module.css";
 
-const SLIDESHOW_CROP_FORMAT = {
+const STORIES_CROP_FORMAT = {
   label: "1080×1920",
   width: 1080,
   height: 1920,
@@ -56,14 +64,15 @@ const SLIDESHOW_CROP_FORMAT = {
 
 const CROP_FORMATS = [
   { label: "1080×1080", width: 1080, height: 1080 },
+  STORIES_CROP_FORMAT,
   { label: "1000×700", width: 1000, height: 700 },
   { label: "1080×960", width: 1080, height: 960 },
   { label: "Свободная" },
 ] as const;
 
-type CropFormatOption =
-  | (typeof CROP_FORMATS)[number]
-  | typeof SLIDESHOW_CROP_FORMAT;
+type CropFormatOption = (typeof CROP_FORMATS)[number];
+
+let styleClipboard: CardDesign | null = null;
 
 const GRADIENT_OPTIONS: { value: GradientPlacement | null; label: string }[] = [
   { value: null, label: "Нет" },
@@ -71,10 +80,14 @@ const GRADIENT_OPTIONS: { value: GradientPlacement | null; label: string }[] = [
   { value: "top", label: "Сверху" },
 ];
 
-const ALIGN_OPTIONS: { value: TextAlign; label: string }[] = [
-  { value: "left", label: "Слева" },
-  { value: "center", label: "По центру" },
-  { value: "right", label: "Справа" },
+const ALIGN_OPTIONS: {
+  value: TextAlign;
+  label: string;
+  Icon: typeof TextAlignLeft;
+}[] = [
+  { value: "left", label: "Слева", Icon: TextAlignLeft },
+  { value: "center", label: "По центру", Icon: TextAlignCenter },
+  { value: "right", label: "Справа", Icon: TextAlignRight },
 ];
 
 const FONT_OPTIONS = DESIGN_FONTS.map((font) => ({ value: font, label: font }));
@@ -134,6 +147,258 @@ type Toggle = "bold" | "italic" | "underline";
 
 type Patches = Record<string, Partial<Card>>;
 
+type FoldKey = "format" | "layers" | "shadow" | "gradient" | "presets";
+
+const PRESET_FRAME = { width: 1080, height: 1080 };
+
+function makeStylePreset(
+  id: string,
+  label: string,
+  layer: Partial<TextLayer>,
+  overlay: Partial<PhotoGradient>
+) {
+  const base = createTextLayer("Aa", PRESET_FRAME);
+  return {
+    id,
+    label,
+    design: {
+      ...PRESET_FRAME,
+      overlay: { ...DEFAULT_PHOTO_GRADIENT, ...overlay },
+      globalLightAngle: 90,
+      layers: [{ ...base, ...layer }],
+    } satisfies CardDesign,
+  };
+}
+
+function withLayerColor(design: CardDesign, color: string): CardDesign {
+  return {
+    ...design,
+    layers: design.layers.map((layer, index) =>
+      index === 0 ? { ...layer, color } : layer
+    ),
+  };
+}
+
+function PresetColorSwatch({
+  color,
+  disabled,
+  onChange,
+}: {
+  color: string;
+  disabled?: boolean;
+  onChange: (color: string) => void;
+}) {
+  const hex = toHex6(color);
+  return (
+    <label className={styles.presetSwatch} style={{ backgroundColor: `#${hex}` }}>
+      <input
+        className={styles.colorSwatchInput}
+        type="color"
+        value={`#${hex}`}
+        disabled={disabled}
+        aria-label="Цвет пресета"
+        onClick={(event) => event.stopPropagation()}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
+const STYLE_PRESETS = [
+  makeStylePreset(
+    "white-bottom",
+    "Подпись снизу",
+    { font: "Montserrat", fontSize: 48, color: "#ffffff", align: "left", bold: true },
+    { enabled: true, placement: "bottom" }
+  ),
+  makeStylePreset(
+    "center",
+    "Заголовок по центру",
+    {
+      font: "Unbounded",
+      fontSize: 56,
+      color: "#dbe4f0",
+      align: "center",
+      bold: true,
+      top: 420,
+    },
+    { enabled: false }
+  ),
+  makeStylePreset(
+    "plaque",
+    "Текст на плашке",
+    {
+      font: "Montserrat",
+      fontSize: 42,
+      color: "#ffffff",
+      align: "left",
+      bold: true,
+      background: "#000000",
+    },
+    { enabled: false }
+  ),
+  makeStylePreset(
+    "stroke",
+    "Белый с обводкой",
+    {
+      font: "Oswald",
+      fontSize: 54,
+      color: "#cfd3dc",
+      align: "left",
+      bold: true,
+      strokeWidth: 6,
+      strokeColor: "#000000",
+      shadow: { ...DEFAULT_TEXT_SHADOW, enabled: false },
+    },
+    { enabled: true, placement: "bottom" }
+  ),
+  makeStylePreset(
+    "serif",
+    "Книжный с засечками",
+    {
+      font: "PT Serif",
+      fontSize: 44,
+      color: "#e6d3af",
+      align: "left",
+      bold: false,
+      italic: true,
+    },
+    { enabled: true, placement: "bottom" }
+  ),
+  makeStylePreset(
+    "accent",
+    "Жёлтый акцент",
+    {
+      font: "Oswald",
+      fontSize: 52,
+      color: "#f8bf00",
+      align: "left",
+      bold: true,
+    },
+    { enabled: true, placement: "bottom", color: "#1a1a1a" }
+  ),
+];
+
+function EditorFold({
+  title,
+  open,
+  onToggle,
+  extra,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  extra?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className={styles.fold}>
+      <div className={styles.foldHead}>
+        <button
+          type="button"
+          className={styles.foldToggle}
+          aria-expanded={open}
+          onClick={onToggle}
+        >
+          <CaretDown
+            size={16}
+            className={open ? styles.foldCaretOpen : styles.foldCaret}
+            aria-hidden
+          />
+          {title}
+        </button>
+        {extra}
+      </div>
+      {open ? <div className={styles.foldBody}>{children}</div> : null}
+    </section>
+  );
+}
+
+function toHex6(value: string) {
+  const raw = value.replace("#", "").trim();
+  if (/^[0-9a-fA-F]{3}$/.test(raw)) {
+    return raw
+      .split("")
+      .map((char) => `${char}${char}`)
+      .join("")
+      .toUpperCase();
+  }
+  if (/^[0-9a-fA-F]{6}$/.test(raw)) return raw.toUpperCase();
+  return "FFFFFF";
+}
+
+function ColorLine({
+  color,
+  opacity,
+  disabled,
+  onColor,
+  onOpacity,
+}: {
+  color: string;
+  opacity?: number;
+  disabled?: boolean;
+  onColor: (hex: string) => void;
+  onOpacity?: (value: number) => void;
+}) {
+  const hex = toHex6(color);
+  const [draft, setDraft] = useState(hex);
+  const percent = Math.round((opacity ?? 1) * 100);
+
+  useEffect(() => {
+    setDraft(hex);
+  }, [hex]);
+
+  return (
+    <div className={styles.colorLine}>
+      <label className={styles.colorSwatch} style={{ backgroundColor: `#${hex}` }}>
+        <input
+          className={styles.colorSwatchInput}
+          type="color"
+          value={`#${hex}`}
+          disabled={disabled}
+          aria-label="Цвет"
+          onChange={(event) => onColor(event.target.value)}
+        />
+      </label>
+      <input
+        className={styles.hexInput}
+        value={draft}
+        maxLength={6}
+        disabled={disabled}
+        aria-label="HEX"
+        spellCheck={false}
+        onChange={(event) => {
+          const next = event.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6);
+          setDraft(next);
+          if (next.length === 3 || next.length === 6) {
+            onColor(`#${toHex6(next)}`);
+          }
+        }}
+      />
+      {onOpacity ? (
+        <span className={styles.opacityField}>
+          <input
+            className={styles.opacityInput}
+            type="number"
+            min={0}
+            max={100}
+            value={percent}
+            disabled={disabled}
+            aria-label="Непрозрачность"
+            onChange={(event) => {
+              const next = Number(event.target.value);
+              if (Number.isNaN(next)) return;
+              onOpacity(Math.min(100, Math.max(0, next)) / 100);
+            }}
+          />
+          <span>%</span>
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className={styles.field}>
@@ -141,6 +406,12 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       {children}
     </label>
   );
+}
+
+function decimalPlaces(value: number) {
+  const text = String(value);
+  if (!text.includes(".")) return 0;
+  return text.split(".")[1]?.length ?? 0;
 }
 
 function Range({
@@ -151,34 +422,57 @@ function Range({
   max,
   step,
   onChange,
+  scale = 1,
+  slider = true,
+  className,
   children,
 }: {
   label: string;
-  display: string;
+  display?: string;
   value: number;
   min: number;
   max: number;
   step: number;
   onChange: (value: number) => void;
+  scale?: number;
+  slider?: boolean;
+  className?: string;
   children?: ReactNode;
 }) {
   const fill = ((value - min) / (max - min)) * 100;
+  const inputStep = step * scale;
+  const inputValue = Number((value * scale).toFixed(decimalPlaces(inputStep)));
+
   return (
-    <label className={styles.field}>
-      <span className={styles.label}>
-        {label}
-        <span className={styles.rangeValue}> {display}</span>
-      </span>
+    <label className={`${styles.field} ${className ?? ""}`.trim()}>
+      <span className={styles.label}>{label}</span>
       <span className={styles.rangeRow}>
+        {slider ? (
+          <input
+            className={styles.range}
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            style={{ "--range-fill": `${fill}%` } as CSSProperties}
+            onChange={(event) => onChange(Number(event.target.value))}
+          />
+        ) : null}
         <input
-          className={styles.range}
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          style={{ "--range-fill": `${fill}%` } as CSSProperties}
-          onChange={(event) => onChange(Number(event.target.value))}
+          className={styles.rangeInput}
+          type="number"
+          min={min * scale}
+          max={max * scale}
+          step={inputStep}
+          value={inputValue}
+          aria-label={display ?? label}
+          onChange={(event) => {
+            const next = Number(event.target.value);
+            if (Number.isNaN(next)) return;
+            const unscaled = scale === 1 ? next : next / scale;
+            onChange(Math.min(max, Math.max(min, unscaled)));
+          }}
         />
         {children}
       </span>
@@ -198,25 +492,41 @@ export function DesignStep() {
   const project = useProjectsStore((s) =>
     projectId ? s.getProject(projectId) : undefined
   );
-  const hasBrandStyle = Boolean(
-    project?.brandStyle?.trim() || project?.imageRules?.trim()
-  );
   const isMeme = format === "video_meme";
   const isSlideshow = format === "slideshow";
   const cropFormats: readonly CropFormatOption[] = isSlideshow
-    ? [SLIDESHOW_CROP_FORMAT]
+    ? [STORIES_CROP_FORMAT]
     : CROP_FORMATS;
 
   const [selectedId, setSelectedId] = useState("");
   const [activeIndex, setActiveIndex] = useState<number | null>(0);
   const [cropFormat, setCropFormat] = useState<CropFormatOption | null>(null);
   const [frameFormat, setFrameFormat] = useState<CropFormatOption>(
-    isSlideshow ? SLIDESHOW_CROP_FORMAT : CROP_FORMATS[0]
+    isSlideshow ? STORIES_CROP_FORMAT : CROP_FORMATS[0]
   );
   const [originals, setOriginals] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [folds, setFolds] = useState<Record<FoldKey, boolean>>({
+    format: false,
+    layers: true,
+    shadow: false,
+    gradient: false,
+    presets: false,
+  });
+  const toggleFold = (key: FoldKey) => {
+    setFolds((current) => ({ ...current, [key]: !current[key] }));
+  };
   const [stageSize, setStageSize] = useState({ width: 1080, height: 1080 });
   const [displayWidth, setDisplayWidth] = useState(0);
+  const [activePreset, setActivePreset] = useState<string | null>(null);
+  const [presets, setPresets] = useState(() => STYLE_PRESETS);
+  const [savedPreset, setSavedPreset] = useState<CardDesign | null>(
+    () => styleClipboard
+  );
+  const [presetToDelete, setPresetToDelete] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
   const canvasHostRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ index: number; offsetX: number; offsetY: number } | null>(
     null
@@ -228,7 +538,7 @@ export function DesignStep() {
 
   useEffect(() => {
     if (isSlideshow) {
-      setFrameFormat(SLIDESHOW_CROP_FORMAT);
+      setFrameFormat(STORIES_CROP_FORMAT);
     }
   }, [isSlideshow]);
 
@@ -389,34 +699,85 @@ export function DesignStep() {
     });
   };
 
-  const applyToAll = () => {
-    if (!design?.layers.length || !selected) return;
+  const saveStyle = () => {
+    if (!design) return;
+    const copy = JSON.parse(JSON.stringify(design)) as CardDesign;
+    styleClipboard = copy;
+    setSavedPreset(copy);
+    setActivePreset("saved");
+  };
+
+  const confirmDeletePreset = () => {
+    if (!presetToDelete) return;
+    if (presetToDelete.id === "saved") {
+      styleClipboard = null;
+      setSavedPreset(null);
+    } else {
+      setPresets((list) =>
+        list.filter((item) => item.id !== presetToDelete.id)
+      );
+    }
+    setActivePreset((current) =>
+      current === presetToDelete.id ? null : current
+    );
+    setPresetToDelete(null);
+  };
+
+  const changePresetColor = (id: string, color: string) => {
+    setPresets((list) =>
+      list.map((preset) =>
+        preset.id === id
+          ? { ...preset, design: withLayerColor(preset.design, color) }
+          : preset
+      )
+    );
+  };
+
+  const applySourceToCards = (source: CardDesign, targets: Card[]) => {
     const patches: Patches = Object.fromEntries(
-      cards.flatMap((card) => {
-        if (card.id === selected.id || !card.design) return [];
-        const own = card.design.layers;
-        const ratio = card.design.width / design.width;
+      targets.map((card) => {
+        const current = ensureCardDesign(card, stageSize);
+        const own = current.layers;
+        const ratio = current.width / source.width;
         return [
-          [
-            card.id,
-            {
-              design: {
-                ...card.design,
-                overlay: design.overlay,
-                layers: [
-                  ...design.layers.map((source, index) =>
-                    withStyleOf(own[index] ?? source, source, ratio)
-                  ),
-                  ...own.slice(design.layers.length),
-                ],
-              },
-              designDirty: true,
+          card.id,
+          {
+            design: {
+              ...current,
+              overlay: source.overlay,
+              globalLightAngle: source.globalLightAngle,
+              layers: [
+                ...source.layers.map((item, index) =>
+                  withStyleOf(
+                    own[index] ?? { ...item, text: card.shortText || item.text },
+                    item,
+                    ratio
+                  )
+                ),
+                ...own.slice(source.layers.length),
+              ],
             },
-          ],
+            designDirty: true,
+          },
         ];
       })
     );
     patchCards(patches);
+  };
+
+  const applyToAll = () => {
+    if (!design?.layers.length || !selected) return;
+    applySourceToCards(
+      design,
+      withPhoto.filter((card) => card.id !== selected.id)
+    );
+  };
+
+  const applyPreset = (source: CardDesign, id: string) => {
+    const targets = withPhoto.length ? withPhoto : cards;
+    if (!targets.length) return;
+    applySourceToCards(source, targets);
+    setActivePreset(id);
   };
 
   const handleGeneratePhotos = async () => {
@@ -429,13 +790,6 @@ export function DesignStep() {
         : getMockCards(format, project?.defaultCopyright ?? "");
     replaceCards(buildGeneratedPhotos(base, contentId ?? "design", format));
     setBusy(false);
-  };
-
-  const handleAddPlate = () => {
-    if (!selected) return;
-    patchCards({
-      [selected.id]: { hasPlate: !selected.hasPlate, designDirty: true },
-    });
   };
 
   const startDrag = (index: number, event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -482,8 +836,8 @@ export function DesignStep() {
       <h2 className={styles.heading}>Оформление текста</h2>
       <p className={styles.subtitle}>
         {isMeme
-          ? "Текст ставится на ролик. Перетащите подпись по кадру; выделенный слой правится в панели под видео."
-          : "Текст на фото ставится здесь, а не нейросетью. Перетащите подпись по кадру; выделенный слой правится в панели под изображением."}
+          ? "Текст ставится на ролик. Перетащите подпись по кадру; выделенный слой правится слева."
+          : "Текст на фото ставится здесь, а не нейросетью. Перетащите подпись по кадру; выделенный слой правится слева."}
       </p>
 
       {!isMeme && withPhoto.length === 0 && (
@@ -499,7 +853,7 @@ export function DesignStep() {
 
       <div className={styles.layout}>
         <div
-          className={`${styles.previewRow} ${
+          className={`${styles.previewColumn} ${
             isMeme || isSlideshow ? styles.previewVertical : styles.previewSquare
           }`}
           style={{ "--frame-aspect": String(frameAspect) } as CSSProperties}
@@ -676,10 +1030,14 @@ export function DesignStep() {
           )}
         </div>
 
-          <aside className={styles.panel} aria-label="Параметры текста">
+          <aside className={styles.editorColumn} aria-label="Параметры текста">
           {!isMeme && (
-          <div className={`${styles.field} ${styles.spanAll}`}>
-            <span className={styles.label}>Формат фото</span>
+          <EditorFold
+            title="Формат фото"
+            open={folds.format}
+            onToggle={() => toggleFold("format")}
+          >
+          <div className={styles.field}>
             <div className={styles.formats}>
               {cropFormats.map((item) => (
                 <button
@@ -716,36 +1074,26 @@ export function DesignStep() {
               )}
             </div>
           </div>
+          </EditorFold>
           )}
 
-          {hasBrandStyle && (
-            <Button
-              type="button"
-              variant="secondary"
-              fullWidth
-              className={styles.spanAll}
-              disabled={disabled || !selected?.imageUrl}
-              onClick={handleAddPlate}
-            >
-              {selected?.hasPlate ? "Убрать плашку" : "Добавить плашку"}
-            </Button>
-          )}
-
-          <div className={styles.divider} />
-
-          <div className={styles.blockHead}>
-            <h3 className={styles.blockTitle}>Текстовые слои</h3>
-            <Button
-              type="button"
-              variant="secondary"
-              size="small"
-              disabled={disabled || !design}
-              onClick={addLayer}
-            >
-              Добавить текст
-            </Button>
-          </div>
-          <div className={`${styles.field} ${styles.spanAll}`}>
+          <EditorFold
+            title="Текстовые слои"
+            open={folds.layers}
+            onToggle={() => toggleFold("layers")}
+            extra={
+              <Button
+                type="button"
+                variant="secondary"
+                size="small"
+                disabled={disabled || !design}
+                onClick={addLayer}
+              >
+                Добавить текст
+              </Button>
+            }
+          >
+          <div className={styles.field}>
             {design?.layers.length ? (
               <ul className={styles.layerList} aria-label="Текстовые слои">
                 {design.layers.map((item, index) => (
@@ -807,109 +1155,114 @@ export function DesignStep() {
                   />
                 </Field>
 
-                <Select
-                  label="Шрифт"
-                  value={layer.font}
-                  options={FONT_OPTIONS}
-                  disabled={disabled}
-                  onChange={(event) => changeLayer({ font: event.target.value })}
-                />
-
-                <Field label="Размер">
-                  <input
-                    className={styles.number}
-                    type="number"
-                    min={8}
-                    max={600}
-                    value={layer.fontSize}
+                <div className={styles.fontRow}>
+                  <Select
+                    label="Шрифт"
+                    value={layer.font}
+                    options={FONT_OPTIONS}
                     disabled={disabled}
-                    onChange={(event) => {
-                      const fontSize = Number(event.target.value);
-                      if (fontSize >= 8) changeLayer({ fontSize });
-                    }}
+                    onChange={(event) => changeLayer({ font: event.target.value })}
                   />
-                </Field>
-
-                <Field label="Цвет">
-                  <input
-                    className={styles.color}
-                    type="color"
-                    value={layer.color}
-                    disabled={disabled}
-                    onChange={(event) => changeLayer({ color: event.target.value })}
-                  />
-                </Field>
-
-                <div className={styles.row} role="group" aria-label="Начертание">
-                  {(["bold", "italic", "underline"] as Toggle[]).map((key) => (
-                    <button
-                      key={key}
-                      type="button"
-                      aria-pressed={layer[key]}
-                      className={`${styles.toggle} ${styles[key]} ${
-                        layer[key] ? styles.toggleOn : ""
-                      }`}
+                  <Field label="Размер">
+                    <input
+                      className={styles.number}
+                      type="number"
+                      min={8}
+                      max={600}
+                      value={layer.fontSize}
                       disabled={disabled}
-                      onMouseDown={keepFocus}
-                      onClick={() => changeLayer({ [key]: !layer[key] })}
-                    >
-                      {key === "bold" ? "Ж" : key === "italic" ? "К" : "Ч"}
-                    </button>
-                  ))}
+                      onChange={(event) => {
+                        const fontSize = Number(event.target.value);
+                        if (fontSize >= 8) changeLayer({ fontSize });
+                      }}
+                    />
+                  </Field>
                 </div>
 
-                <div className={styles.row} role="group" aria-label="Выравнивание">
-                  {ALIGN_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      aria-pressed={layer.align === option.value}
-                      className={`${styles.toggle} ${styles.wide} ${
-                        layer.align === option.value ? styles.toggleOn : ""
-                      }`}
-                      disabled={disabled}
-                      onClick={() => changeLayer({ align: option.value })}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                <div className={styles.field}>
+                  <span className={styles.label}>Цвет</span>
+                  <ColorLine
+                    color={layer.color}
+                    opacity={layer.opacity}
+                    disabled={disabled}
+                    onColor={(color) => changeLayer({ color })}
+                    onOpacity={(opacity) => changeLayer({ opacity })}
+                  />
+                </div>
+
+                <div className={styles.styleRow}>
+                  <div className={styles.field}>
+                    <span className={styles.label}>Начертание</span>
+                    <div className={styles.row} role="group" aria-label="Начертание">
+                      {(["bold", "italic", "underline"] as Toggle[]).map((key) => (
+                        <button
+                          key={key}
+                          type="button"
+                          aria-pressed={layer[key]}
+                          className={`${styles.toggle} ${styles[key]} ${
+                            layer[key] ? styles.toggleOn : ""
+                          }`}
+                          disabled={disabled}
+                          onMouseDown={keepFocus}
+                          onClick={() => changeLayer({ [key]: !layer[key] })}
+                        >
+                          {key === "bold" ? "Ж" : key === "italic" ? "К" : "Ч"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className={styles.field}>
+                    <span className={styles.label}>Выравнивание</span>
+                    <div className={styles.row} role="group" aria-label="Выравнивание">
+                      {ALIGN_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          aria-label={option.label}
+                          aria-pressed={layer.align === option.value}
+                          className={`${styles.toggle} ${styles.iconToggle} ${
+                            layer.align === option.value ? styles.toggleOn : ""
+                          }`}
+                          disabled={disabled}
+                          onClick={() => changeLayer({ align: option.value })}
+                        >
+                          <option.Icon size={16} weight="bold" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div className={styles.layerCol}>
+                <div className={styles.rangeGrid}>
+                  <Range
+                    label="Межбуквенный интервал"
+                    min={-100}
+                    max={800}
+                    step={10}
+                    slider={false}
+                    value={layer.charSpacing}
+                    onChange={(charSpacing) => changeLayer({ charSpacing })}
+                  />
+                  <Range
+                    label="Межстрочный интервал"
+                    min={0.7}
+                    max={2.5}
+                    step={0.05}
+                    slider={false}
+                    value={layer.lineHeight}
+                    onChange={(lineHeight) => changeLayer({ lineHeight })}
+                  />
+                </div>
                 <Range
-                  label="Межбуквенный интервал"
-                  display={String(layer.charSpacing)}
-                  min={-100}
-                  max={800}
-                  step={10}
-                  value={layer.charSpacing}
-                  onChange={(charSpacing) => changeLayer({ charSpacing })}
-                />
-                <Range
-                  label="Межстрочный интервал"
-                  display={layer.lineHeight.toFixed(2)}
-                  min={0.7}
-                  max={2.5}
-                  step={0.05}
-                  value={layer.lineHeight}
-                  onChange={(lineHeight) => changeLayer({ lineHeight })}
-                />
-                <Range
-                  label="Непрозрачность"
-                  display={`${Math.round(layer.opacity * 100)}%`}
-                  min={0.1}
-                  max={1}
-                  step={0.05}
-                  value={layer.opacity}
-                  onChange={(opacity) => changeLayer({ opacity })}
-                />
-                <Range
+                  className={styles.strokeField}
                   label="Обводка"
-                  display={String(layer.strokeWidth)}
                   min={0}
                   max={30}
                   step={1}
+                  slider={false}
                   value={layer.strokeWidth}
                   onChange={(strokeWidth) => changeLayer({ strokeWidth })}
                 >
@@ -925,56 +1278,45 @@ export function DesignStep() {
                   />
                 </Range>
 
-                <label className={styles.checkRow}>
-                  <input
-                    type="checkbox"
-                    className={styles.check}
-                    checked={Boolean(layerShadow?.enabled)}
+                <div className={styles.plaqueRow}>
+                  <Button
+                    type="button"
+                    variant="secondary"
                     disabled={disabled}
-                    onChange={() =>
-                      changeShadow({ enabled: !layerShadow?.enabled })
+                    onClick={() =>
+                      changeLayer({
+                        background:
+                          layer.background === null ? "#000000" : null,
+                      })
+                    }
+                  >
+                    {layer.background !== null
+                      ? "Убрать плашку"
+                      : "Добавить плашку"}
+                  </Button>
+                  <input
+                    className={styles.color}
+                    type="color"
+                    aria-label="Цвет плашки"
+                    value={layer.background ?? "#000000"}
+                    disabled={disabled}
+                    onChange={(event) =>
+                      changeLayer({ background: event.target.value })
                     }
                   />
-                  Тень текста
-                </label>
-
-                <div className={styles.row}>
-                  <label className={styles.checkRow}>
-                    <input
-                      type="checkbox"
-                      className={styles.check}
-                      checked={layer.background !== null}
-                      disabled={disabled}
-                      onChange={() =>
-                        changeLayer({
-                          background: layer.background === null ? "#000000" : null,
-                        })
-                      }
-                    />
-                    Плашка
-                  </label>
-                  {layer.background !== null && (
-                    <input
-                      className={styles.color}
-                      type="color"
-                      aria-label="Цвет плашки"
-                      value={layer.background}
-                      disabled={disabled}
-                      onChange={(event) =>
-                        changeLayer({ background: event.target.value })
-                      }
-                    />
-                  )}
                 </div>
               </div>
             </div>
           ) : (
             <p className={styles.hint}>Выберите текст на кадре или добавьте новый</p>
           )}
+          </EditorFold>
 
-          <div className={styles.divider} />
-
-          <h3 className={styles.blockTitle}>Тень текста</h3>
+          <EditorFold
+            title="Тень текста"
+            open={folds.shadow}
+            onToggle={() => toggleFold("shadow")}
+          >
           {layer && layerShadow?.enabled ? (
             <div className={styles.shadowPanel} aria-label="Параметры тени">
               <Select
@@ -988,92 +1330,79 @@ export function DesignStep() {
                   })
                 }
               />
-              <Range
-                label="Непрозрачность"
-                display={`${Math.round(layerShadow.opacity * 100)}%`}
-                min={0}
-                max={1}
-                step={0.01}
-                value={layerShadow.opacity}
-                onChange={(opacity) => changeShadow({ opacity })}
-              >
-                <input
-                  className={styles.color}
-                  type="color"
-                  aria-label="Цвет тени"
-                  value={layerShadow.color}
-                  disabled={disabled}
-                  onChange={(event) =>
-                    changeShadow({ color: event.target.value })
+              <div className={styles.rangeGrid}>
+                <Range
+                  className={styles.strokeField}
+                  label="Непрозрачность"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  scale={100}
+                  slider={false}
+                  value={layerShadow.opacity}
+                  onChange={(opacity) => changeShadow({ opacity })}
+                >
+                  <input
+                    className={styles.color}
+                    type="color"
+                    aria-label="Цвет тени"
+                    value={layerShadow.color}
+                    disabled={disabled}
+                    onChange={(event) =>
+                      changeShadow({ color: event.target.value })
+                    }
+                  />
+                </Range>
+                <Range
+                  label="Угол"
+                  min={0}
+                  max={360}
+                  step={1}
+                  slider={false}
+                  value={
+                    layerShadow.globalLight
+                      ? (design?.globalLightAngle ?? layerShadow.angle)
+                      : layerShadow.angle
                   }
+                  onChange={(angle) => changeShadow({ angle })}
                 />
-              </Range>
-              <label className={styles.checkRow}>
-                <input
-                  type="checkbox"
-                  className={styles.check}
-                  checked={layerShadow.globalLight}
-                  disabled={disabled}
-                  onChange={() =>
-                    changeShadow({
-                      globalLight: !layerShadow.globalLight,
-                      angle: !layerShadow.globalLight
-                        ? (design?.globalLightAngle ?? 90)
-                        : layerShadow.angle,
-                    })
-                  }
+                <Range
+                  label="Смещение"
+                  min={0}
+                  max={40}
+                  step={1}
+                  slider={false}
+                  value={layerShadow.distance}
+                  onChange={(distance) => changeShadow({ distance })}
                 />
-                Глобальное освещение
-              </label>
-              <Range
-                label="Угол"
-                display={`${Math.round(layerShadow.globalLight ? (design?.globalLightAngle ?? layerShadow.angle) : layerShadow.angle)}°`}
-                min={0}
-                max={360}
-                step={1}
-                value={
-                  layerShadow.globalLight
-                    ? (design?.globalLightAngle ?? layerShadow.angle)
-                    : layerShadow.angle
-                }
-                onChange={(angle) => changeShadow({ angle })}
-              />
-              <Range
-                label="Смещение"
-                display={`${layerShadow.distance} px`}
-                min={0}
-                max={40}
-                step={1}
-                value={layerShadow.distance}
-                onChange={(distance) => changeShadow({ distance })}
-              />
-              <Range
-                label="Размах"
-                display={`${Math.round(layerShadow.spread)}%`}
-                min={0}
-                max={100}
-                step={1}
-                value={layerShadow.spread}
-                onChange={(spread) => changeShadow({ spread })}
-              />
-              <Range
-                label="Размер"
-                display={`${layerShadow.size} px`}
-                min={0}
-                max={40}
-                step={1}
-                value={layerShadow.size}
-                onChange={(size) => changeShadow({ size })}
-              />
-              <Range
-                label="Шум"
-                display={`${Math.round(layerShadow.noise)}%`}
-                min={0}
-                max={100}
-                step={1}
-                value={layerShadow.noise}
-                onChange={(noise) => changeShadow({ noise })}
-              />
+                <Range
+                  label="Размах"
+                  min={0}
+                  max={100}
+                  step={1}
+                  slider={false}
+                  value={layerShadow.spread}
+                  onChange={(spread) => changeShadow({ spread })}
+                />
+                <Range
+                  label="Размер"
+                  min={0}
+                  max={40}
+                  step={1}
+                  slider={false}
+                  value={layerShadow.size}
+                  onChange={(size) => changeShadow({ size })}
+                />
+                <Range
+                  label="Шум"
+                  min={0}
+                  max={100}
+                  step={1}
+                  slider={false}
+                  value={layerShadow.noise}
+                  onChange={(noise) => changeShadow({ noise })}
+                />
+              </div>
               <Select
                 label="Контур"
                 options={SHADOW_CONTOUR_OPTIONS}
@@ -1097,20 +1426,46 @@ export function DesignStep() {
                 />
                 Сглаживание контура
               </label>
+              <label className={styles.checkRow}>
+                <input
+                  type="checkbox"
+                  className={styles.check}
+                  checked={layerShadow.globalLight}
+                  disabled={disabled}
+                  onChange={() =>
+                    changeShadow({
+                      globalLight: !layerShadow.globalLight,
+                      angle: !layerShadow.globalLight
+                        ? (design?.globalLightAngle ?? 90)
+                        : layerShadow.angle,
+                    })
+                  }
+                />
+                Глобальное освещение
+              </label>
             </div>
+          ) : layer ? (
+            <Button
+              type="button"
+              variant="secondary"
+              fullWidth
+              disabled={disabled}
+              onClick={() => changeShadow({ enabled: true })}
+            >
+              Включить тень
+            </Button>
           ) : (
-            <p className={styles.hint}>
-              {layer
-                ? "Включите тень у выбранного текстового слоя"
-                : "Сначала выберите текстовый слой"}
-            </p>
+            <p className={styles.hint}>Сначала выберите текстовый слой</p>
           )}
+          </EditorFold>
 
-          <div className={styles.divider} />
-
-          <h3 className={styles.blockTitle}>Градиент под текст</h3>
-          <div className={`${styles.field} ${styles.spanAll}`}>
-            <div className={styles.formats}>
+          <EditorFold
+            title="Градиент под текст"
+            open={folds.gradient}
+            onToggle={() => toggleFold("gradient")}
+          >
+          <div className={styles.field}>
+            <div className={styles.row} role="group" aria-label="Градиент под текст">
               {GRADIENT_OPTIONS.map((option) => {
                 const active =
                   option.value === null
@@ -1120,7 +1475,9 @@ export function DesignStep() {
                   <button
                     key={option.label}
                     type="button"
-                    className={`${styles.formatButton} ${active ? styles.formatActive : ""}`}
+                    className={`${styles.toggle} ${styles.gradientToggle} ${
+                      active ? styles.toggleOn : ""
+                    }`}
                     disabled={disabled || !design}
                     onClick={() => {
                       if (!design) return;
@@ -1146,48 +1503,51 @@ export function DesignStep() {
             </div>
             {overlay?.enabled && (
               <div className={styles.shadowPanel}>
+                <div className={styles.rangeGrid}>
                 <Range
                   label="Ширина слоя"
-                  display={`${overlay.width} px`}
                   min={200}
                   max={1080}
                   step={1}
+                  slider={false}
                   value={overlay.width}
                   onChange={(width) => changeOverlay({ width })}
                 />
                 <Range
                   label="Высота слоя"
-                  display={`${overlay.height} px`}
                   min={40}
                   max={1080}
                   step={1}
+                  slider={false}
                   value={overlay.height}
                   onChange={(height) => changeOverlay({ height })}
                 />
                 <Range
                   label="Y от"
-                  display={`${overlay.yStart} px`}
                   min={0}
                   max={1080}
                   step={1}
+                  slider={false}
                   value={overlay.yStart}
                   onChange={(yStart) => changeOverlay({ yStart })}
                 />
                 <Range
                   label="Y до"
-                  display={`${overlay.yEnd} px`}
                   min={0}
                   max={1080}
                   step={1}
+                  slider={false}
                   value={overlay.yEnd}
                   onChange={(yEnd) => changeOverlay({ yEnd })}
                 />
                 <Range
+                  className={styles.strokeField}
                   label="Верхняя непрозрачность"
-                  display={`${Math.round(overlay.topOpacity * 100)}%`}
                   min={0}
                   max={1}
                   step={0.01}
+                  scale={100}
+                  slider={false}
                   value={overlay.topOpacity}
                   onChange={(topOpacity) => changeOverlay({ topOpacity })}
                 >
@@ -1202,58 +1562,158 @@ export function DesignStep() {
                 </Range>
                 <Range
                   label="Непрозрачность у края"
-                  display={`${Math.round(overlay.bottomOpacity * 100)}%`}
                   min={0}
                   max={1}
                   step={0.01}
+                  scale={100}
+                  slider={false}
                   value={overlay.bottomOpacity}
                   onChange={(bottomOpacity) => changeOverlay({ bottomOpacity })}
                 />
                 <Range
+                  className={`${styles.strokeField} ${styles.spanAll}`}
                   label="Непрозрачность слоя"
-                  display={`${Math.round(overlay.layerOpacity * 100)}% · ${Math.round(overlay.layerOpacity * 255)}/255`}
                   min={0}
                   max={1}
                   step={0.01}
+                  scale={100}
+                  slider={false}
                   value={overlay.layerOpacity}
                   onChange={(layerOpacity) => changeOverlay({ layerOpacity })}
                 />
-                <label className={styles.checkRow}>
-                  <input
-                    type="checkbox"
-                    className={styles.check}
-                    checked={overlay.layerOpacity >= 0.995}
-                    disabled={disabled}
-                    onChange={() =>
-                      changeOverlay({
-                        layerOpacity:
-                          overlay.layerOpacity >= 0.995
-                            ? PHOTO_GRADIENT_LAYER_OPACITY
-                            : 1,
-                      })
-                    }
-                  />
-                  Светлый / контрастный фон (слой 100%)
-                </label>
+                </div>
               </div>
             )}
           </div>
+          </EditorFold>
+
+          <EditorFold
+            title="Пресеты"
+            open={folds.presets}
+            onToggle={() => toggleFold("presets")}
+            extra={
+              <Button
+                type="button"
+                variant="secondary"
+                size="small"
+                disabled={disabled || !design}
+                onClick={saveStyle}
+              >
+                Сохранить стиль
+              </Button>
+            }
+          >
+            <ul className={styles.presetList} aria-label="Пресеты стиля">
+              {presets.map((preset) => (
+                  <li
+                    key={preset.id}
+                    className={`${styles.presetRow} ${
+                      activePreset === preset.id ? styles.presetRowOn : ""
+                    }`}
+                  >
+                    <PresetColorSwatch
+                      color={preset.design.layers[0]?.color ?? "#ffffff"}
+                      disabled={disabled}
+                      onChange={(color) => changePresetColor(preset.id, color)}
+                    />
+                    <button
+                      type="button"
+                      className={styles.presetPick}
+                      disabled={disabled || (!withPhoto.length && !cards.length)}
+                      onClick={() => applyPreset(preset.design, preset.id)}
+                    >
+                      <span className={styles.presetName}>{preset.label}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+                      aria-label={`Удалить пресет «${preset.label}»`}
+                      disabled={disabled}
+                      onClick={() =>
+                        setPresetToDelete({ id: preset.id, label: preset.label })
+                      }
+                    >
+                      <TrashIcon />
+                    </button>
+                  </li>
+              ))}
+              {!presets.length && !savedPreset ? (
+                <li className={styles.hint}>Пресеты удалены — сохраните свой стиль</li>
+              ) : null}
+              {savedPreset ? (
+                <li
+                  className={`${styles.presetRow} ${
+                    activePreset === "saved" ? styles.presetRowOn : ""
+                  }`}
+                >
+                  <PresetColorSwatch
+                    color={savedPreset.layers[0]?.color ?? "#ffffff"}
+                    disabled={disabled}
+                    onChange={(color) => {
+                      const next = withLayerColor(savedPreset, color);
+                      styleClipboard = next;
+                      setSavedPreset(next);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className={styles.presetPick}
+                    disabled={disabled}
+                    onClick={() => applyPreset(savedPreset, "saved")}
+                  >
+                    <span className={styles.presetName}>Мой стиль</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+                    aria-label="Удалить пресет «Мой стиль»"
+                    disabled={disabled}
+                    onClick={() =>
+                      setPresetToDelete({ id: "saved", label: "Мой стиль" })
+                    }
+                  >
+                    <TrashIcon />
+                  </button>
+                </li>
+              ) : null}
+            </ul>
+          </EditorFold>
 
           {!isMeme && (
             <Button
               type="button"
-              variant="secondary"
+              variant="primary"
               fullWidth
-              className={styles.spanAll}
               title="Шрифт, цвета и место текста — на остальные карточки, текст у каждой свой"
               disabled={disabled || !design?.layers.length || withPhoto.length < 2}
               onClick={applyToAll}
             >
-              Стиль на все карточки
+              Применить на все карточки
             </Button>
           )}
           </aside>
       </div>
+
+      <Modal
+        title="Удалить пресет?"
+        open={Boolean(presetToDelete)}
+        onClose={() => setPresetToDelete(null)}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setPresetToDelete(null)}>
+              Отмена
+            </Button>
+            <Button variant="danger" onClick={confirmDeletePreset}>
+              Удалить
+            </Button>
+          </>
+        }
+      >
+        <p>
+          Точно удалить пресет
+          {presetToDelete ? ` «${presetToDelete.label}»` : ""}? Это нельзя отменить.
+        </p>
+      </Modal>
 
       {cropFormat && selected?.imageUrl && (
         <DesignCropModal

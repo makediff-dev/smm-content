@@ -25,7 +25,7 @@ export function useHydrateWizardFromContent(
     hydratedContentIdRef.current = key;
     initWizard(projectId, contentId, {
       format: content.format,
-      selectedFormats: content.formatConfirmed ? [content.format] : [],
+      selectedFormats: [content.format],
       formatConfirmed: content.formatConfirmed ?? true,
       sourceType: content.sourceType ?? "url",
       sourceUrl: content.sourceUrl,

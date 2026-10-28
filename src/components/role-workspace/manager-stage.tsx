@@ -1,11 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { ContentUnit, ProductionTask } from "@/types";
 import { VideoPlayerStub } from "@/components/shared/placeholder-image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { getDesignerSlides } from "@/lib/designer-slides";
 import {
   downloadNamedFile,
@@ -15,7 +14,7 @@ import {
 import { getManagerTtx } from "@/lib/role-workspace";
 import styles from "./role-workspace.module.css";
 
-const PLATFORM_OPTIONS = ["VK", "IG", "OK", "Дзен", "сторис"];
+export const MANAGER_PLATFORM_OPTIONS = ["VK", "IG", "OK", "Дзен", "сторис"];
 
 function defaultDate() {
   return new Date().toISOString().slice(0, 10);
@@ -23,6 +22,23 @@ function defaultDate() {
 
 function defaultTime() {
   return "12:00";
+}
+
+export interface ManagerPlanPayload {
+  date: string;
+  time: string;
+  platforms: string[];
+}
+
+export function getDefaultManagerPlan(content: ContentUnit): ManagerPlanPayload {
+  return {
+    date: defaultDate(),
+    time: defaultTime(),
+    platforms:
+      content.format === "text"
+        ? ["VK", "IG", "сторис"]
+        : [...MANAGER_PLATFORM_OPTIONS],
+  };
 }
 
 export function ManagerPreview({
@@ -159,124 +175,82 @@ export function ManagerPreview({
 
 interface ManagerApproveProps {
   format: ContentUnit["format"];
-  canOperate: boolean;
-  onApprove: () => void;
-  onRework: (comment: string) => void;
 }
 
-export function ManagerApprove({
-  format,
-  canOperate,
-  onApprove,
-  onRework,
-}: ManagerApproveProps) {
-  const [reworkComment, setReworkComment] = useState("");
+export function ManagerApprove({ format }: ManagerApproveProps) {
   const isMeme = format === "video_meme";
 
   return (
-    <>
-      <section className={styles.sideCard} aria-label="Согласовать текст">
-        <h2 className={styles.sideTitle}>
-          {isMeme ? "Согласовать видео и текст" : "Согласовать текст"}
-        </h2>
-        <p className={styles.note}>
-          {isMeme
-            ? "Решаете, можно ли брать ролик, и проверяете подводку копирайтера. Всю сборку смотрите позже."
-            : "Проверяете тему, факты и текст копирайтера. Всю работу — визуал, вёрстку, сборку — смотрите на финальном шаге."}
-        </p>
-        <Textarea
-          label="Комментарий"
-          rows={3}
-          placeholder="Обязателен, если на доработку"
-          value={reworkComment}
-          onChange={(event) => setReworkComment(event.target.value)}
-          disabled={!canOperate}
-        />
-      </section>
-      {canOperate ? (
-        <div className={styles.actions}>
-          <Button onClick={onApprove}>Согласовать</Button>
-          <Button
-            variant="danger"
-            onClick={() => onRework(reworkComment.trim())}
-            disabled={!reworkComment.trim()}
-          >
-            Отправить на доработку
-          </Button>
-        </div>
-      ) : (
-        <p className={styles.note}>
-          Согласование текста доступно менеджеру проекта на этом этапе.
-        </p>
-      )}
-    </>
+    <section className={styles.sideCard} aria-label="Согласовать текст">
+      <h2 className={styles.sideTitle}>
+        {isMeme ? "Согласовать видео и текст" : "Согласовать текст"}
+      </h2>
+      <p className={styles.note}>
+        {isMeme
+          ? "Решаете, можно ли брать ролик, и проверяете подводку копирайтера. Всю сборку смотрите позже."
+          : "Проверяете тему, факты и текст копирайтера. Всю работу — визуал, вёрстку, сборку — смотрите на финальном шаге."}
+      </p>
+    </section>
   );
 }
 
 interface ManagerPlanProps {
-  content: ContentUnit;
+  value: ManagerPlanPayload;
   canOperate: boolean;
   alreadyDone: boolean;
-  onApproveToPlan: (payload: {
-    date: string;
-    time: string;
-    platforms: string[];
-  }) => void;
-  onRework: (comment: string) => void;
+  alreadyArchived?: boolean;
+  onChange: (payload: ManagerPlanPayload) => void;
+  onApprove: () => void;
+  onArchive: () => void;
 }
 
 export function ManagerPlan({
-  content,
+  value,
   canOperate,
   alreadyDone,
-  onApproveToPlan,
-  onRework,
+  alreadyArchived = false,
+  onChange,
+  onApprove,
+  onArchive,
 }: ManagerPlanProps) {
-  const [date, setDate] = useState(defaultDate);
-  const [time, setTime] = useState(defaultTime);
-  const [platforms, setPlatforms] = useState<string[]>(
-    content.format === "text" ? ["VK", "IG", "сторис"] : [...PLATFORM_OPTIONS]
-  );
-  const [reworkComment, setReworkComment] = useState("");
-
   const togglePlatform = (name: string) => {
-    setPlatforms((current) =>
-      current.includes(name)
-        ? current.filter((item) => item !== name)
-        : [...current, name]
-    );
+    onChange({
+      ...value,
+      platforms: value.platforms.includes(name)
+        ? value.platforms.filter((item) => item !== name)
+        : [...value.platforms, name],
+    });
   };
 
   return (
-    <>
-    <section className={styles.sideCard} aria-label="Поставить в план">
-      <h2 className={styles.sideTitle}>Проверить всё и поставить в план</h2>
+    <section className={styles.sideCard} aria-label="Поставить в КП">
+      <h2 className={styles.sideTitle}>Проверить всё и поставить в КП</h2>
       <p className={styles.note}>
         Здесь смотрите уже весь пакет: текст, визуал и сборку. Если всё сходится
-        — слот в плане.
+        — слот в КП. Если публикация не нужна, отправьте в архив.
       </p>
       <div className={styles.planRow}>
         <Input
           type="date"
           label="Дата"
-          value={date}
-          onChange={(event) => setDate(event.target.value)}
+          value={value.date}
+          onChange={(event) => onChange({ ...value, date: event.target.value })}
           disabled={!canOperate || alreadyDone}
         />
         <Input
           type="time"
           label="Время"
-          value={time}
-          onChange={(event) => setTime(event.target.value)}
+          value={value.time}
+          onChange={(event) => onChange({ ...value, time: event.target.value })}
           disabled={!canOperate || alreadyDone}
         />
       </div>
       <div className={`${styles.toolRow} ${styles.planPlatforms}`}>
-        {PLATFORM_OPTIONS.map((name) => (
+        {MANAGER_PLATFORM_OPTIONS.map((name) => (
           <button
             key={name}
             type="button"
-            className={`${styles.toolChip} ${platforms.includes(name) ? styles.toolChipActive : ""}`}
+            className={`${styles.toolChip} ${value.platforms.includes(name) ? styles.toolChipActive : ""}`}
             disabled={!canOperate || alreadyDone}
             onClick={() => togglePlatform(name)}
           >
@@ -284,40 +258,29 @@ export function ManagerPlan({
           </button>
         ))}
       </div>
-
-      <Textarea
-        label="Комментарий"
-        rows={3}
-        placeholder="Обязателен, если на доработку"
-        value={reworkComment}
-        onChange={(event) => setReworkComment(event.target.value)}
-        disabled={!canOperate || alreadyDone}
-      />
-
-    </section>
-      {canOperate && !alreadyDone ? (
-        <div className={styles.actions}>
+      {alreadyDone ? (
+        <p className={styles.note}>
+          {alreadyArchived ? "Уже в архиве." : "Уже в КП."}
+        </p>
+      ) : !canOperate ? (
+        <p className={styles.note}>
+          Согласование доступно менеджеру проекта на этом этапе.
+        </p>
+      ) : (
+        <div className={styles.planActions}>
           <Button
-            onClick={() => onApproveToPlan({ date, time, platforms })}
-            disabled={!date || !time || platforms.length === 0}
+            onClick={onApprove}
+            disabled={
+              !value.date || !value.time || value.platforms.length === 0
+            }
           >
-            Согласовать и в план
+            В КП
           </Button>
-          <Button
-            variant="danger"
-            onClick={() => onRework(reworkComment.trim())}
-            disabled={!reworkComment.trim()}
-          >
-            Отправить на доработку
+          <Button variant="secondary" onClick={onArchive}>
+            В архив
           </Button>
         </div>
-      ) : (
-        <p className={styles.note}>
-          {alreadyDone
-            ? "Уже в плане."
-            : "Согласование доступно менеджеру проекта на этом этапе."}
-        </p>
       )}
-    </>
+    </section>
   );
 }

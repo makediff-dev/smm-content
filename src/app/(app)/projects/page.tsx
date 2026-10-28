@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useWorkflowStore } from "@/stores/workflow-store";
-import { isTaskDeadlineHot } from "@/lib/task-deadline";
 import { AppShell } from "@/components/layout/app-shell";
 import { useSearch } from "@/components/layout/search-context";
 import { ProjectCard } from "@/components/projects/project-card";
@@ -27,10 +26,21 @@ import { buildHomeQueueItems, getHomeTasksForUser } from "@/lib/my-projects-home
 import { RoleSlaFields } from "@/components/projects/role-sla-fields";
 import {
   DEFAULT_ROLE_SLA_MINUTES,
+  getDeadlineTone,
+  isTaskDeadlineHot,
   normalizeRoleSlaMinutes,
 } from "@/lib/task-deadline";
 import type { WorkflowStage } from "@/types";
 import styles from "./projects.module.css";
+
+type UrgencyFilter = "all" | "hot" | "tomorrow" | "later";
+
+const URGENCY_FILTERS: { id: UrgencyFilter; label: string }[] = [
+  { id: "all", label: "Все" },
+  { id: "hot", label: "Горит срок" },
+  { id: "tomorrow", label: "Завтра" },
+  { id: "later", label: "Позже" },
+];
 
 export default function ProjectsPage() {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -173,6 +183,8 @@ function RoleProjectsHome() {
   const [newSla, setNewSla] = useState(() =>
     normalizeRoleSlaMinutes(DEFAULT_ROLE_SLA_MINUTES)
   );
+  const [projectFilter, setProjectFilter] = useState("all");
+  const [urgencyFilter, setUrgencyFilter] = useState<UrgencyFilter>("all");
 
   const canManageAll = currentUser ? isManagementRole(currentUser.role) : false;
   const canCreateTask = currentUser
@@ -197,10 +209,49 @@ function RoleProjectsHome() {
     .length;
   const hotCount = homeTasks.filter((task) => isTaskDeadlineHot(task)).length;
 
-  const queueItems = useMemo(
-    () => buildHomeQueueItems(homeTasks),
-    [homeTasks]
+  const queueItems = useMemo(() => {
+    const filtered = homeTasks.filter((task) => {
+      if (projectFilter !== "all" && task.projectId !== projectFilter) {
+        return false;
+      }
+      if (urgencyFilter === "all") return true;
+      if (urgencyFilter === "hot") return isTaskDeadlineHot(task);
+      return getDeadlineTone(task) === urgencyFilter;
+    });
+    return buildHomeQueueItems(filtered);
+  }, [homeTasks, projectFilter, urgencyFilter]);
+
+  const showProjectName = projects.length > 1;
+  const hasActiveFilters = projectFilter !== "all" || urgencyFilter !== "all";
+  const projectById = useMemo(
+    () => Object.fromEntries(projects.map((project) => [project.id, project.name])),
+    [projects]
   );
+  const projectCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: homeTasks.length };
+    for (const project of projects) {
+      counts[project.id] = homeTasks.filter(
+        (task) => task.projectId === project.id
+      ).length;
+    }
+    return counts;
+  }, [homeTasks, projects]);
+  const urgencyCounts = useMemo(() => {
+    return URGENCY_FILTERS.reduce(
+      (acc, item) => {
+        acc[item.id] =
+          item.id === "all"
+            ? homeTasks.length
+            : homeTasks.filter((task) =>
+                item.id === "hot"
+                  ? isTaskDeadlineHot(task)
+                  : getDeadlineTone(task) === item.id
+              ).length;
+        return acc;
+      },
+      {} as Record<UrgencyFilter, number>
+    );
+  }, [homeTasks]);
 
   if (!currentUser) return null;
 
@@ -266,7 +317,7 @@ function RoleProjectsHome() {
             <span className={styles.statLabel}>Ждут тебя</span>
             <strong className={styles.statValue}>{waitingCount}</strong>
           </article>
-          <article className={`${styles.stat} ${styles.statReturned}`}>
+          <article className={styles.stat}>
             <span className={styles.statLabel}>Вернули тебе</span>
             <strong className={styles.statValue}>{returnedCount}</strong>
           </article>
@@ -279,11 +330,47 @@ function RoleProjectsHome() {
         </div>
 
         <div className={styles.queue}>
-          <h2 className={styles.queueTitle}>Твоя очередь</h2>
+          <div className={styles.queueHead}>
+            <h2 className={styles.queueTitle}>Твоя очередь</h2>
+            <div className={styles.queueFilters}>
+              {projects.length > 0 && (
+                <div className={styles.queueFilterField}>
+                  <Select
+                    id="queue-project-filter"
+                    label="Проект"
+                    value={projectFilter}
+                    onChange={(event) => setProjectFilter(event.target.value)}
+                    options={[
+                      { value: "all", label: `Все · ${projectCounts.all}` },
+                      ...projects.map((project) => ({
+                        value: project.id,
+                        label: `${project.name} · ${projectCounts[project.id] ?? 0}`,
+                      })),
+                    ]}
+                  />
+                </div>
+              )}
+              <div className={styles.queueFilterField}>
+                <Select
+                  id="queue-urgency-filter"
+                  label="Срок"
+                  value={urgencyFilter}
+                  onChange={(event) =>
+                    setUrgencyFilter(event.target.value as UrgencyFilter)
+                  }
+                  options={URGENCY_FILTERS.map((item) => ({
+                    value: item.id,
+                    label: `${item.label} · ${urgencyCounts[item.id]}`,
+                  }))}
+                />
+              </div>
+            </div>
+          </div>
           {queueItems.length === 0 ? (
             <p className={styles.queueEmpty}>
-              Сейчас ничего не ждёт. Как появится задача на вашей роли — она
-              будет здесь.
+              {hasActiveFilters
+                ? "Нет задач с таким фильтром. Снимите фильтр или выберите другой проект."
+                : "Сейчас ничего не ждёт. Как появится задача на вашей роли — она будет здесь."}
             </p>
           ) : (
             <ul className={styles.queueList}>
@@ -293,6 +380,9 @@ function RoleProjectsHome() {
                     <p className={styles.queueName}>{item.title}</p>
                     <p className={styles.queueMeta}>
                       От: {item.fromLabel} · {item.formatLabel}
+                      {showProjectName && projectById[item.projectId]
+                        ? ` · ${projectById[item.projectId]}`
+                        : ""}
                       {item.isReturned ? " · повторно" : ""}
                     </p>
                   </div>
@@ -315,7 +405,9 @@ function RoleProjectsHome() {
 
       {canManageAll && projects.length > 0 && (
         <div className={styles.brands}>
-          <h2 className={styles.brandsTitle}>Бренды</h2>
+          <h2 className={styles.brandsTitle}>
+            {currentUser.role === "project_manager" ? "Проекты" : "Бренды"}
+          </h2>
           <div className={styles.brandRow}>
             {projects.map((project) => (
               <Link

@@ -273,13 +273,13 @@ function RolesDrill({
   }
 
   return (
-    <section className={styles.groups} aria-label="Расходы по ролям">
+    <section className={styles.stack} aria-label="Расходы по ролям">
       {roles.map((item) => (
         <DrillRow
           key={item.role}
           title={item.label}
-          meta={formatGenerationCount(item.generations)}
-          detail={projectNamesFromTasks(item.tasks)}
+          meta={projectNamesFromTasks(item.tasks)}
+          generations={item.generations}
           amount={item.amount}
           onOpen={() => onEnter(item.role)}
         />
@@ -315,12 +315,13 @@ function TasksDrill({
   }
 
   return (
-    <section className={styles.groups} aria-label="Расходы по задачам">
+    <section className={styles.stack} aria-label="Расходы по задачам">
       {posts.map((item) => (
         <DrillRow
           key={item.contentUnitId}
           title={item.title}
-          meta={`${item.projectName} · ${item.formatLabel} · ${formatGenerationCount(item.generations)}`}
+          meta={`${item.projectName} · ${item.formatLabel}`}
+          generations={item.generations}
           amount={item.amount}
           href={item.href}
           onOpen={() => onEnter(item.contentUnitId)}
@@ -373,9 +374,9 @@ function ProjectsDrill({
         {project.tasks.map((item) => (
           <DrillRow
             key={item.contentUnitId}
-            layout="row"
             title={item.title}
-            meta={`${item.formatLabel} · ${formatGenerationCount(item.generations)}`}
+            meta={item.formatLabel}
+            generations={item.generations}
             amount={item.amount}
             href={item.href}
             onOpen={() => onEnterTask(item.contentUnitId)}
@@ -386,12 +387,12 @@ function ProjectsDrill({
   }
 
   return (
-    <section className={styles.groups} aria-label="Расходы по проектам">
+    <section className={styles.stack} aria-label="Расходы по проектам">
       {projects.map((item) => (
         <DrillRow
           key={item.projectId}
           title={item.label}
-          meta={formatGenerationCount(item.generations)}
+          generations={item.generations}
           amount={item.amount}
           onOpen={() => onEnterProject(item.projectId)}
         />
@@ -435,68 +436,57 @@ function DrillHead({
 function DrillRow({
   title,
   meta,
-  detail,
+  generations,
   amount,
   href,
   onOpen,
-  layout = "card",
 }: {
   title: string;
-  meta: string;
-  detail?: string;
+  meta?: string;
+  generations: number;
   amount: number;
   href?: string;
-  onOpen: () => void;
-  layout?: "card" | "row";
+  onOpen?: () => void;
 }) {
-  if (layout === "row") {
-    return (
-      <article className={styles.row}>
+  const stats = (
+    <span className={styles.rowStats}>
+      <span className={styles.gens}>{formatGenerationCount(generations)}</span>
+      <span className={styles.time}>{formatRub(amount)}</span>
+    </span>
+  );
+
+  return (
+    <article className={styles.row}>
+      {onOpen ? (
         <button type="button" className={styles.rowMain} onClick={onOpen}>
           <div className={styles.rowCopy}>
             <p className={styles.rowTitle}>{title}</p>
-            <p className={styles.rowMeta}>{meta}</p>
+            {meta ? <p className={styles.rowMeta}>{meta}</p> : null}
           </div>
-          <span className={styles.time}>{formatRub(amount)}</span>
+          {stats}
         </button>
-        {href && (
-          <Link href={href} className={styles.rowOpen}>
-            <Button variant="muted" size="small">
-              Открыть
-            </Button>
-          </Link>
-        )}
-      </article>
-    );
-  }
-
-  return (
-    <article className={styles.card}>
-      <button type="button" className={styles.cardMain} onClick={onOpen}>
-        <span className={styles.cardTitle}>{title}</span>
-        <span className={styles.cardAmount}>{formatRub(amount)}</span>
-        <span className={styles.cardMeta}>{meta}</span>
-        {detail && <span className={styles.cardDetail}>{detail}</span>}
-      </button>
+      ) : (
+        <div className={styles.rowMain}>
+          <div className={styles.rowCopy}>
+            <p className={styles.rowTitle}>{title}</p>
+            {meta ? <p className={styles.rowMeta}>{meta}</p> : null}
+          </div>
+          {stats}
+        </div>
+      )}
       {href ? (
-        <Link href={href} className={styles.open}>
-          <Button variant="muted" size="small" fullWidth>
+        <Link href={href} className={styles.rowOpen}>
+          <Button variant="muted" size="small">
             Открыть
           </Button>
         </Link>
-      ) : (
-        <div className={styles.open}>
-          <Button
-            type="button"
-            variant="muted"
-            size="small"
-            fullWidth
-            onClick={onOpen}
-          >
+      ) : onOpen ? (
+        <div className={styles.rowOpen}>
+          <Button type="button" variant="muted" size="small" onClick={onOpen}>
             Открыть
           </Button>
         </div>
-      )}
+      ) : null}
     </article>
   );
 }
@@ -505,20 +495,14 @@ function TaskList({ tasks }: { tasks: SpendPostRow[] }) {
   return (
     <>
       {tasks.map((task) => (
-        <article key={task.contentUnitId} className={styles.row}>
-          <div className={styles.rowCopy}>
-            <p className={styles.rowTitle}>{task.title}</p>
-            <p className={styles.rowMeta}>
-              {task.projectName} · {task.formatLabel} · {task.generations} ген.
-            </p>
-          </div>
-          <span className={styles.time}>{formatRub(task.amount)}</span>
-          <Link href={task.href} className={styles.rowOpen}>
-            <Button variant="muted" size="small">
-              Открыть
-            </Button>
-          </Link>
-        </article>
+        <DrillRow
+          key={task.contentUnitId}
+          title={task.title}
+          meta={`${task.projectName} · ${task.formatLabel}`}
+          generations={task.generations}
+          amount={task.amount}
+          href={task.href}
+        />
       ))}
     </>
   );
@@ -528,15 +512,12 @@ function ShareList({ shares }: { shares: SpendRoleShare[] }) {
   return (
     <>
       {shares.map((share) => (
-        <article key={share.role} className={styles.row}>
-          <div className={styles.rowCopy}>
-            <p className={styles.rowTitle}>{share.label}</p>
-            <p className={styles.rowMeta}>
-              {formatGenerationCount(share.generations)}
-            </p>
-          </div>
-          <span className={styles.time}>{formatRub(share.amount)}</span>
-        </article>
+        <DrillRow
+          key={share.role}
+          title={share.label}
+          generations={share.generations}
+          amount={share.amount}
+        />
       ))}
     </>
   );

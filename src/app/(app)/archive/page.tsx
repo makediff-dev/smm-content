@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Trash } from "@phosphor-icons/react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ export default function ArchivePage() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const slots = useContentPlanStore((s) => s.slots);
   const placeSlotOnDate = useContentPlanStore((s) => s.placeSlotOnDate);
+  const removeSlot = useContentPlanStore((s) => s.removeSlot);
   const [filter, setFilter] = useState<"all" | ContentFormat>("all");
   const [placing, setPlacing] = useState<ContentPlanSlot | null>(null);
   const [date, setDate] = useState(toDateKey(new Date()));
@@ -124,22 +126,29 @@ export default function ArchivePage() {
                       {formatArchiveSince(slot.archivedAt)}
                     </p>
                   </div>
-                  <Button
-                    variant="secondary"
-                    className={styles.placeButton}
-                    onClick={() => openPlace(slot)}
-                  >
-                    Поставить на день
-                  </Button>
+                  <div className={styles.archiveActions}>
+                    <Button
+                      variant="secondary"
+                      className={styles.placeButton}
+                      onClick={() => openPlace(slot)}
+                    >
+                      Поставить на день
+                    </Button>
+                    <button
+                      type="button"
+                      className={styles.deleteButton}
+                      aria-label="Удалить"
+                      title="Удалить"
+                      onClick={() => removeSlot(slot.id)}
+                    >
+                      <Trash size={16} />
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
 
-          <p className={styles.archiveNote}>
-            Задачу можно отправить в архив из плана и вернуть обратно. Постинг
-            и отметка «вышло» — следующим этапом.
-          </p>
         </section>
       </div>
 

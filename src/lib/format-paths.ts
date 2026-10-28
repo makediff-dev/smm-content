@@ -15,29 +15,8 @@ const TEXT_PATH: FormatPathStep[] = [
     id: "text-1",
     kind: "person",
     stage: "copywriter",
-    label: "Копирайтер или МП",
-    hint: "тема и источник",
-  },
-  {
-    id: "text-2",
-    kind: "ai",
-    stage: null,
-    label: "Нейросеть",
-    hint: "пишет длинный и короткий текст",
-  },
-  {
-    id: "text-3",
-    kind: "person",
-    stage: "copywriter",
     label: "Копирайтер",
-    hint: "факты, цифры, тон",
-  },
-  {
-    id: "text-4",
-    kind: "person",
-    stage: "project_manager",
-    label: "Менеджер проекта",
-    hint: "проверяет текст копирайтера",
+    hint: "тема, источник, текст",
   },
   {
     id: "text-5",
@@ -45,13 +24,6 @@ const TEXT_PATH: FormatPathStep[] = [
     stage: "editor",
     label: "Редактор",
     hint: "вычитка",
-  },
-  {
-    id: "text-6",
-    kind: "ai",
-    stage: null,
-    label: "Нейросеть",
-    hint: "фото, плашка, сторис",
   },
   {
     id: "text-7",
@@ -72,7 +44,7 @@ const TEXT_PATH: FormatPathStep[] = [
     kind: "person",
     stage: "project_manager",
     label: "Менеджер проекта",
-    hint: "проверяет всю работу и ставит в план"
+    hint: "ставит в план",
   },
 ];
 
@@ -81,29 +53,8 @@ const GALLERY_PATH: FormatPathStep[] = [
     id: "gallery-1",
     kind: "person",
     stage: "copywriter",
-    label: "Копирайтер или МП",
-    hint: "тема и источник",
-  },
-  {
-    id: "gallery-2",
-    kind: "ai",
-    stage: null,
-    label: "Нейросеть",
-    hint: "пост и заголовки слайдов",
-  },
-  {
-    id: "gallery-3",
-    kind: "person",
-    stage: "copywriter",
     label: "Копирайтер",
-    hint: "факты, цифры, тон",
-  },
-  {
-    id: "gallery-4",
-    kind: "person",
-    stage: "project_manager",
-    label: "Менеджер проекта",
-    hint: "проверяет текст копирайтера",
+    hint: "тема, источник, текст",
   },
   {
     id: "gallery-5",
@@ -111,13 +62,6 @@ const GALLERY_PATH: FormatPathStep[] = [
     stage: "editor",
     label: "Редактор",
     hint: "вычитка",
-  },
-  {
-    id: "gallery-6",
-    kind: "ai",
-    stage: null,
-    label: "Нейросеть",
-    hint: "слайды, плашка, затемнение",
   },
   {
     id: "gallery-7",
@@ -138,7 +82,7 @@ const GALLERY_PATH: FormatPathStep[] = [
     kind: "person",
     stage: "project_manager",
     label: "Менеджер проекта",
-    hint: "проверяет всю работу и ставит в план"
+    hint: "ставит в план",
   },
 ];
 
@@ -147,29 +91,8 @@ const SLIDESHOW_PATH: FormatPathStep[] = [
     id: "slideshow-1",
     kind: "person",
     stage: "copywriter",
-    label: "Копирайтер или МП",
-    hint: "тема и источник",
-  },
-  {
-    id: "slideshow-2",
-    kind: "ai",
-    stage: null,
-    label: "Нейросеть",
-    hint: "текст для плашки и голоса",
-  },
-  {
-    id: "slideshow-3",
-    kind: "person",
-    stage: "copywriter",
     label: "Копирайтер",
-    hint: "факты, цифры, тон",
-  },
-  {
-    id: "slideshow-4",
-    kind: "person",
-    stage: "project_manager",
-    label: "Менеджер проекта",
-    hint: "проверяет текст копирайтера",
+    hint: "тема, источник, текст",
   },
   {
     id: "slideshow-5",
@@ -179,25 +102,11 @@ const SLIDESHOW_PATH: FormatPathStep[] = [
     hint: "вычитка",
   },
   {
-    id: "slideshow-6",
-    kind: "ai",
-    stage: null,
-    label: "Нейросеть",
-    hint: "картинки 1080 × 1920",
-  },
-  {
     id: "slideshow-7",
     kind: "person",
     stage: "designer",
     label: "Дизайнер",
     hint: "кадр, плашка, переносы",
-  },
-  {
-    id: "slideshow-8",
-    kind: "ai",
-    stage: null,
-    label: "Нейросеть",
-    hint: "озвучка и сборка",
   },
   {
     id: "slideshow-9",
@@ -211,7 +120,7 @@ const SLIDESHOW_PATH: FormatPathStep[] = [
     kind: "person",
     stage: "project_manager",
     label: "Менеджер проекта",
-    hint: "проверяет всю работу и ставит в план"
+    hint: "ставит в план",
   },
 ];
 
@@ -224,25 +133,11 @@ const VIDEO_MEME_PATH: FormatPathStep[] = [
     hint: "видео и подводка",
   },
   {
-    id: "meme-2",
-    kind: "person",
-    stage: "project_manager",
-    label: "Менеджер проекта",
-    hint: "видео и текст подводки"
-  },
-  {
     id: "meme-3",
     kind: "person",
     stage: "editor",
     label: "Редактор",
     hint: "вычитка",
-  },
-  {
-    id: "meme-4",
-    kind: "ai",
-    stage: null,
-    label: "Нейросеть",
-    hint: "плашка, логотип, размер",
   },
   {
     id: "meme-5",
@@ -256,7 +151,7 @@ const VIDEO_MEME_PATH: FormatPathStep[] = [
     kind: "person",
     stage: "project_manager",
     label: "Менеджер проекта",
-    hint: "проверяет всю работу и ставит в план"
+    hint: "ставит в план",
   },
 ];
 

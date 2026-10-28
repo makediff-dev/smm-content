@@ -1,4 +1,4 @@
-import { getNextStage, getStageLabel } from "@/lib/workflow";
+import { getNextStage, getStageLabel, type StagePathOptions } from "@/lib/workflow";
 import type { ContentFormat, WizardStep, WorkflowStage } from "@/types";
 import { getWizardStepsForFormat } from "@/types";
 
@@ -102,7 +102,7 @@ export function getWizardStepConfirmContent(
 export function getWorkflowStageConfirmContent(
   stage: WorkflowStage,
   format: ContentFormat,
-  options?: { designApproved?: boolean }
+  options?: StagePathOptions
 ): StepConfirmContent {
   const nextStage = getNextStage(format, stage, options);
   const stageLabel = getStageLabel(stage);

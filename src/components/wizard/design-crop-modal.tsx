@@ -188,18 +188,56 @@ export function DesignCropModal({
             });
           }}
         />
-        {rect && (
-          <span
-            className={styles.cropRect}
-            style={{
-              left: rect.x * scale,
-              top: rect.y * scale,
-              width: rect.width * scale,
-              height: rect.height * scale,
-            }}
-          >
-            <span className={styles.cropHandle} />
-          </span>
+        {rect && size && (
+          <>
+            <span
+              className={styles.cropDim}
+              style={{
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: rect.y * scale,
+              }}
+            />
+            <span
+              className={styles.cropDim}
+              style={{
+                top: (rect.y + rect.height) * scale,
+                left: 0,
+                width: "100%",
+                bottom: 0,
+              }}
+            />
+            <span
+              className={styles.cropDim}
+              style={{
+                top: rect.y * scale,
+                left: 0,
+                width: rect.x * scale,
+                height: rect.height * scale,
+              }}
+            />
+            <span
+              className={styles.cropDim}
+              style={{
+                top: rect.y * scale,
+                left: (rect.x + rect.width) * scale,
+                right: 0,
+                height: rect.height * scale,
+              }}
+            />
+            <span
+              className={styles.cropRect}
+              style={{
+                left: rect.x * scale,
+                top: rect.y * scale,
+                width: rect.width * scale,
+                height: rect.height * scale,
+              }}
+            >
+              <span className={styles.cropHandle} />
+            </span>
+          </>
         )}
       </div>
       <p className={styles.cropHint}>

@@ -161,7 +161,7 @@ export function CopywriterStage({
   return (
     <div className={styles.copywriterLayout}>
       {canChangeFormat && (
-        <div className={styles.formatGrid}>
+        <div className={styles.formatGrid} role="radiogroup" aria-label="Тип контента">
           {FORMAT_OPTIONS.map((option) => {
             const Icon = formatIconMap[option];
             const active = content.format === option;
@@ -170,6 +170,8 @@ export function CopywriterStage({
                 key={option}
                 type="button"
                 className={`${styles.formatCard} ${active ? styles.formatCardActive : ""}`}
+                role="radio"
+                aria-checked={active}
                 onClick={() => onChange({ format: option, formatConfirmed: false })}
               >
                 <Icon size={22} weight={active ? "fill" : "regular"} />

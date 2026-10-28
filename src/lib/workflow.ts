@@ -15,13 +15,12 @@ export const WORKFLOW_STAGE_HINTS: Record<WorkflowStage, string> = {
   designer: "Изображения: оценка, скачивание, замена и добавление",
   editor: "Текст, превью слайдов, возврат на доработку",
   video_editor: "Сборка видео, голос, темп, музыка и произношение",
-  project_manager: "Сначала текст копирайтера, в конце вся работа и слот в КП",
+  project_manager: "Проверяет всю работу и ставит слот в КП",
   posting_manager: "Готовый пост и скачивание материалов",
 };
 
 const GALLERY_CHAIN: WorkflowStage[] = [
   "copywriter",
-  "project_manager",
   "editor",
   "designer",
   "posting_manager",
@@ -29,7 +28,6 @@ const GALLERY_CHAIN: WorkflowStage[] = [
 
 const SLIDESHOW_CHAIN: WorkflowStage[] = [
   "copywriter",
-  "project_manager",
   "editor",
   "designer",
   "video_editor",
@@ -38,7 +36,6 @@ const SLIDESHOW_CHAIN: WorkflowStage[] = [
 
 const TEXT_CHAIN: WorkflowStage[] = [
   "copywriter",
-  "project_manager",
   "editor",
   "designer",
   "posting_manager",
@@ -46,7 +43,6 @@ const TEXT_CHAIN: WorkflowStage[] = [
 
 const VIDEO_MEME_CHAIN: WorkflowStage[] = [
   "copywriter",
-  "project_manager",
   "editor",
   "designer",
 ];
@@ -64,6 +60,14 @@ export function getStageLabel(stage: WorkflowStage): string {
 
 export interface StagePathOptions {
   designApproved?: boolean;
+  returnedByStage?: WorkflowStage;
+}
+
+export function copywriterCanReturnToDesigner(
+  currentStage: WorkflowStage,
+  returnedByStage?: WorkflowStage
+): boolean {
+  return currentStage === "copywriter" && returnedByStage === "designer";
 }
 
 export function formatHasEditorFinalReview(format: ContentFormat): boolean {
@@ -88,10 +92,7 @@ export function getNextStage(
   options?: StagePathOptions
 ): WorkflowStage | null {
   if (format === "slideshow") {
-    if (currentStage === "copywriter") return "project_manager";
-    if (currentStage === "project_manager") {
-      return options?.designApproved ? null : "editor";
-    }
+    if (currentStage === "copywriter") return "editor";
     if (currentStage === "editor") return "designer";
     if (currentStage === "designer") return "video_editor";
     if (currentStage === "video_editor") return "project_manager";
@@ -99,24 +100,19 @@ export function getNextStage(
   }
 
   if (format === "video_meme") {
-    if (currentStage === "copywriter") return "project_manager";
-    if (currentStage === "project_manager") {
-      return options?.designApproved ? null : "editor";
-    }
+    if (currentStage === "copywriter") return "editor";
     if (currentStage === "editor") return "designer";
     if (currentStage === "designer") return "project_manager";
     return null;
   }
 
   if (formatHasEditorFinalReview(format)) {
-    if (currentStage === "copywriter") return "project_manager";
-    if (currentStage === "project_manager") {
-      return options?.designApproved ? null : "editor";
-    }
+    if (currentStage === "copywriter") return "editor";
     if (currentStage === "editor") {
       return options?.designApproved ? "project_manager" : "designer";
     }
     if (currentStage === "designer") return "editor";
+    return null;
   }
 
   const chain = getStageChain(format);
@@ -133,44 +129,35 @@ export function getPreviousStages(
   options?: StagePathOptions
 ): WorkflowStage[] {
   if (format === "slideshow") {
-    if (currentStage === "project_manager" && options?.designApproved) {
-      return ["copywriter", "project_manager", "editor", "designer", "video_editor"];
+    if (currentStage === "project_manager") {
+      return ["copywriter", "editor", "designer", "video_editor"];
     }
-    if (currentStage === "project_manager") return ["copywriter"];
-    if (currentStage === "editor") return ["copywriter", "project_manager"];
-    if (currentStage === "designer") {
-      return ["copywriter", "project_manager", "editor"];
-    }
+    if (currentStage === "editor") return ["copywriter"];
+    if (currentStage === "designer") return ["copywriter"];
     if (currentStage === "video_editor") {
-      return ["copywriter", "project_manager", "editor", "designer"];
+      return ["copywriter", "editor", "designer"];
     }
     return [];
   }
 
   if (format === "video_meme") {
-    if (currentStage === "project_manager" && options?.designApproved) {
-      return ["copywriter", "project_manager", "editor", "designer"];
+    if (currentStage === "project_manager") {
+      return ["copywriter", "editor", "designer"];
     }
-    if (currentStage === "project_manager") return ["copywriter"];
-    if (currentStage === "editor") return ["copywriter", "project_manager"];
-    if (currentStage === "designer") {
-      return ["copywriter", "project_manager", "editor"];
-    }
+    if (currentStage === "editor") return ["copywriter"];
+    if (currentStage === "designer") return ["copywriter"];
     return [];
   }
 
   if (formatHasEditorFinalReview(format)) {
     if (currentStage === "editor" && options?.designApproved) {
-      return ["copywriter", "project_manager", "editor", "designer"];
+      return ["copywriter", "editor", "designer"];
     }
-    if (currentStage === "editor") return ["copywriter", "project_manager"];
-    if (currentStage === "designer") {
-      return ["copywriter", "project_manager", "editor"];
+    if (currentStage === "editor") return ["copywriter"];
+    if (currentStage === "designer") return ["copywriter"];
+    if (currentStage === "project_manager") {
+      return ["copywriter", "editor", "designer", "editor"];
     }
-    if (currentStage === "project_manager" && options?.designApproved) {
-      return ["copywriter", "project_manager", "editor", "designer", "editor"];
-    }
-    if (currentStage === "project_manager") return ["copywriter"];
   }
 
   const chain = getStageChain(format);
@@ -187,6 +174,28 @@ export function getPreviousStage(
   if (currentStage === "posting_manager") return "project_manager";
   const previous = getPreviousStages(format, currentStage, options);
   return previous[previous.length - 1] ?? null;
+}
+
+export function getIncomingStage(
+  format: ContentFormat,
+  currentStage: WorkflowStage,
+  options?: StagePathOptions
+): WorkflowStage | null {
+  if (options?.returnedByStage) return options.returnedByStage;
+
+  if (currentStage === "copywriter") return "project_manager";
+  if (currentStage === "editor") {
+    return options?.designApproved ? "designer" : "copywriter";
+  }
+  if (currentStage === "designer") return "editor";
+  if (currentStage === "video_editor") return "designer";
+  if (currentStage === "project_manager") {
+    if (format === "slideshow") return "video_editor";
+    if (format === "video_meme") return "designer";
+    return "editor";
+  }
+  if (currentStage === "posting_manager") return "project_manager";
+  return null;
 }
 
 export function getAdminNextStage(

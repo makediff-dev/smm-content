@@ -1,7 +1,7 @@
 import type { ContentFormat, ProductionTask, User } from "@/types";
 import { FORMAT_LABELS } from "@/types";
 import { canAccessProject, isAdminRole, isManagementRole } from "@/lib/roles";
-import { getPreviousStages, getStageLabel, stageToRole } from "@/lib/workflow";
+import { getIncomingStage, getStageLabel, stageToRole } from "@/lib/workflow";
 import { getRoleWorkspaceHref } from "@/lib/role-workspace";
 import {
   formatTaskDeadlineLabel,
@@ -20,6 +20,7 @@ const SHORT_FORMAT_LABELS: Record<ContentFormat, string> = {
 
 export interface HomeQueueItem {
   id: string;
+  projectId: string;
   title: string;
   fromLabel: string;
   formatLabel: string;
@@ -58,21 +59,12 @@ export function getHomeTasksForUser(
 }
 
 export function getSenderLabel(task: ProductionTask): string {
-  if (task.status === "returned") {
-    const previous = getPreviousStages(task.format, task.currentStage, {
-      designApproved: task.designApproved,
-    });
-    const fromStage = previous[previous.length - 1];
-    if (fromStage) return getStageLabel(fromStage);
-    return "Проверка";
-  }
-
-  const previous = getPreviousStages(task.format, task.currentStage, {
+  const fromStage = getIncomingStage(task.format, task.currentStage, {
     designApproved: task.designApproved,
+    returnedByStage: task.returnedByStage,
   });
-  const fromStage = previous[previous.length - 1];
   if (fromStage) return getStageLabel(fromStage);
-  return "Менеджер проекта";
+  return task.status === "returned" ? "Проверка" : "Менеджер проекта";
 }
 
 export function getTaskOpenHref(task: ProductionTask): string {
@@ -88,6 +80,7 @@ export function buildHomeQueueItems(tasks: ProductionTask[]): HomeQueueItem[] {
 
   return sorted.map((task) => ({
     id: task.id,
+    projectId: task.projectId,
     title: task.title,
     fromLabel: getSenderLabel(task),
     formatLabel: SHORT_FORMAT_LABELS[task.format] ?? FORMAT_LABELS[task.format],

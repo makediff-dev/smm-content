@@ -28,14 +28,10 @@ export function StepFormat() {
 
   const handleSelect = (nextFormat: ContentFormat) => {
     if (stepDisabled) return;
-    const selected = selectedFormats.includes(nextFormat)
-      ? selectedFormats.filter((item) => item !== nextFormat)
-      : [...selectedFormats, nextFormat];
-    setField("selectedFormats", selected);
-    const primary = selected.includes(format) ? format : (selected[0] ?? format);
-    if (primary !== format) setField("format", primary);
-    if (contentId && selected.length > 0) {
-      updateContentUnit(contentId, { format: primary });
+    setField("selectedFormats", [nextFormat]);
+    setField("format", nextFormat);
+    if (contentId) {
+      updateContentUnit(contentId, { format: nextFormat });
     }
   };
 
@@ -44,22 +40,24 @@ export function StepFormat() {
       <div className={styles.section}>
         <h3 className={styles.sectionTitle}>Выберите тип контента</h3>
         <p className={styles.sectionHint}>
-          Можно выбрать несколько типов — нажмите, чтобы подсветить, ещё раз,
-          чтобы снять. Для каждого выбранного формата пойдёт своя цепочка.
+          Можно выбрать только один тип. Для него пойдёт своя цепочка.
         </p>
       </div>
 
-      <div className={styles.formatCards}>
+      <div className={styles.formatCards} role="radiogroup" aria-label="Тип контента">
         {FORMAT_OPTIONS.map((option) => {
           const Icon = formatIconMap[option];
-          const isActive = selectedFormats.includes(option);
+          const isActive =
+            selectedFormats[0] === option ||
+            (selectedFormats.length === 0 && format === option);
 
           return (
             <button
               key={option}
               type="button"
               className={`${styles.formatCard} ${isActive ? styles.formatCardActive : ""}`}
-              aria-pressed={isActive}
+              role="radio"
+              aria-checked={isActive}
               onClick={() => handleSelect(option)}
               disabled={stepDisabled}
             >

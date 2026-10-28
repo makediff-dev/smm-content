@@ -100,15 +100,10 @@ export function groupStuckByPerson(rows: StuckTaskRow[]): StuckPersonGroup[] {
     .sort((a, b) => b.hotCount - a.hotCount || b.count - a.count);
 }
 
-export type Punctuality =
-  | "done_on_time"
-  | "done_late"
-  | "open_on_time"
-  | "overdue";
+export type Punctuality = "done_on_time" | "open_on_time" | "overdue";
 
 export const PUNCTUALITY_LABELS: Record<Punctuality, string> = {
   done_on_time: "Сдана в срок",
-  done_late: "Сдана с опозданием",
   open_on_time: "Срок ещё идёт",
   overdue: "Просрочена",
 };
@@ -124,7 +119,7 @@ export interface PersonTaskReport {
   startedLabel: string;
   dueLabel: string;
   finishedLabel: string | null;
-  durationLabel: string;
+  delayLabel: string;
   verdict: Punctuality;
   verdictLabel: string;
   href: string;
@@ -143,8 +138,25 @@ function getPunctuality(
   finishedAt: number,
   dueAt: number
 ): Punctuality {
-  if (isDone) return finishedAt <= dueAt ? "done_on_time" : "done_late";
+  if (isDone) return "done_on_time";
   return finishedAt <= dueAt ? "open_on_time" : "overdue";
+}
+
+export function formatDelayMinutes(dueAt: number, comparedAt: number): string {
+  const lateMs = comparedAt - dueAt;
+  if (lateMs <= 0) return "—";
+
+  const totalMinutes = Math.max(1, Math.round(lateMs / 60_000));
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+  const parts: string[] = [];
+
+  if (days > 0) parts.push(`${days} дн.`);
+  if (hours > 0) parts.push(`${hours} ч`);
+  if (minutes > 0) parts.push(`${minutes} мин`);
+
+  return parts.join(" ");
 }
 
 export function getPersonTaskReports(
@@ -170,7 +182,6 @@ export function getPersonTaskReports(
             projects.find((item) => item.id === task.projectId)
           );
       const finishedAt = isDone ? new Date(task.updatedAt).getTime() : now;
-      const hours = Math.max(0, (finishedAt - new Date(startedAt).getTime()) / 3_600_000);
       const verdict = getPunctuality(isDone, finishedAt, dueAt);
 
       return {
@@ -186,7 +197,8 @@ export function getPersonTaskReports(
         startedLabel: formatDate(startedAt),
         dueLabel: formatTaskDeadline(new Date(dueAt)),
         finishedLabel: isDone ? formatDate(task.updatedAt) : null,
-        durationLabel: formatStuckDuration(hours),
+        delayLabel:
+          verdict === "overdue" ? formatDelayMinutes(dueAt, finishedAt) : "—",
         verdict,
         verdictLabel: PUNCTUALITY_LABELS[verdict],
         href: getRoleWorkspaceHref(task.projectId, task.contentUnitId),
@@ -195,9 +207,8 @@ export function getPersonTaskReports(
     .sort((a, b) => {
       const rank: Record<Punctuality, number> = {
         overdue: 0,
-        done_late: 1,
-        open_on_time: 2,
-        done_on_time: 3,
+        open_on_time: 1,
+        done_on_time: 2,
       };
       return rank[a.verdict] - rank[b.verdict];
     });
@@ -206,7 +217,6 @@ export function getPersonTaskReports(
 export function countVerdicts(reports: PersonTaskReport[]) {
   return {
     onTime: reports.filter((item) => item.verdict === "done_on_time").length,
-    late: reports.filter((item) => item.verdict === "done_late").length,
     overdue: reports.filter((item) => item.verdict === "overdue").length,
     open: reports.filter((item) => item.verdict === "open_on_time").length,
   };

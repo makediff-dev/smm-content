@@ -8,7 +8,6 @@ import { useAuthStore } from "@/stores/auth-store";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { PlaceholderImage } from "@/components/shared/placeholder-image";
 import { simulateTask } from "@/lib/simulate-generation";
 import {
@@ -47,7 +46,6 @@ export function StepText({ hideSource = false }: StepTextProps) {
   const textTone = useWizardStore((s) => s.textTone);
   const textLength = useWizardStore((s) => s.textLength);
   const generationPrompt = useWizardStore((s) => s.generationPrompt);
-  const textOptions = useWizardStore((s) => s.textOptions);
   const contentId = useWizardStore((s) => s.contentId);
   const cards = useWizardStore((s) => s.cards);
   const setField = useWizardStore((s) => s.setField);
@@ -56,24 +54,6 @@ export function StepText({ hideSource = false }: StepTextProps) {
   const isTextFormat = format === "text";
   const isGalleryFormat = format === "gallery";
   const isSlideshowFormat = format === "slideshow";
-
-  const publicationPreview = [
-    postText,
-    textOptions.addSourceLink ? "\n\nИсточник: example.com" : "",
-    textOptions.includeHashtags ? "\n\n#контент #новости" : "",
-    textOptions.includeEmoji ? " ✨" : "",
-  ]
-    .join("")
-    .trim();
-
-  const updateTextOption = (
-    key: keyof typeof textOptions,
-    value: boolean
-  ) => {
-    const next = { ...textOptions, [key]: value };
-    setField("textOptions", next);
-    if (contentId) updateContentUnit(contentId, { textOptions: next });
-  };
 
   const [regenerateOpen, setRegenerateOpen] = useState(false);
   const [regeneratePrompt, setRegeneratePrompt] = useState("");
@@ -294,48 +274,6 @@ export function StepText({ hideSource = false }: StepTextProps) {
               </Button>
             )}
           </div>
-
-          {isGalleryFormat && isPostGenerated && (
-            <>
-              <div className={styles.section} style={{ marginTop: 24, marginBottom: 0 }}>
-                <h3 className={styles.sectionTitle}>Текст публикации отдельно от карточек</h3>
-                <p className={styles.sectionHint}>
-                  Основной текст, хештеги и эмодзи настраиваются отдельно — они не
-                  дублируются на изображениях галереи.
-                </p>
-                <div className={styles.buildOptions}>
-                  <Checkbox
-                    label="Добавить ссылку на источник"
-                    checked={textOptions.addSourceLink}
-                    onChange={(e) => updateTextOption("addSourceLink", e.target.checked)}
-                  />
-                  <Checkbox
-                    label="Добавить хештеги"
-                    checked={textOptions.includeHashtags}
-                    onChange={(e) => updateTextOption("includeHashtags", e.target.checked)}
-                  />
-                  <Checkbox
-                    label="Добавить эмодзи"
-                    checked={textOptions.includeEmoji}
-                    onChange={(e) => updateTextOption("includeEmoji", e.target.checked)}
-                  />
-                </div>
-              </div>
-
-              <div className={styles.postPreview} style={{ marginTop: 16 }}>
-                <div className={styles.postPreviewHeader}>
-                  <div className={styles.postPreviewAvatar}>HA</div>
-                  <div>
-                    <div className={styles.postPreviewName}>HubAgency</div>
-                    <div className={styles.postPreviewMeta}>Текст публикации · отдельно</div>
-                  </div>
-                </div>
-                <div className={styles.postPreviewBody}>
-                  {publicationPreview || "Текст публикации появится здесь"}
-                </div>
-              </div>
-            </>
-          )}
         </div>
       )}
 

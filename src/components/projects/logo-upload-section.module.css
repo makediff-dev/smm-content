@@ -2,8 +2,12 @@
   margin-top: 20px;
 }
 
+.sectionFlush {
+  margin-top: 0;
+}
+
 .header {
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .label {
@@ -20,26 +24,38 @@
   line-height: 1.45;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-  gap: 12px;
-}
-
-.slot {
+.list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  min-width: 0;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-white);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(108px, 0.7fr) minmax(0, 1.3fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.row:last-child {
+  border-bottom: none;
 }
 
 .fileInput {
   display: none;
 }
 
-.slotHeader {
+.format {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .formatBadge {
@@ -53,18 +69,19 @@
 .formatHint {
   font-size: 11px;
   color: var(--text-light);
+  line-height: 1.3;
 }
 
 .dropzone {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-height: 112px;
-  padding: 14px 10px;
+  gap: 8px;
+  min-height: 44px;
+  width: 100%;
+  padding: 8px 12px;
   border: 1.5px dashed var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius);
   background: var(--bg-soft);
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
@@ -86,6 +103,7 @@
 
 .dropzoneIcon {
   color: var(--text-light);
+  flex-shrink: 0;
 }
 
 .dropzoneText {
@@ -103,25 +121,27 @@
 
 .uploaded {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 10px;
-  min-height: 112px;
-  padding: 12px;
-  border-radius: var(--radius-lg);
+  min-height: 44px;
+  min-width: 0;
+  padding: 6px 8px 6px 6px;
+  border-radius: var(--radius);
   background: var(--bg-soft);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 .preview {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius);
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 8px;
   background: var(--bg-white);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-heading);
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--text-muted);
   box-shadow: var(--shadow-sm);
@@ -130,12 +150,13 @@
 .fileInfo {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
+  flex: 1;
 }
 
 .fileName {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text);
   white-space: nowrap;
@@ -150,8 +171,38 @@
 
 .slotActions {
   display: flex;
-  gap: 4px;
-  margin-top: auto;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.iconButton:hover:not(:disabled) {
+  background: var(--bg-white);
+  color: var(--text);
+}
+
+.iconButtonDanger:hover:not(:disabled) {
+  background: var(--danger-muted, #fde8e8);
+  color: var(--danger, #c0392b);
+}
+
+.iconButton:disabled {
+  opacity: 0.5;
+  cursor: wait;
 }
 
 @keyframes pulse {
@@ -161,5 +212,12 @@
   }
   50% {
     opacity: 0.55;
+  }
+}
+
+@media (max-width: 560px) {
+  .row {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 }

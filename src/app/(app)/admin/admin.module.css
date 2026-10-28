@@ -13,6 +13,11 @@
   flex-shrink: 0;
 }
 
+.headerCreate {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .pageTitle {
   font-family: var(--font-heading);
   font-size: 28px;

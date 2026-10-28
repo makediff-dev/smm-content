@@ -2,13 +2,9 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/stores/auth-store";
 import { useWizardStore } from "@/stores/content-wizard-store";
 import { useProjectsStore } from "@/stores/projects-store";
-import {
-  createProductionTaskForContent,
-  useWorkflowStore,
-} from "@/stores/workflow-store";
+import { useWorkflowStore } from "@/stores/workflow-store";
 import { AppShell } from "@/components/layout/app-shell";
 import { WizardStepper } from "@/components/wizard/wizard-stepper";
 import { StepFormat } from "@/components/wizard/step-format";
@@ -21,7 +17,7 @@ import { StepResult } from "@/components/wizard/step-result";
 import { WizardStepNavigation } from "@/components/wizard/wizard-step-navigation";
 import { WizardReadOnlyBanner } from "@/components/wizard/wizard-read-only-banner";
 import { WizardStepProvider } from "@/components/wizard/wizard-step-context";
-import { FORMAT_LABELS, formatUsesCards } from "@/types";
+import { formatUsesCards } from "@/types";
 import { StepConfirmModal } from "@/components/shared/step-confirm-modal";
 import { useWizardAccess } from "@/hooks/use-wizard-access";
 import { useStepConfirmModal } from "@/hooks/use-step-confirm-modal";
@@ -51,11 +47,7 @@ export function ContentWizard({ projectId, contentId, step }: ContentWizardProps
   const cards = useWizardStore((s) => s.cards);
   const buildStatus = useWizardStore((s) => s.buildStatus);
   const getContentUnit = useProjectsStore((s) => s.getContentUnit);
-  const createContentUnit = useProjectsStore((s) => s.createContentUnit);
   const updateContentUnit = useProjectsStore((s) => s.updateContentUnit);
-  const createTask = useWorkflowStore((s) => s.createTask);
-  const users = useAuthStore((s) => s.users);
-  const currentUser = useAuthStore((s) => s.currentUser);
   const task = useWorkflowStore((s) => s.getTaskByContentId(contentId));
 
   const content = getContentUnit(contentId);
@@ -91,7 +83,7 @@ export function ContentWizard({ projectId, contentId, step }: ContentWizardProps
     hydratedContentIdRef.current = contentId;
     initWizard(projectId, contentId, {
       format: content.format,
-      selectedFormats: content.formatConfirmed ? [content.format] : [],
+      selectedFormats: [content.format],
       formatConfirmed: content.formatConfirmed ?? true,
       sourceType: content.sourceType ?? "url",
       sourceUrl: content.sourceUrl,
@@ -199,50 +191,11 @@ export function ContentWizard({ projectId, contentId, step }: ContentWizardProps
 
   const saveFormatAndNext = () => {
     if (!contentId) return;
-    const formats = selectedFormats.length > 0 ? selectedFormats : [format];
-    const primary = formats.includes(format) ? format : formats[0];
-    const source = getContentUnit(contentId);
+    const primary = selectedFormats[0] ?? format;
     updateContentUnit(contentId, { format: primary, formatConfirmed: true });
     setField("format", primary);
+    setField("selectedFormats", [primary]);
     setField("formatConfirmed", true);
-
-    formats
-      .filter((item) => item !== primary)
-      .forEach((extraFormat) => {
-        const extraId = createContentUnit(projectId, {
-          title: source
-            ? `${source.title} · ${FORMAT_LABELS[extraFormat]}`
-            : FORMAT_LABELS[extraFormat],
-          format: extraFormat,
-          formatConfirmed: true,
-          sourceType: source?.sourceType,
-          sourceUrl: source?.sourceUrl,
-          sourceFileName: source?.sourceFileName,
-          sourceUseLink: source?.sourceUseLink,
-          sourceUseFile: source?.sourceUseFile,
-          sourceNotesEnabled: source?.sourceNotesEnabled,
-          sourceNotes: source?.sourceNotes,
-          sourceLinks: source?.sourceLinks,
-          sourceFiles: source?.sourceFiles,
-          sourceExtracts: source?.sourceExtracts,
-          promptId: source?.promptId,
-          generationPrompt: source?.generationPrompt,
-        });
-        const extra = getContentUnit(extraId);
-        if (extra) {
-          createTask(
-            createProductionTaskForContent(
-              extraId,
-              projectId,
-              extraFormat,
-              extra.title
-            ),
-            users,
-            currentUser ?? undefined
-          );
-        }
-      });
-
     goNext();
   };
 

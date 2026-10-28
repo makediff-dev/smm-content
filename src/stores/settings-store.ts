@@ -10,8 +10,10 @@ interface SettingsState {
   prompts: Prompt[];
   skills: Skill[];
   aiSettings: AIModelSettings;
+  addPrompt: (data: Omit<Prompt, "id">) => string;
   updatePrompt: (id: string, data: Partial<Prompt>) => void;
   duplicatePrompt: (id: string) => void;
+  addSkill: (data: Omit<Skill, "id">) => string;
   updateSkill: (id: string, data: Partial<Skill>) => void;
   updateAISettings: (data: Partial<AIModelSettings>) => void;
   testConnection: () => void;
@@ -24,6 +26,13 @@ export const useSettingsStore = create<SettingsState>()(
       prompts: SEED_PROMPTS,
       skills: SEED_SKILLS,
       aiSettings: SEED_AI_SETTINGS,
+
+      addPrompt: (data) => {
+        const id = generateId("prompt");
+        const prompt: Prompt = { ...data, id };
+        set((s) => ({ prompts: [prompt, ...s.prompts] }));
+        return id;
+      },
 
       updatePrompt: (id, data) => {
         set((s) => ({
@@ -43,6 +52,13 @@ export const useSettingsStore = create<SettingsState>()(
           ownerId: original.ownerId ?? "own",
         };
         set((s) => ({ prompts: [...s.prompts, copy] }));
+      },
+
+      addSkill: (data) => {
+        const id = generateId("skill");
+        const skill: Skill = { ...data, id };
+        set((s) => ({ skills: [skill, ...s.skills] }));
+        return id;
       },
 
       updateSkill: (id, data) => {

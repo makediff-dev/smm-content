@@ -111,12 +111,36 @@
   box-shadow: var(--shadow-sm);
 }
 
+.queueHead {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 0 12px;
+}
+
 .queueTitle {
   font-family: var(--font-heading);
   font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.02em;
-  padding: 16px 0 8px;
+}
+
+.queueFilters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.queueFilterField {
+  flex: 0 0 auto;
+  width: 160px;
+  max-width: 100%;
+}
+
+.queueFilterField :global(select) {
+  width: 160px;
+  max-width: 100%;
 }
 
 .queueEmpty {
@@ -185,8 +209,8 @@
 }
 
 .timeBadge_tomorrow {
-  background: #f5ead0;
-  color: #8a5a12;
+  background: var(--accent-muted);
+  color: var(--text);
 }
 
 .timeBadge_later {
@@ -275,7 +299,30 @@
 }
 
 @media (max-width: 720px) {
-  .stats,
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .stat {
+    min-height: 0;
+    padding: 12px 10px;
+  }
+
+  .stat:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .statLabel {
+    font-size: 11px;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+
+  .statValue {
+    font-size: 24px;
+  }
+
   .grid {
     grid-template-columns: minmax(0, 1fr);
   }

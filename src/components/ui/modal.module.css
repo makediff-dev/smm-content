@@ -30,11 +30,15 @@
   }
 
   .footer {
-    flex-wrap: wrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: stretch;
   }
 
   .footer > * {
-    flex: 1 1 140px;
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
   }
 }
 

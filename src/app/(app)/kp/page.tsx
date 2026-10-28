@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { Archive, CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +74,7 @@ export default function ContentPlanPage() {
   const [projectFilter, setProjectFilter] = useState("all");
   const slots = useContentPlanStore((s) => s.slots);
   const addSlot = useContentPlanStore((s) => s.addSlot);
+  const archiveSlot = useContentPlanStore((s) => s.archiveSlot);
   const moveSlotToDate = useContentPlanStore((s) => s.moveSlotToDate);
   const currentUser = useAuthStore((s) => s.currentUser);
   const allProjects = useProjectsStore((s) => s.projects);
@@ -272,6 +273,7 @@ export default function ContentPlanPage() {
             </div>
           </div>
 
+          <div className={styles.weekScroller}>
           <div className={styles.weekGrid}>
             {weekDays.map((day) => {
               const dateKey = toDateKey(day);
@@ -328,6 +330,7 @@ export default function ContentPlanPage() {
                               : undefined
                           )}
                           onDragStart={() => setDragId(slot.id)}
+                          onArchive={() => archiveSlot(slot.id)}
                         />
                       ))
                     )}
@@ -335,6 +338,7 @@ export default function ContentPlanPage() {
                 </div>
               );
             })}
+          </div>
           </div>
         </section>
       </div>
@@ -444,14 +448,30 @@ function PlanCard({
   slot,
   status,
   onDragStart,
+  onArchive,
 }: {
   slot: ContentPlanSlot;
   status: string;
   onDragStart: () => void;
+  onArchive: () => void;
 }) {
-  const href = slot.contentUnitId
-    ? getRoleWorkspaceHref(slot.projectId, slot.contentUnitId)
+  const contentUnits = useProjectsStore((s) => s.contentUnits);
+  const contentId =
+    slot.contentUnitId ??
+    contentUnits.find(
+      (unit) => unit.projectId === slot.projectId && unit.title === slot.title
+    )?.id;
+  const href = contentId
+    ? getRoleWorkspaceHref(slot.projectId, contentId)
     : null;
+
+  const body = (
+    <>
+      <p className={styles.planTime}>{formatPublicationTime(slot.scheduledAt)}</p>
+      <p className={styles.planTitle}>{slot.title}</p>
+      <p className={styles.planStatus}>{status}</p>
+    </>
+  );
 
   return (
     <article
@@ -464,15 +484,28 @@ function PlanCard({
         onDragStart();
       }}
     >
-      <p className={styles.planTime}>{formatPublicationTime(slot.scheduledAt)}</p>
+      <button
+        type="button"
+        className={styles.archiveButton}
+        aria-label="В архив"
+        title="В архив"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onArchive();
+        }}
+        onPointerDown={(event) => event.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <Archive size={16} weight="regular" aria-hidden />
+      </button>
       {href ? (
-        <Link href={href} className={styles.planTitle}>
-          {slot.title}
+        <Link href={href} className={styles.planCardBody}>
+          {body}
         </Link>
       ) : (
-        <p className={styles.planTitle}>{slot.title}</p>
+        <div className={styles.planCardBody}>{body}</div>
       )}
-      <p className={styles.planStatus}>{status}</p>
     </article>
   );
 }

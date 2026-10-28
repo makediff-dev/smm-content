@@ -433,33 +433,37 @@ export default function ProjectPage({
               {visibleSettingsSections.some((section) => section.id === "main") && (
                 <div className={styles.settingsSection}>
                   <h3 className={styles.settingsSectionTitle}>Основное</h3>
-                  <div className={styles.settingsGrid}>
-                    <Input
-                      label="Название проекта"
-                      value={settings.name}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, name: e.target.value }))
-                      }
-                      placeholder="Например: HubAgency"
-                    />
-                    <Textarea
-                      label="Описание"
-                      value={settings.description}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, description: e.target.value }))
-                      }
-                      rows={3}
-                      placeholder="Кратко опишите нишу и тип контента проекта"
+                  <div className={styles.settingsMain}>
+                    <div className={styles.settingsFields}>
+                      <Input
+                        label="Название проекта"
+                        value={settings.name}
+                        onChange={(e) =>
+                          setSettings((s) => ({ ...s, name: e.target.value }))
+                        }
+                        placeholder="Например: HubAgency"
+                      />
+                      <Textarea
+                        label="Описание"
+                        value={settings.description}
+                        onChange={(e) =>
+                          setSettings((s) => ({ ...s, description: e.target.value }))
+                        }
+                        fieldClassName={styles.descriptionField}
+                        className={styles.descriptionInput}
+                        placeholder="Кратко опишите нишу и тип контента проекта"
+                      />
+                    </div>
+                    <LogoUploadSection
+                      compact
+                      placeholder={project.logoPlaceholder}
+                      assets={logoAssets}
+                      onChange={(assets) => {
+                        setLogoAssets(assets);
+                        updateProject(projectId, { logoAssets: assets });
+                      }}
                     />
                   </div>
-                  <LogoUploadSection
-                    placeholder={project.logoPlaceholder}
-                    assets={logoAssets}
-                    onChange={(assets) => {
-                      setLogoAssets(assets);
-                      updateProject(projectId, { logoAssets: assets });
-                    }}
-                  />
                 </div>
               )}
 

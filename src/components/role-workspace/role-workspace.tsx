@@ -5,7 +5,6 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import {
   canUserApproveTask,
-  canUserReturnTask,
   useWorkflowStore,
 } from "@/stores/workflow-store";
 import { AppShell } from "@/components/layout/app-shell";
@@ -28,7 +27,6 @@ import {
 } from "@/lib/format-paths";
 import {
   formatHasEditorFinalReview,
-  getPreviousStages,
   getStageLabel,
 } from "@/lib/workflow";
 import { buildGeneratedPhotos } from "@/lib/workspace-generation";
@@ -47,11 +45,8 @@ import {
   canUserOperateCurrentStage,
   getPinnedWorkspaceStage,
   getAutoChecks,
-  getLatestComment,
   getWorkspaceChain,
   getWorkspaceStatusLabel,
-  getChainView,
-  canCollapseChain,
   isLastVisitOfStage,
   isWaitingForReturnedFix,
   type AutoCheckItem,
@@ -62,30 +57,29 @@ import { EditorStage } from "@/components/role-workspace/editor-stage";
 import { RoleLegacyTools } from "@/components/role-workspace/role-legacy-tools";
 import { useHydrateWizardFromContent } from "@/hooks/use-hydrate-wizard";
 import {
+  getDefaultManagerPlan,
   ManagerApprove,
   ManagerPlan,
   ManagerPreview,
+  type ManagerPlanPayload,
 } from "@/components/role-workspace/manager-stage";
 import {
   PostingPacks,
   PostingSide,
 } from "@/components/role-workspace/posting-stage";
-import { getDesignerSlides, getProblemSlideIndex } from "@/lib/designer-slides";
+import { getDesignerSlides } from "@/lib/designer-slides";
 import {
   getPostingStatusLabel,
   resolvePostingSlot,
 } from "@/lib/posting-packs";
 import styles from "./role-workspace.module.css";
 
-const AI_RETURN_VALUE = "__ai__";
 
 interface ChainListProps {
   items: WorkspaceChainItem[];
-  expanded: boolean;
   currentSuffix: string;
   viewingPathId?: string | null;
   onSelectStage?: (item: WorkspaceChainItem) => void;
-  onToggle?: () => void;
 }
 
 function CheckList({ items }: { items: AutoCheckItem[] }) {
@@ -110,74 +104,56 @@ function CheckList({ items }: { items: AutoCheckItem[] }) {
 
 function ChainList({
   items,
-  expanded,
   currentSuffix,
   viewingPathId,
   onSelectStage,
-  onToggle,
 }: ChainListProps) {
-  const view = getChainView(items, expanded);
-  const canCollapse = canCollapseChain(items);
-
   return (
-    <>
-      <ol className={styles.chain}>
-        {view.map(({ item, skippedAfter }) => {
-          const viewing = viewingPathId
-            ? viewingPathId === item.id
-            : item.state === "current";
-          const body = (
-            <>
-              {item.label}
-              {item.state === "current" ? currentSuffix : ""}
-              {viewing && item.state !== "current" ? " — просмотр" : ""}
-              <span className={styles.chainHint}>{item.hint}</span>
-            </>
-          );
+    <ol className={styles.chain}>
+      {items.map((item) => {
+        const viewing = viewingPathId
+          ? viewingPathId === item.id
+          : item.state === "current";
+        const body = (
+          <>
+            {item.label}
+            {item.state === "current" ? currentSuffix : ""}
+            {viewing && item.state !== "current" ? " — просмотр" : ""}
+            <span className={styles.chainHint}>{item.hint}</span>
+          </>
+        );
 
-          return (
-            <li
-              key={item.id}
-              className={`${styles.chainItem} ${
-                item.kind === "ai" ? styles.chainAi : ""
-              } ${
-                viewing
-                  ? styles.chainCurrent
-                  : item.state === "done"
-                    ? styles.chainDone
-                    : ""
-              } ${viewing && item.state !== "current" ? styles.chainViewing : ""} ${
-                skippedAfter > 0 ? styles.chainGap : ""
-              }`}
-            >
-              <span className={styles.chainMark} aria-hidden>
-                {viewing
-                  ? "●"
-                  : item.state === "done"
-                    ? "✓"
-                    : "○"}
-              </span>
-              {onSelectStage ? (
-                <button
-                  type="button"
-                  className={styles.chainButton}
-                  onClick={() => onSelectStage(item)}
-                >
-                  {body}
-                </button>
-              ) : (
-                <span>{body}</span>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-      {canCollapse && onToggle && (
-        <button type="button" className={styles.chainToggle} onClick={onToggle}>
-          {expanded ? "Свернуть этапы" : "Раскрыть все этапы"}
-        </button>
-      )}
-    </>
+        return (
+          <li
+            key={item.id}
+            className={`${styles.chainItem} ${
+              item.kind === "ai" ? styles.chainAi : ""
+            } ${
+              viewing
+                ? styles.chainCurrent
+                : item.state === "done"
+                  ? styles.chainDone
+                  : ""
+            } ${viewing && item.state !== "current" ? styles.chainViewing : ""}`}
+          >
+            <span className={styles.chainMark} aria-hidden>
+              {viewing ? "●" : item.state === "done" ? "✓" : "○"}
+            </span>
+            {onSelectStage ? (
+              <button
+                type="button"
+                className={styles.chainButton}
+                onClick={() => onSelectStage(item)}
+              >
+                {body}
+              </button>
+            ) : (
+              <span>{body}</span>
+            )}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -205,17 +181,16 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
 
   const [viewStage, setViewStage] = useState<WorkflowStage | null>(null);
   const [viewPathId, setViewPathId] = useState<string | null>(null);
-  const [chainExpanded, setChainExpanded] = useState(false);
-  const [compactStages, setCompactStages] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
   const [returnOpen, setReturnOpen] = useState(false);
-  const [returnTarget, setReturnTarget] = useState(AI_RETURN_VALUE);
+  const [returnTarget, setReturnTarget] = useState("");
   const [returnComment, setReturnComment] = useState("");
   const [rollbackOpen, setRollbackOpen] = useState(false);
   const [rollbackTargetKey, setRollbackTargetKey] = useState("");
   const [rollbackComment, setRollbackComment] = useState("");
   const [forwardOpen, setForwardOpen] = useState(false);
   const [forwardComment, setForwardComment] = useState("");
+  const [planDraft, setPlanDraft] = useState<ManagerPlanPayload | null>(null);
   const {
     confirmContent,
     confirmOpen,
@@ -246,26 +221,7 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
     task && currentUser ? canUserApproveTask(currentUser, task) : false;
   const returnTargets =
     task && currentUser ? getReturnTargetStages(currentUser, task) : [];
-  const canReturn =
-    task && currentUser ? canUserReturnTask(currentUser, task) : false;
   const waitingForFix = isWaitingForReturnedFix(currentUser, task);
-
-  useEffect(() => {
-    const page = pageRef.current;
-    const media = window.matchMedia("(max-width: 1199px)");
-    const update = () => {
-      const narrowContainer = (page?.clientWidth ?? 0) <= 980;
-      setCompactStages(media.matches || narrowContainer);
-    };
-    update();
-    const observer = page ? new ResizeObserver(update) : null;
-    observer?.observe(page as Element);
-    media.addEventListener("change", update);
-    return () => {
-      observer?.disconnect();
-      media.removeEventListener("change", update);
-    };
-  }, []);
 
   const chain = useMemo(
     () =>
@@ -333,7 +289,6 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   useEffect(() => {
     if (task) setViewStage(task.currentStage);
     setViewPathId(null);
-    setChainExpanded(false);
   }, [task?.id]);
 
   if (!currentUser || !canOpenProject) return null;
@@ -350,8 +305,6 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   const canToggleVersion = hasPreviousStageVersion(content, stage);
   const viewingPrevious = isViewingPreviousVersion(content, stage);
   const isReturned = task.status === "returned";
-  const designerSlides = getDesignerSlides(content);
-  const problemSlide = getProblemSlideIndex(designerSlides);
   const isManagerStage = stage === "project_manager";
   const isPlanVisit =
     isManagerStage &&
@@ -363,16 +316,11 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
       ? resolvePostingSlot(planSlots, content, task.updatedAt)
       : null;
   const canEdit = canOperate;
-  const latestComment = task.returnComment
-    ? `Возврат: ${task.returnComment}`
-    : isPlanVisit
-      ? "Редактор: всё проверил, можно ставить в план"
-      : isManagerStage
-        ? "Копирайтер: текст готов к согласованию"
-        : getLatestComment(content) ??
-        (stage === "designer"
-          ? `Редактор: на ${problemSlide + 1}-м слайде текст на машине`
-          : null);
+  const planValue = planDraft ?? getDefaultManagerPlan(content);
+  const alreadyArchived = planSlots.some(
+    (slot) => slot.contentUnitId === contentId && Boolean(slot.archived)
+  );
+  const alreadyPlanned = task.status === "done";
   const statusClass = isReturned ? styles.badgeReturned : styles.badgeStatus;
 
   const handleApprove = () => {
@@ -455,57 +403,74 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
     setForwardComment("");
   };
 
+  const buildPlanSlot = (payload: {
+    date: string;
+    time: string;
+    platforms: string[];
+    archived?: boolean;
+  }) => ({
+    projectId,
+    contentUnitId: contentId,
+    scheduledAt: buildScheduledAt(payload.date, payload.time),
+    title: content.title,
+    format: content.format,
+    scenario: task.scenario,
+    comment: "",
+    platforms: payload.platforms,
+    hasText: Boolean(content.postText.trim()),
+    hasZip: content.buildOptions.prepareArchive,
+    hasVisual:
+      content.cards.length > 0 ||
+      content.format === "slideshow" ||
+      content.format === "video_meme" ||
+      content.format === "gallery",
+    archived: payload.archived,
+    archivedAt: payload.archived ? new Date().toISOString() : undefined,
+  });
+
   const handleApproveToPlan = (payload: {
     date: string;
     time: string;
     platforms: string[];
   }) => {
-    addSlot({
-      projectId,
-      contentUnitId: contentId,
-      scheduledAt: buildScheduledAt(payload.date, payload.time),
-      title: content.title,
-      format: content.format,
-      scenario: task.scenario,
-      comment: "",
-      platforms: payload.platforms,
-      hasText: Boolean(content.postText.trim()),
-      hasZip: content.buildOptions.prepareArchive,
-      hasVisual:
-        content.cards.length > 0 ||
-        content.format === "slideshow" ||
-        content.format === "video_meme" ||
-        content.format === "gallery",
-    });
+    addSlot(buildPlanSlot(payload));
     captureStageVersion(contentId, task.currentStage);
     approveStage(task.id, currentUser, users, addActionLog);
     addActionLog(
       contentId,
-      `Согласовано и в план: ${payload.date} ${payload.time}, ${payload.platforms.join(", ")}`,
+      `В КП: ${payload.date} ${payload.time}, ${payload.platforms.join(", ")}`,
       currentUser.name
     );
   };
 
-  const handleManagerRework = (comment: string) => {
-    if (!comment.trim()) return;
-    const previous = getPreviousStages(task.format, task.currentStage, {
-      designApproved: task.designApproved,
-    });
-    const target = previous[previous.length - 1] ?? task.currentStage;
+  const handleArchiveFromPlan = (payload: {
+    date: string;
+    time: string;
+    platforms: string[];
+  }) => {
+    addSlot(buildPlanSlot({ ...payload, archived: true }));
     captureStageVersion(contentId, task.currentStage);
-    returnStage(task.id, target, comment.trim(), currentUser, users, addActionLog);
+    approveStage(task.id, currentUser, users, addActionLog);
+    addActionLog(contentId, "Отправлено в архив", currentUser.name);
+  };
+
+  const openReturnModal = () => {
+    setReturnTarget(returnTargets[0] ?? "");
+    setReturnComment("");
+    setReturnOpen(true);
   };
 
   const handleReturn = () => {
-    if (!returnComment.trim()) return;
+    if (!returnComment.trim() || !returnTarget) return;
     captureStageVersion(contentId, task.currentStage);
-    const target =
-      returnTarget === AI_RETURN_VALUE ? task.currentStage : (returnTarget as WorkflowStage);
-    const comment =
-      returnTarget === AI_RETURN_VALUE
-        ? `Нейросеть: ${returnComment.trim()}`
-        : returnComment.trim();
-    returnStage(task.id, target, comment, currentUser, users, addActionLog);
+    returnStage(
+      task.id,
+      returnTarget as WorkflowStage,
+      returnComment.trim(),
+      currentUser,
+      users,
+      addActionLog
+    );
     setReturnOpen(false);
   };
 
@@ -549,11 +514,13 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
                 task={task}
                 visit={isPlanVisit ? "full" : "text"}
               />
-            ) : stage === "editor" && content.format === "video_meme" ? (
+            ) : stage === "editor" ? (
               <EditorStage
                 content={content}
                 canEdit={canEdit}
-                showVisuals
+                showVisuals={
+                  content.format === "video_meme" || editorVisitIsFinal
+                }
                 onChange={(patch) => updateContentUnit(contentId, patch)}
               />
             ) : (
@@ -563,7 +530,6 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
                 projectId={projectId}
                 contentId={contentId}
                 canOperate={canOperate}
-                designApproved={editorVisitIsFinal}
                 canChangeFormat={
                   canOperate && (isAdmin || !content.formatConfirmed)
                 }
@@ -577,8 +543,6 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
                 </p>
                 <p className={styles.returnText}>{task.returnComment}</p>
               </aside>
-            ) : latestComment && !isPostingStage ? (
-              <p className={styles.comment}>{latestComment}</p>
             ) : null}
           </section>
 
@@ -594,7 +558,7 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
                 {viewingPrevious ? "Новая версия" : "Прошлая версия"}
               </Button>
             )}
-          {(isAdmin || (!isPostingStage && !isPlanVisit)) && (
+          {(isAdmin || !isPostingStage) && (
             <section
               className={`${styles.sideCard} ${styles.stagesCard}`}
               aria-label={isAdmin ? "Этапы" : "Цепочка"}
@@ -604,23 +568,15 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
               </h2>
               <ChainList
                 items={chain}
-                expanded={isAdmin || chainExpanded || compactStages}
                 currentSuffix={
-                  compactStages
-                    ? ""
-                    : isAdmin
-                      ? " — сейчас"
-                      : canOperate
-                        ? " — ты здесь"
-                        : " — сейчас"
+                  isAdmin
+                    ? " — сейчас"
+                    : canOperate
+                      ? " — ты здесь"
+                      : " — сейчас"
                 }
                 viewingPathId={isAdmin ? viewPathId : undefined}
                 onSelectStage={isAdmin ? handleSelectStage : undefined}
-                onToggle={
-                  isAdmin || compactStages
-                    ? undefined
-                    : () => setChainExpanded((open) => !open)
-                }
               />
               {isAdmin && (
                 <div className={styles.adminMove}>
@@ -651,6 +607,75 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
                   </p>
                 </div>
               )}
+              {!isPostingStage && (
+                waitingForFix ? (
+                  <p className={styles.waitNote}>
+                    Действия откроются, когда исправят возврат.
+                  </p>
+                ) : canOperate && (task.status !== "done" || isAdmin) ? (
+                  <div className={styles.actions}>
+                    {isPlanVisit && !viewingOtherStage && task.status !== "done" ? null : isManagerStage &&
+                      canApprove &&
+                      !viewingOtherStage &&
+                      task.status !== "done" ? (
+                      <Button
+                        onClick={() =>
+                          requestConfirm(
+                            getWorkflowStageConfirmContent(
+                              task.currentStage,
+                              task.format,
+                              {
+                                designApproved: task.designApproved,
+                                returnedByStage: task.returnedByStage,
+                              }
+                            ),
+                            handleApprove
+                          )
+                        }
+                      >
+                        Согласовать
+                      </Button>
+                    ) : (
+                      canApprove &&
+                      !viewingOtherStage &&
+                      task.status !== "done" && (
+                        <Button
+                          onClick={() =>
+                            requestConfirm(
+                              getWorkflowStageConfirmContent(
+                                task.currentStage,
+                                task.format,
+                                {
+                                  designApproved: task.designApproved,
+                                  returnedByStage: task.returnedByStage,
+                                }
+                              ),
+                              handleApprove
+                            )
+                          }
+                        >
+                          Принять
+                        </Button>
+                      )
+                    )}
+                    {!viewingOtherStage &&
+                      task.status !== "done" &&
+                      returnTargets.length > 0 && (
+                      <Button variant="danger" onClick={openReturnModal}>
+                        Вернуть
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <p className={styles.note}>
+                    {alreadyPlanned && isPlanVisit
+                      ? alreadyArchived
+                        ? "Уже в архиве."
+                        : "Уже в КП."
+                      : `Задача на этапе «${getStageLabel(task.currentStage)}». Ваша карточка остаётся здесь, правки откроются, когда этап снова будет у роли «${getRoleLabel(currentUser.role)}».`}
+                  </p>
+                )
+              )}
             </section>
           )}
 
@@ -675,72 +700,17 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
               />
             ) : isPlanVisit ? (
               <ManagerPlan
-                content={content}
+                value={planValue}
                 canOperate={canOperate && !viewingOtherStage}
-                alreadyDone={task.status === "done"}
-                onApproveToPlan={handleApproveToPlan}
-                onRework={handleManagerRework}
+                alreadyDone={alreadyPlanned}
+                alreadyArchived={alreadyArchived}
+                onChange={setPlanDraft}
+                onApprove={() => handleApproveToPlan(planValue)}
+                onArchive={() => handleArchiveFromPlan(planValue)}
               />
             ) : isManagerStage ? (
-              <ManagerApprove
-                format={content.format}
-                canOperate={canOperate && !viewingOtherStage}
-                onApprove={() =>
-                  requestConfirm(
-                    getWorkflowStageConfirmContent(
-                      task.currentStage,
-                      task.format,
-                      { designApproved: task.designApproved }
-                    ),
-                    handleApprove
-                  )
-                }
-                onRework={handleManagerRework}
-              />
-            ) : (
-              <>
-            {waitingForFix ? (
-              <p className={styles.waitNote}>
-                Действия откроются, когда исправят возврат.
-              </p>
-            ) : canOperate && (task.status !== "done" || isAdmin) ? (
-              <div className={styles.actions}>
-                {canApprove && !viewingOtherStage && task.status !== "done" && (
-                  <Button
-                    onClick={() =>
-                      requestConfirm(
-                        getWorkflowStageConfirmContent(task.currentStage, task.format, {
-                          designApproved: task.designApproved,
-                        }),
-                        handleApprove
-                      )
-                    }
-                  >
-                    Принять
-                  </Button>
-                )}
-                {canReturn && !viewingOtherStage && (
-                  <Button
-                    variant="danger"
-                    onClick={() => {
-                      setReturnTarget(returnTargets[0] ?? AI_RETURN_VALUE);
-                      setReturnComment("");
-                      setReturnOpen(true);
-                    }}
-                  >
-                    Вернуть
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <p className={styles.note}>
-                Задача на этапе «{getStageLabel(task.currentStage)}». Ваша
-                карточка остаётся здесь, правки откроются, когда этап снова
-                будет у роли «{getRoleLabel(currentUser.role)}».
-              </p>
-            )}
-              </>
-            )}
+              <ManagerApprove format={content.format} />
+            ) : null}
           </div>
           </div>
         </div>
@@ -827,7 +797,11 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
             <Button variant="ghost" onClick={() => setReturnOpen(false)}>
               Отмена
             </Button>
-            <Button variant="danger" onClick={handleReturn} disabled={!returnComment.trim()}>
+            <Button
+              variant="danger"
+              onClick={handleReturn}
+              disabled={!returnComment.trim() || !returnTarget}
+            >
               Вернуть
             </Button>
           </>
@@ -838,13 +812,10 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
             label="Кому"
             value={returnTarget}
             onChange={(event) => setReturnTarget(event.target.value)}
-            options={[
-              { value: AI_RETURN_VALUE, label: "Нейросеть" },
-              ...returnTargets.map((item) => ({
-                value: item,
-                label: getStageLabel(item),
-              })),
-            ]}
+            options={returnTargets.map((item) => ({
+              value: item,
+              label: getStageLabel(item),
+            }))}
           />
           <Textarea
             label="Что не так"

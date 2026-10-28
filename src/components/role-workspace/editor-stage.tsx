@@ -1,11 +1,12 @@
 "use client";
 
 import type { Card, ContentUnit } from "@/types";
+import { TITLE_MAX_LENGTH } from "@/types";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { VideoPlayerStub } from "@/components/shared/placeholder-image";
 import { PreviewPhotos } from "@/components/role-workspace/preview-photos";
-import { getDesignerSlides } from "@/lib/designer-slides";
+import { countChars } from "@/lib/mock-text-generation";
 import styles from "./role-workspace.module.css";
 
 interface EditorStageProps {
@@ -21,12 +22,15 @@ export function EditorStage({
   showVisuals = true,
   onChange,
 }: EditorStageProps) {
-  const slides = getDesignerSlides(content);
+  const titleCards = content.cards;
   const showTitles =
-    content.format === "gallery" || content.format === "slideshow";
+    titleCards.length > 0 &&
+    (content.format === "gallery" ||
+      content.format === "slideshow" ||
+      content.format === "text");
 
   const updateCardText = (cardId: string, shortText: string) => {
-    const cards: Card[] = slides.map((card) =>
+    const cards: Card[] = content.cards.map((card) =>
       card.id === cardId ? { ...card, shortText } : card
     );
     onChange({ cards });
@@ -55,7 +59,32 @@ export function EditorStage({
 
       <div className={styles.copy}>
         <div className={styles.copyGroup}>
-          <p className={styles.kicker}>Текст поста</p>
+          <div className={styles.reviewHead}>
+            <p className={styles.kicker}>Название</p>
+            <span className={styles.reviewCounter}>
+              {content.title.length}/{TITLE_MAX_LENGTH}
+            </span>
+          </div>
+          {canEdit ? (
+            <Input
+              value={content.title}
+              maxLength={TITLE_MAX_LENGTH}
+              onChange={(event) => onChange({ title: event.target.value })}
+            />
+          ) : (
+            <p className={styles.postText}>
+              {content.title || "Нет названия."}
+            </p>
+          )}
+        </div>
+
+        <div className={styles.copyGroup}>
+          <div className={styles.reviewHead}>
+            <p className={styles.kicker}>Текст поста</p>
+            <span className={styles.reviewCounter}>
+              {countChars(content.postText)} симв.
+            </span>
+          </div>
           {canEdit ? (
             <Textarea
               value={content.postText}
@@ -73,7 +102,7 @@ export function EditorStage({
         {showTitles && (
           <div className={styles.titleList}>
             <p className={styles.kicker}>Текст на слайдах</p>
-            {slides.map((card, index) =>
+            {titleCards.map((card, index) =>
               canEdit ? (
                 <Input
                   key={card.id}

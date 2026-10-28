@@ -5,7 +5,6 @@ import { UploadSimple, Trash, ArrowsClockwise } from "@phosphor-icons/react";
 import type { LogoAsset, LogoFormat } from "@/types";
 import { LOGO_FORMAT_META } from "@/types";
 import { simulateTask } from "@/lib/simulate-generation";
-import { Button } from "@/components/ui/button";
 import styles from "./logo-upload-section.module.css";
 
 const LOGO_FORMATS: LogoFormat[] = ["svg", "png", "jpg", "webp"];
@@ -14,12 +13,14 @@ interface LogoUploadSectionProps {
   placeholder: string;
   assets: LogoAsset[];
   onChange: (assets: LogoAsset[]) => void;
+  compact?: boolean;
 }
 
 export function LogoUploadSection({
   placeholder,
   assets,
   onChange,
+  compact = false,
 }: LogoUploadSectionProps) {
   const inputRefs = useRef<Partial<Record<LogoFormat, HTMLInputElement>>>({});
   const [uploadingFormat, setUploadingFormat] = useState<LogoFormat | null>(null);
@@ -55,7 +56,7 @@ export function LogoUploadSection({
   };
 
   return (
-    <div className={styles.section}>
+    <div className={`${styles.section} ${compact ? styles.sectionFlush : ""}`}>
       <div className={styles.header}>
         <label className={styles.label}>Логотип</label>
         <p className={styles.hint}>
@@ -63,14 +64,14 @@ export function LogoUploadSection({
         </p>
       </div>
 
-      <div className={styles.grid}>
+      <div className={styles.list}>
         {LOGO_FORMATS.map((format) => {
           const meta = LOGO_FORMAT_META[format];
           const asset = getAsset(format);
           const isUploading = uploadingFormat === format;
 
           return (
-            <div key={format} className={styles.slot}>
+            <div key={format} className={styles.row}>
               <input
                 ref={(el) => {
                   if (el) inputRefs.current[format] = el;
@@ -85,38 +86,39 @@ export function LogoUploadSection({
                 }}
               />
 
-              <div className={styles.slotHeader}>
+              <div className={styles.format}>
                 <span className={styles.formatBadge}>{meta.label}</span>
                 <span className={styles.formatHint}>{meta.hint}</span>
               </div>
 
               {asset ? (
                 <div className={styles.uploaded}>
-                  <div className={styles.preview}>
-                    {placeholder}
-                  </div>
+                  <div className={styles.preview}>{placeholder}</div>
                   <div className={styles.fileInfo}>
                     <span className={styles.fileName}>{asset.fileName}</span>
                     <span className={styles.fileMeta}>Загружен</span>
                   </div>
                   <div className={styles.slotActions}>
-                    <Button
-                      variant="ghost"
-                      size="small"
+                    <button
+                      type="button"
+                      className={styles.iconButton}
                       onClick={() => openFilePicker(format)}
                       disabled={isUploading}
+                      aria-label="Заменить"
+                      title="Заменить"
                     >
-                      <ArrowsClockwise size={14} />
-                      Заменить
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="small"
+                      <ArrowsClockwise size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.iconButton} ${styles.iconButtonDanger}`}
                       onClick={() => handleRemove(format)}
                       disabled={isUploading}
+                      aria-label="Удалить"
+                      title="Удалить"
                     >
-                      <Trash size={14} />
-                    </Button>
+                      <Trash size={16} />
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -126,9 +128,9 @@ export function LogoUploadSection({
                   onClick={() => openFilePicker(format)}
                   disabled={isUploading}
                 >
-                  <UploadSimple size={20} className={styles.dropzoneIcon} />
+                  <UploadSimple size={16} className={styles.dropzoneIcon} />
                   <span className={styles.dropzoneText}>
-                    {isUploading ? "Загрузка..." : `Загрузить ${meta.label}`}
+                    {isUploading ? "Загрузка..." : "Загрузить"}
                   </span>
                   <span className={styles.dropzoneAccept}>{meta.accept}</span>
                 </button>

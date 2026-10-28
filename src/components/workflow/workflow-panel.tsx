@@ -86,6 +86,7 @@ export function WorkflowPanel({ contentUnitId }: WorkflowPanelProps) {
     requestConfirm(
       getWorkflowStageConfirmContent(task.currentStage, task.format, {
         designApproved: task.designApproved,
+        returnedByStage: task.returnedByStage,
       }),
       handleApprove
     );

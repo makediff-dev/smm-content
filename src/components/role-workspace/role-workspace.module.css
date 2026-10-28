@@ -173,6 +173,18 @@
   gap: 6px;
 }
 
+.reviewHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reviewCounter {
+  color: var(--text-light);
+  font-size: 12px;
+}
+
 .kicker {
   font-family: var(--font-heading);
   font-size: 16px;
@@ -622,6 +634,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-top: 16px;
   padding: 0;
   background: none;
   box-shadow: none;
@@ -833,6 +846,13 @@
 
 .planPlatforms {
   margin-bottom: 12px;
+}
+
+.planActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .ttxBlock {

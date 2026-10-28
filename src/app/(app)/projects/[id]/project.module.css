@@ -43,10 +43,31 @@
   letter-spacing: -0.02em;
 }
 
-.settingsGrid {
+.settingsMain {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.settingsFields {
+  display: flex;
+  flex-direction: column;
   gap: 16px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.descriptionField {
+  flex: 1;
+  min-height: 0;
+}
+
+.descriptionInput {
+  flex: 1;
+  min-height: 120px;
+  height: 100%;
+  resize: none;
 }
 
 .membersHeader {
@@ -134,7 +155,7 @@
 }
 
 @media (max-width: 720px) {
-  .settingsGrid {
+  .settingsMain {
     grid-template-columns: 1fr;
   }
 

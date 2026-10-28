@@ -22,9 +22,9 @@ const STAGE_ACCESS: Record<
   gallery: {
     copywriter: {
       editableSteps: ["source", "text", "cards"],
-      cardsPhases: ["phrases"],
+      cardsPhases: ["phrases", "edit"],
       buildCapabilities: null,
-      description: "Источник, текст поста, генерация заголовков карточек",
+      description: "Источник, текст поста, заголовки карточек",
     },
     designer: {
       editableSteps: ["cards"],
@@ -33,16 +33,16 @@ const STAGE_ACCESS: Record<
       description: "Проверка кадра, плашки и замена изображений",
     },
     editor: {
-      editableSteps: ["text", "cards"],
-      cardsPhases: ["phrases", "edit", "images"],
+      editableSteps: ["text"],
+      cardsPhases: null,
       buildCapabilities: null,
-      description: "Вычитка текста и генерация заголовков карточек",
+      description: "Вычитка текста копирайтера, затем всего с картинками",
     },
     project_manager: {
       editableSteps: ["source", "text", "cards", "build", "result"],
       cardsPhases: null,
       buildCapabilities: null,
-      description: "Сначала текст копирайтера, затем вся работа и слот в КП"
+      description: "Проверяет всю работу и ставит слот в КП"
     },
     posting_manager: {
       editableSteps: ["result"],
@@ -54,9 +54,9 @@ const STAGE_ACCESS: Record<
   slideshow: {
     copywriter: {
       editableSteps: ["source", "text", "cards"],
-      cardsPhases: ["phrases"],
+      cardsPhases: ["phrases", "edit"],
       buildCapabilities: null,
-      description: "Источник, текст + картинка, заголовки слайдов",
+      description: "Источник, текст и заголовки слайдов",
     },
     designer: {
       editableSteps: ["cards"],
@@ -65,10 +65,10 @@ const STAGE_ACCESS: Record<
       description: "Проверка кадра, плашки и замена изображений",
     },
     editor: {
-      editableSteps: ["text", "cards"],
-      cardsPhases: ["phrases", "edit", "images"],
+      editableSteps: ["text"],
+      cardsPhases: null,
       buildCapabilities: null,
-      description: "Вычитка текста и заголовков слайдов",
+      description: "Вычитка текста копирайтера и заголовков слайдов",
     },
     video_editor: {
       editableSteps: ["build"],
@@ -80,7 +80,7 @@ const STAGE_ACCESS: Record<
       editableSteps: ["source", "text", "cards", "build", "result"],
       cardsPhases: null,
       buildCapabilities: null,
-      description: "Сначала текст копирайтера, затем вся работа и слот в КП"
+      description: "Проверяет всю работу и ставит слот в КП"
     },
     posting_manager: {
       editableSteps: ["result"],
@@ -91,16 +91,16 @@ const STAGE_ACCESS: Record<
   },
   text: {
     copywriter: {
-      editableSteps: ["source", "text"],
-      cardsPhases: null,
+      editableSteps: ["source", "text", "cards"],
+      cardsPhases: ["phrases", "edit"],
       buildCapabilities: null,
-      description: "Источник и текст поста (длинный / сокращённый)",
+      description: "Источник, текст поста и заголовки карточек",
     },
     editor: {
-      editableSteps: ["text", "cards"],
-      cardsPhases: ["phrases", "edit", "images"],
+      editableSteps: ["text"],
+      cardsPhases: null,
       buildCapabilities: null,
-      description: "Вычитка текста и генерация заголовков карточек",
+      description: "Вычитка текста копирайтера, затем всего с картинками",
     },
     designer: {
       editableSteps: ["cards"],
@@ -112,7 +112,7 @@ const STAGE_ACCESS: Record<
       editableSteps: ["source", "text", "cards", "build", "result"],
       cardsPhases: null,
       buildCapabilities: null,
-      description: "Сначала текст копирайтера, затем вся работа и слот в КП"
+      description: "Проверяет всю работу и ставит слот в КП"
     },
     posting_manager: {
       editableSteps: ["result"],
@@ -144,7 +144,7 @@ const STAGE_ACCESS: Record<
       editableSteps: ["source", "text", "build", "result"],
       cardsPhases: null,
       buildCapabilities: null,
-      description: "Сначала видео и подводка, затем вся работа и слот в КП"
+      description: "Проверяет всю работу и ставит слот в КП"
     },
   },
 };
@@ -192,7 +192,7 @@ export function canEditCardsPhaseForStage(
   const access = getStageStepAccess(stage, format);
   if (!access.cardsPhases) return false;
   if (access.cardsPhases.includes(phase)) return true;
-  // "phrases" and "edit" share the same card-title UI on the editor.
+  // "phrases" and "edit" share the same card-title UI on the copywriter.
   if (phase === "phrases" && access.cardsPhases.includes("edit")) return true;
   return false;
 }

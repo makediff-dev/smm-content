@@ -6,11 +6,14 @@ import { AppShell } from "@/components/layout/app-shell";
 import { useSearch } from "@/components/layout/search-context";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 import { Tabs } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageSearchBar } from "@/components/shared/page-search-bar";
 import { matchesSearch } from "@/lib/search";
+import type { PromptCategory, SkillCategory } from "@/types";
 import styles from "../admin.module.css";
 
 type SettingsTab = "prompts" | "skills";
@@ -20,22 +23,50 @@ const SETTINGS_TABS = [
   { id: "skills", label: "Скиллы" },
 ];
 
+const PROMPT_CATEGORY_OPTIONS = [
+  { value: "extraction", label: "Извлечение" },
+  { value: "post", label: "Пост" },
+  { value: "card_phrases", label: "Карточки" },
+  { value: "image_processing", label: "Изображения" },
+  { value: "voiceover", label: "Озвучка" },
+];
+
+const SKILL_CATEGORY_OPTIONS = [
+  { value: "extraction", label: "Извлечение" },
+  { value: "generation", label: "Генерация" },
+  { value: "visual", label: "Визуал" },
+  { value: "assembly", label: "Сборка" },
+];
+
+const EMPTY_PROMPT_FORM = {
+  name: "",
+  description: "",
+  text: "",
+  category: "post" as PromptCategory,
+};
+
+const EMPTY_SKILL_FORM = {
+  name: "",
+  description: "",
+  tools: "",
+  instructions: "",
+  category: "generation" as SkillCategory,
+};
+
 export default function PromptsPage() {
   const prompts = useSettingsStore((s) => s.prompts);
   const skills = useSettingsStore((s) => s.skills);
+  const addPrompt = useSettingsStore((s) => s.addPrompt);
   const updatePrompt = useSettingsStore((s) => s.updatePrompt);
+  const addSkill = useSettingsStore((s) => s.addSkill);
   const updateSkill = useSettingsStore((s) => s.updateSkill);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("prompts");
+  const [createOpen, setCreateOpen] = useState(false);
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
   const [editingSkillId, setEditingSkillId] = useState<string | null>(null);
-  const [promptForm, setPromptForm] = useState({ name: "", description: "", text: "" });
-  const [skillForm, setSkillForm] = useState({
-    name: "",
-    description: "",
-    tools: "",
-    instructions: "",
-  });
+  const [promptForm, setPromptForm] = useState(EMPTY_PROMPT_FORM);
+  const [skillForm, setSkillForm] = useState(EMPTY_SKILL_FORM);
   const [savedId, setSavedId] = useState<string | null>(null);
   const { query } = useSearch();
 
@@ -76,6 +107,7 @@ export default function PromptsPage() {
       name: prompt.name,
       description: prompt.description,
       text: prompt.text,
+      category: prompt.category,
     });
   };
 
@@ -89,7 +121,43 @@ export default function PromptsPage() {
       description: skill.description,
       tools: skill.tools,
       instructions: skill.instructions,
+      category: skill.category,
     });
+  };
+
+  const openCreate = () => {
+    setEditingPromptId(null);
+    setEditingSkillId(null);
+    setPromptForm(EMPTY_PROMPT_FORM);
+    setSkillForm(EMPTY_SKILL_FORM);
+    setCreateOpen(true);
+  };
+
+  const handleCreate = () => {
+    if (activeTab === "prompts") {
+      if (!promptForm.name.trim() || !promptForm.text.trim()) return;
+      const id = addPrompt({
+        name: promptForm.name.trim(),
+        description: promptForm.description.trim(),
+        text: promptForm.text.trim(),
+        category: promptForm.category,
+        ownerId: "own",
+      });
+      setCreateOpen(false);
+      showSaved(id);
+      return;
+    }
+
+    if (!skillForm.name.trim() || !skillForm.instructions.trim()) return;
+    const id = addSkill({
+      name: skillForm.name.trim(),
+      description: skillForm.description.trim(),
+      tools: skillForm.tools.trim(),
+      instructions: skillForm.instructions.trim(),
+      category: skillForm.category,
+    });
+    setCreateOpen(false);
+    showSaved(id);
   };
 
   const handlePromptSave = (id: string) => {
@@ -108,7 +176,16 @@ export default function PromptsPage() {
     <AppShell breadcrumb="Настройки промптов">
       <div className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>Настройки промптов</h1>
-        <PageSearchBar />
+        <div className={styles.pageHeaderActions}>
+          <PageSearchBar />
+          <Button
+            variant="muted"
+            className={styles.headerCreate}
+            onClick={openCreate}
+          >
+            {activeTab === "prompts" ? "Создать промпт" : "Создать скилл"}
+          </Button>
+        </div>
       </div>
 
       <Tabs
@@ -261,6 +338,117 @@ export default function PromptsPage() {
           </div>
           ))
         ))}
+
+      <Modal
+        title={activeTab === "prompts" ? "Создать промпт" : "Создать скилл"}
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              onClick={handleCreate}
+              disabled={
+                activeTab === "prompts"
+                  ? !promptForm.name.trim() || !promptForm.text.trim()
+                  : !skillForm.name.trim() || !skillForm.instructions.trim()
+              }
+            >
+              Создать
+            </Button>
+          </>
+        }
+      >
+        {activeTab === "prompts" ? (
+          <div className={styles.form}>
+            <Input
+              label="Название"
+              value={promptForm.name}
+              onChange={(e) =>
+                setPromptForm((form) => ({ ...form, name: e.target.value }))
+              }
+              placeholder="Генерация поста"
+            />
+            <Input
+              label="Описание"
+              value={promptForm.description}
+              onChange={(e) =>
+                setPromptForm((form) => ({ ...form, description: e.target.value }))
+              }
+              placeholder="Кратко, для чего используется промпт"
+            />
+            <Select
+              label="Категория"
+              options={PROMPT_CATEGORY_OPTIONS}
+              value={promptForm.category}
+              onChange={(e) =>
+                setPromptForm((form) => ({
+                  ...form,
+                  category: e.target.value as PromptCategory,
+                }))
+              }
+            />
+            <Textarea
+              label="Текст промпта"
+              value={promptForm.text}
+              onChange={(e) =>
+                setPromptForm((form) => ({ ...form, text: e.target.value }))
+              }
+              rows={4}
+              placeholder="Инструкции для AI: тон, длина, структура ответа..."
+            />
+          </div>
+        ) : (
+          <div className={styles.form}>
+            <Input
+              label="Название"
+              value={skillForm.name}
+              onChange={(e) =>
+                setSkillForm((form) => ({ ...form, name: e.target.value }))
+              }
+              placeholder="Извлечение из файла"
+            />
+            <Input
+              label="Описание"
+              value={skillForm.description}
+              onChange={(e) =>
+                setSkillForm((form) => ({ ...form, description: e.target.value }))
+              }
+              placeholder="Кратко, для чего используется скилл"
+            />
+            <Select
+              label="Категория"
+              options={SKILL_CATEGORY_OPTIONS}
+              value={skillForm.category}
+              onChange={(e) =>
+                setSkillForm((form) => ({
+                  ...form,
+                  category: e.target.value as SkillCategory,
+                }))
+              }
+            />
+            <Input
+              label="Инструменты"
+              value={skillForm.tools}
+              onChange={(e) =>
+                setSkillForm((form) => ({ ...form, tools: e.target.value }))
+              }
+              placeholder="pdf_reader, docx_parser, ocr"
+            />
+            <Textarea
+              label="Инструкции скилла"
+              value={skillForm.instructions}
+              onChange={(e) =>
+                setSkillForm((form) => ({ ...form, instructions: e.target.value }))
+              }
+              rows={4}
+              placeholder="Пошаговые инструкции для агента..."
+            />
+          </div>
+        )}
+      </Modal>
     </AppShell>
   );
 }

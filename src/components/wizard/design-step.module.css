@@ -31,22 +31,147 @@
 }
 
 .layout {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(0, 1.15fr);
+  grid-template-areas: "editor preview";
+  gap: 20px;
+  align-items: start;
   margin-top: 20px;
 }
 
-.previewRow {
-  --frame-aspect: 1;
-  --preview-h: min(72vh, 720px);
+.editorColumn {
+  grid-area: editor;
   display: flex;
-  flex-wrap: nowrap;
-  align-items: flex-start;
-  justify-content: flex-start;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.presetList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+
+.presetRow {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 4px 4px 10px;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius);
+  background: var(--bg-muted);
+}
+
+.presetRowOn {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+}
+
+.presetPick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 4px 8px 4px 12px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.presetPick:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.presetName {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.presetSwatch {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.previewColumn {
+  --frame-aspect: 1;
+  --preview-h: min(64vh, 640px);
+  grid-area: preview;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.fold {
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: var(--radius-lg);
+  background: var(--bg-white);
+  overflow: hidden;
+}
+
+.foldHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 10px 6px 12px;
+}
+
+.foldToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.foldCaret,
+.foldCaretOpen {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+}
+
+.foldCaret {
+  transform: rotate(-90deg);
+}
+
+.foldCaretOpen {
+  transform: rotate(0deg);
+}
+
+.foldBody {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  width: 100%;
-  max-width: 100%;
+  padding: 0 12px 14px;
 }
 
 .previewSquare {
@@ -79,14 +204,9 @@
   grid-column: 1 / -1;
 }
 
-.panel > .divider,
-.panel > .hint,
-.panel > .row,
-.panel > .layerEditor,
-.panel > .shadowPanel,
-.panel > .blockTitle,
-.panel > .blockHead {
-  grid-column: 1 / -1;
+.editorColumn .layerEditor,
+.editorColumn .shadowPanel {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .blockTitle {
@@ -143,6 +263,38 @@
   color: var(--text-muted);
   font-size: 13px;
   font-weight: 500;
+}
+
+.fontRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.fontRow > * {
+  min-width: 0;
+}
+
+.styleRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.styleRow .toggle,
+.gradientToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 0;
+  white-space: nowrap;
+}
+
+.iconToggle {
+  font-size: 0;
 }
 
 .row {
@@ -286,6 +438,91 @@
   cursor: pointer;
 }
 
+.colorLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 4px 6px 4px 8px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--bg-muted);
+}
+
+.colorLine:focus-within {
+  box-shadow: var(--field-ring-focus);
+}
+
+.colorSwatch {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.colorSwatchInput {
+  position: absolute;
+  inset: -8px;
+  width: calc(100% + 16px);
+  height: calc(100% + 16px);
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.hexInput,
+.opacityInput {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.hexInput {
+  flex: 0 0 72px;
+  width: 72px;
+  text-transform: uppercase;
+}
+
+.opacityField {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-end;
+  gap: 1px;
+  padding-right: 6px;
+  color: var(--text-muted);
+}
+
+.opacityInput {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  text-align: right;
+  color: var(--text);
+  appearance: textfield;
+}
+
+.opacityInput::-webkit-outer-spin-button,
+.opacityInput::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.hexInput:focus,
+.opacityInput:focus {
+  outline: none;
+}
+
 .button {
   justify-content: center;
 }
@@ -400,8 +637,55 @@
 .rangeRow {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   min-height: 40px;
+}
+
+.rangeInput {
+  width: 64px;
+  flex: 0 0 64px;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--field-bg);
+  color: var(--text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--field-ring);
+}
+
+.rangeInput:focus {
+  outline: none;
+  box-shadow: var(--field-ring-focus);
+}
+
+.plaqueRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plaqueRow > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rangeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 10px;
+}
+
+.rangeGrid .rangeInput {
+  width: 100%;
+  flex: 1 1 auto;
+}
+
+.strokeField .rangeInput {
+  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .rangeValue {
@@ -456,9 +740,8 @@
   display: flex;
   justify-content: flex-start;
   align-items: flex-start;
-  flex: 1 1 620px;
-  width: min(620px, 100%);
-  max-width: 620px;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
 }
 
@@ -475,9 +758,10 @@
 }
 
 .previewVertical .canvasHost {
-  width: min(100%, calc(var(--preview-h) * 9 / 16));
-  height: var(--preview-h);
+  width: min(100%, 280px);
+  height: auto;
   max-width: 100%;
+  max-height: var(--preview-h);
   aspect-ratio: 9 / 16;
 }
 
@@ -558,29 +842,18 @@
 
 .photos {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   justify-content: flex-start;
   gap: 8px;
-  flex: 0 0 96px;
-  width: 96px;
-  align-self: flex-start;
-  overflow-x: hidden;
-  overflow-y: auto;
+  width: 100%;
   list-style: none;
-}
-
-.previewVertical .photos {
-  flex-basis: 84px;
-  width: 84px;
-  max-height: var(--preview-h);
-}
-
-.previewSquare .photos {
-  max-height: 620px;
+  overflow: visible;
 }
 
 .photos li {
-  flex: none;
+  flex: 0 0 128px;
+  width: 128px;
 }
 
 .photo {
@@ -633,6 +906,8 @@
   position: relative;
   display: inline-block;
   max-width: 100%;
+  overflow: hidden;
+  line-height: 0;
 }
 
 .cropImage {
@@ -642,17 +917,23 @@
   user-select: none;
 }
 
+.cropDim {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
 .cropRect {
   position: absolute;
   border: 2px solid var(--accent);
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  box-shadow: none;
   cursor: move;
 }
 
 .cropHandle {
   position: absolute;
-  right: -6px;
-  bottom: -6px;
+  right: 0;
+  bottom: 0;
   width: 14px;
   height: 14px;
   border-radius: 2px;
@@ -666,39 +947,23 @@
   font-size: 13px;
 }
 
-@media (max-width: 720px) {
-  .previewRow {
-    flex-wrap: wrap;
-    width: 100%;
-  }
-
-  .previewVertical .canvasHost,
-  .previewVertical .photos {
-    height: auto;
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "preview"
+      "editor";
   }
 
   .previewVertical .canvasHost {
     width: min(100%, 280px);
+    height: auto;
     aspect-ratio: 9 / 16;
   }
 
-  .photos,
-  .previewVertical .photos {
-    flex: 1 1 100%;
-    flex-direction: row;
-    width: 100%;
-    height: auto;
-    justify-content: flex-start;
-    overflow-x: auto;
-    overflow-y: hidden;
-  }
-
   .photos li {
-    flex: 0 0 88px;
-  }
-
-  .panel {
-    grid-template-columns: minmax(0, 1fr);
+    flex: 0 0 128px;
+    width: 128px;
   }
 
   .layerEditor,

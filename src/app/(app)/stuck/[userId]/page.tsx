@@ -23,7 +23,6 @@ import styles from "../stuck.module.css";
 
 const VERDICT_CLASS: Record<Punctuality, string> = {
   done_on_time: styles.verdictOnTime,
-  done_late: styles.verdictLate,
   open_on_time: styles.verdictOpen,
   overdue: styles.verdictOverdue,
 };
@@ -94,11 +93,9 @@ export default function TrackerPersonPage({
           <span className={styles.statLabel}>В срок</span>
           <strong className={styles.statValue}>{totals.onTime}</strong>
         </article>
-        <article className={styles.stat}>
-          <span className={styles.statLabel}>С опозданием</span>
-          <strong className={styles.statValue}>{totals.late}</strong>
-        </article>
-        <article className={styles.stat}>
+        <article
+          className={`${styles.stat} ${totals.overdue > 0 ? styles.statOverdue : ""}`}
+        >
           <span className={styles.statLabel}>Просрочены</span>
           <strong className={styles.statValue}>{totals.overdue}</strong>
         </article>
@@ -153,8 +150,8 @@ function ReportCard({ report }: { report: PersonTaskReport }) {
           <p className={styles.factValue}>{report.finishedLabel ?? "Ещё в работе"}</p>
         </div>
         <div>
-          <p className={styles.factLabel}>Длительность</p>
-          <p className={styles.factValue}>{report.durationLabel}</p>
+          <p className={styles.factLabel}>Опоздание</p>
+          <p className={styles.factValue}>{report.delayLabel}</p>
         </div>
       </div>
       {report.returnComment && (

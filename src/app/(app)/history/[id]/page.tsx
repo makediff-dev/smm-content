@@ -20,7 +20,7 @@ import { WorkflowPanel } from "@/components/workflow/workflow-panel";
 import { Modal } from "@/components/ui/modal";
 import { FORMAT_LABELS } from "@/types";
 import { formatDate } from "@/lib/simulate-generation";
-import { canCreateProductionTask } from "@/lib/roles";
+import { canCreateProductionTask, isAdminRole } from "@/lib/roles";
 import { useRequireProjectAccess } from "@/hooks/use-require-project-access";
 import {
   createProductionTaskForContent,
@@ -96,6 +96,8 @@ export default function HistoryPage({
   const canCreateCopy = currentUser
     ? canCreateProductionTask(currentUser.role)
     : false;
+  const isAdmin = Boolean(currentUser && isAdminRole(currentUser.role));
+  const showOpenResult = content.status === "done" && !isAdmin;
 
   const handleCreateCopy = () => {
     if (!currentUser || !canCreateCopy) return;
@@ -316,7 +318,7 @@ export default function HistoryPage({
         <ActionLog entries={content.actionLog} />
       </div>
 
-      {(!isInContentPlan || content.status === "done" || cpNotice) && (
+      {(!isInContentPlan || showOpenResult || cpNotice) && (
       <div className={styles.actions}>
         {!isInContentPlan && (
           <>
@@ -328,7 +330,7 @@ export default function HistoryPage({
             )}
           </>
         )}
-        {content.status === "done" && (
+        {showOpenResult && (
           <Button
             variant="ghost"
             onClick={() =>
