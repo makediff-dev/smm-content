@@ -10,6 +10,7 @@ interface TaskCalendarProps {
   selectedDate: string | null;
   onSelectDate: (dateKey: string | null) => void;
   compact?: boolean;
+  embedded?: boolean;
   onClear?: () => void;
 }
 
@@ -70,6 +71,7 @@ export function TaskCalendar({
   selectedDate,
   onSelectDate,
   compact = false,
+  embedded = false,
   onClear,
 }: TaskCalendarProps) {
   const todayKey = toDateKey(new Date().toISOString());
@@ -113,7 +115,11 @@ export function TaskCalendar({
   };
 
   return (
-    <div className={`${styles.calendar} ${compact ? styles.calendarCompact : ""}`}>
+    <div
+      className={`${styles.calendar} ${compact ? styles.calendarCompact : ""} ${
+        embedded ? styles.calendarEmbedded : ""
+      }`}
+    >
       <div className={`${styles.header} ${compact ? styles.headerCompact : ""}`}>
         {!compact && (
           <div>
@@ -183,37 +189,31 @@ export function TaskCalendar({
         })}
       </div>
 
-      <div className={styles.footer}>
-        {selectedDate ? (
-          <>
-            <span className={styles.footerText}>
-              {parseDateKey(selectedDate).toLocaleDateString("ru-RU", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-              {" · "}
-              {selectedCount}{" "}
-              {selectedCount === 1
-                ? "задача"
-                : selectedCount >= 2 && selectedCount <= 4
-                  ? "задачи"
-                  : "задач"}
-            </span>
-            <button
-              type="button"
-              className={styles.clearButton}
-              onClick={() => (onClear ? onClear() : onSelectDate(null))}
-            >
-              Показать все
-            </button>
-          </>
-        ) : (
+      {selectedDate && (
+        <div className={styles.footer}>
           <span className={styles.footerText}>
-            Дни с метками содержат задачи
+            {parseDateKey(selectedDate).toLocaleDateString("ru-RU", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+            {" · "}
+            {selectedCount}{" "}
+            {selectedCount === 1
+              ? "задача"
+              : selectedCount >= 2 && selectedCount <= 4
+                ? "задачи"
+                : "задач"}
           </span>
-        )}
-      </div>
+          <button
+            type="button"
+            className={styles.clearButton}
+            onClick={() => (onClear ? onClear() : onSelectDate(null))}
+          >
+            Показать все
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -478,6 +478,7 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
     <AppShell projectId={projectId} breadcrumb={project.name}>
       <div className={styles.page} ref={pageRef}>
         <div className={styles.metaRow}>
+          <span className={styles.badge}>{project.name}</span>
           <span className={styles.badge}>{FORMAT_LABELS[content.format]}</span>
           <span
             className={`${styles.badge} ${

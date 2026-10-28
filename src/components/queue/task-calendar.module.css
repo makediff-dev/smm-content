@@ -11,6 +11,29 @@
   border: 1px solid var(--border);
 }
 
+.calendarEmbedded {
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.calendarEmbedded .monthLabel {
+  min-width: 0;
+  flex: 1;
+  font-size: 13px;
+}
+
+.calendarEmbedded .day {
+  min-height: 32px;
+}
+
+.calendarEmbedded .taskDot {
+  min-width: 14px;
+  height: 14px;
+  font-size: 9px;
+}
+
 .header {
   display: flex;
   align-items: flex-start;

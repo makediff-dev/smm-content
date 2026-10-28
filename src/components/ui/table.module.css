@@ -2,6 +2,7 @@
   width: 100%;
   max-width: 100%;
   overflow-x: auto;
+  overflow-y: visible;
   -webkit-overflow-scrolling: touch;
   border: none;
   border-radius: var(--radius-lg);
@@ -16,6 +17,7 @@
 }
 
 .th {
+  position: relative;
   text-align: left;
   padding: 12px 16px;
   background: var(--table-header-bg);

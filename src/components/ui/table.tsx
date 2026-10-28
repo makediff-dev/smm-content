@@ -3,7 +3,7 @@ import styles from "./table.module.css";
 
 export interface TableColumn<T> {
   key: string;
-  header: string;
+  header: ReactNode;
   render: (row: T) => ReactNode;
   width?: string;
 }

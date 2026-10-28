@@ -26,7 +26,12 @@ import type { LogoAsset, QueueTask, ContentFormat, TaskStatus } from "@/types";
 import { FORMAT_LABELS, QUEUE_TYPE_LABELS, STATUS_LABELS } from "@/types";
 import { formatDate } from "@/lib/simulate-generation";
 import { matchesSearch, normalizeSearchQuery } from "@/lib/search";
-import { canCreateProductionTask, getRoleLabel } from "@/lib/roles";
+import { canCreateProductionTask, getRoleLabel, isAdminRole } from "@/lib/roles";
+import {
+  ColumnFilters,
+  matchesColumnFilter,
+  uniqueFilterOptions,
+} from "@/components/shared/column-filters";
 import { RoleSlaFields } from "@/components/projects/role-sla-fields";
 import { normalizeRoleSlaMinutes } from "@/lib/task-deadline";
 import { useRequireProjectAccess } from "@/hooks/use-require-project-access";
@@ -84,7 +89,9 @@ export default function ProjectPage({
   const [saved, setSaved] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState("");
+  const [queueFilters, setQueueFilters] = useState<Record<string, string>>({});
   const { query } = useSearch();
+  const isAdmin = Boolean(currentUser && isAdminRole(currentUser.role));
 
   const [logoAssets, setLogoAssets] = useState<LogoAsset[]>(
     project?.logoAssets ?? []
@@ -140,16 +147,64 @@ export default function ProjectPage({
   );
 
   const filteredQueueTasks = useMemo(() => {
-    return queueTasks.filter((task) =>
-      matchesSearch(
+    return queueTasks.filter((task) => {
+      const typeLabel = QUEUE_TYPE_LABELS[task.type];
+      const statusLabel = STATUS_LABELS[task.status];
+      const createdLabel = formatDate(task.createdAt);
+      if (
+        !matchesColumnFilter(queueFilters, "label", task.label) ||
+        !matchesColumnFilter(queueFilters, "type", typeLabel) ||
+        !matchesColumnFilter(queueFilters, "status", statusLabel) ||
+        !matchesColumnFilter(queueFilters, "createdAt", createdLabel)
+      ) {
+        return false;
+      }
+      return matchesSearch(
         query,
         task.label,
-        QUEUE_TYPE_LABELS[task.type],
-        STATUS_LABELS[task.status],
-        formatDate(task.createdAt)
-      )
-    );
-  }, [queueTasks, query]);
+        typeLabel,
+        statusLabel,
+        createdLabel
+      );
+    });
+  }, [queueTasks, query, queueFilters]);
+
+  const queueFilterGroup = useMemo(
+    () => [
+      {
+        id: "queue",
+        fields: [
+          {
+            key: "label",
+            label: "Задача",
+            options: uniqueFilterOptions(queueTasks.map((task) => task.label)),
+          },
+          {
+            key: "type",
+            label: "Тип",
+            options: uniqueFilterOptions(
+              queueTasks.map((task) => QUEUE_TYPE_LABELS[task.type])
+            ),
+          },
+          {
+            key: "status",
+            label: "Статус",
+            options: uniqueFilterOptions(
+              queueTasks.map((task) => STATUS_LABELS[task.status])
+            ),
+          },
+          {
+            key: "createdAt",
+            label: "Создана",
+            options: uniqueFilterOptions(
+              queueTasks.map((task) => formatDate(task.createdAt))
+            ),
+          },
+        ],
+      },
+    ],
+    [queueTasks]
+  );
 
   const filteredMemberIds = useMemo(() => {
     if (!project) return [];
@@ -409,16 +464,30 @@ export default function ProjectPage({
       )}
 
       {activeTab === "queue" && (
-        queueTasks.length === 0 ? (
+        <>
+          {isAdmin && queueTasks.length > 0 && (
+            <div className={styles.queueToolbar}>
+              <ColumnFilters
+                groups={queueFilterGroup}
+                values={queueFilters}
+                onChange={(key, value) =>
+                  setQueueFilters((current) => ({ ...current, [key]: value }))
+                }
+                onReset={() => setQueueFilters({})}
+              />
+            </div>
+          )}
+          {queueTasks.length === 0 ? (
           <EmptyState title="Очередь пуста" description="Нет задач для этого проекта" />
         ) : filteredQueueTasks.length === 0 ? (
           <EmptyState
             title="Ничего не найдено"
-            description="Попробуйте изменить запрос"
+            description="Попробуйте изменить запрос или фильтры"
           />
         ) : (
           <Table columns={queueColumns} data={filteredQueueTasks} keyField="id" />
-        )
+        )}
+        </>
       )}
 
       {activeTab === "settings" && (
