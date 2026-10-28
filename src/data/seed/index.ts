@@ -784,6 +784,7 @@ export const SEED_CONTENT: ContentUnit[] = [
     })),
     extractedTitle: "Шрифт для бренда",
     extractedText: "Как выбрать гарнитуру для SMM и сайта...",
+    extractedImages: ["img-1", "img-2", "img-3", "img-4"],
     actionLog: [
       {
         id: "log-c28-1",
@@ -838,6 +839,7 @@ export const SEED_CONTENT: ContentUnit[] = [
     narrationText: "Сборка лендинга за один день: блоки, оффер, доказательства.",
     extractedTitle: "Лендинг за день",
     extractedText: "Структура посадочной страницы...",
+    extractedImages: ["img-1", "img-2", "img-3"],
     actionLog: [
       {
         id: "log-c30-1",

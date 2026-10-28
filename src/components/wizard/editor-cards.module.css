@@ -14,14 +14,19 @@
 
 .countRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
 
 .countInput {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   width: auto;
+}
+
+.countRow > :not(.countInput) {
+  flex-shrink: 0;
 }
 
 .heading {
@@ -180,16 +185,17 @@
 .bar {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
+  align-items: stretch;
+  justify-content: stretch;
   gap: 12px;
+  margin-top: 12px;
 }
 
 .barGroup {
   display: flex;
   flex-wrap: wrap;
   flex: 1;
-  align-items: center;
+  align-items: stretch;
   gap: 8px;
 }
 

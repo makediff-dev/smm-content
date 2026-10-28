@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { BasePromptSelect } from "@/components/wizard/base-prompt-select";
 import { simulateTask } from "@/lib/simulate-generation";
 import { getMockExtractionData, getMockExtractionDataFromFile } from "@/lib/mock-wizard-data";
+import { extractedPagePhotoUrls } from "@/lib/workspace-generation";
 import {
   detectLinkKind,
   doneHint,
@@ -142,6 +143,11 @@ export function StepSource() {
     await simulateTask(() => undefined, ["queued", "in_progress"], 500);
 
     const mock = getMockExtractionData(format);
+    const images = extractedPagePhotoUrls(
+      mock.images,
+      contentId || url,
+      format
+    );
     const kind = detectLinkKind(url);
     persistSource({
       sourceExtracts: {
@@ -151,19 +157,19 @@ export function StepSource() {
           kind,
           title: mock.title,
           text: mock.text,
-          images: mock.images,
+          images,
         },
       },
     });
     setField("extractedTitle", mock.title);
     setField("extractedText", mock.text);
-    setField("extractedImages", mock.images);
+    setField("extractedImages", images);
     setField("isExtracted", true);
     setField("isExtracting", false);
     persist({
       extractedTitle: mock.title,
       extractedText: mock.text,
-      extractedImages: mock.images,
+      extractedImages: images,
     });
     if (contentId && currentUser) {
       addActionLog(contentId, "Извлечение данных из ссылки", currentUser.name);

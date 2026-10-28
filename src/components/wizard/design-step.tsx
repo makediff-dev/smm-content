@@ -12,11 +12,13 @@ import {
 } from "react";
 import {
   CaretDown,
+  DotsThree,
   TextAlignCenter,
   TextAlignLeft,
   TextAlignRight,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { DesignCropModal } from "@/components/wizard/design-crop-modal";
@@ -39,7 +41,11 @@ import {
 import { ensureGoogleFonts } from "@/lib/design-fonts";
 import { getMockCards } from "@/lib/mock-wizard-data";
 import { simulateTask } from "@/lib/simulate-generation";
-import { buildGeneratedPhotos } from "@/lib/workspace-generation";
+import {
+  buildGeneratedPhotos,
+  pagePhotosFromSource,
+  photoSizeForFormat,
+} from "@/lib/workspace-generation";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useWizardStore } from "@/stores/content-wizard-store";
 import type {
@@ -485,6 +491,8 @@ export function DesignStep() {
   const cards = useWizardStore((s) => s.cards);
   const format = useWizardStore((s) => s.format);
   const sourceUrl = useWizardStore((s) => s.sourceUrl);
+  const sourceType = useWizardStore((s) => s.sourceType);
+  const extractedImages = useWizardStore((s) => s.extractedImages);
   const contentId = useWizardStore((s) => s.contentId);
   const projectId = useWizardStore((s) => s.projectId);
   const setField = useWizardStore((s) => s.setField);
@@ -528,13 +536,42 @@ export function DesignStep() {
     label: string;
   } | null>(null);
   const canvasHostRef = useRef<HTMLDivElement>(null);
+  const photoFileRef = useRef<HTMLInputElement>(null);
+  const photoFileCardId = useRef<string | null>(null);
   const drag = useRef<{ index: number; offsetX: number; offsetY: number } | null>(
     null
   );
+  const [photoMenuId, setPhotoMenuId] = useState<string | null>(null);
+  const [replaceLinkCardId, setReplaceLinkCardId] = useState<string | null>(null);
+  const [replaceLink, setReplaceLink] = useState("");
+  const [photoBusyId, setPhotoBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     ensureGoogleFonts();
   }, []);
+
+  useEffect(() => {
+    if (!photoMenuId) return;
+
+    const close = (event: Event) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      const root = document.querySelector(`[data-photo-menu="${photoMenuId}"]`);
+      if (root?.contains(target)) return;
+      setPhotoMenuId(null);
+    };
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPhotoMenuId(null);
+    };
+
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [photoMenuId]);
 
   useEffect(() => {
     if (isSlideshow) {
@@ -572,6 +609,13 @@ export function DesignStep() {
   );
 
   const withPhoto = cards.filter((card) => card.imageUrl);
+  const pagePhotos = pagePhotosFromSource({
+    sourceType,
+    sourceUrl,
+    extractedImages,
+    seed: contentId ?? sourceUrl,
+    format,
+  });
   const selected = isMeme
     ? (cards.find((card) => card.id === selectedId) ?? cards[0])
     : (withPhoto.find((card) => card.id === selectedId) ?? withPhoto[0]);
@@ -792,6 +836,85 @@ export function DesignStep() {
     setBusy(false);
   };
 
+  const applyPagePhoto = (imageUrl: string) => {
+    if (disabled || isMeme) return;
+    const target =
+      cards.find((card) => card.id === selectedId) ??
+      cards.find((card) => !card.imageUrl) ??
+      cards[0];
+    if (!target) {
+      const next = getMockCards(format, project?.defaultCopyright ?? "").map(
+        (card, index) => ({
+          ...card,
+          imageUrl: index === 0 ? imageUrl : card.imageUrl,
+          status: index === 0 ? ("ready" as const) : card.status,
+        })
+      );
+      replaceCards(next);
+      setSelectedId(next[0]?.id ?? "");
+      return;
+    }
+    setCardImage(target.id, imageUrl);
+  };
+
+  const setCardImage = (cardId: string, imageUrl: string) => {
+    patchCards({ [cardId]: { imageUrl, status: "ready", designDirty: true } });
+    setSelectedId(cardId);
+    setActiveIndex(0);
+    setOriginals((map) => {
+      if (!map[cardId]) return map;
+      const next = { ...map };
+      delete next[cardId];
+      return next;
+    });
+  };
+
+  const regenerateCardPhoto = async (cardId: string) => {
+    if (disabled || photoBusyId) return;
+    setPhotoBusyId(cardId);
+    setPhotoMenuId(null);
+    await simulateTask(() => undefined, ["queued", "in_progress"], 400);
+    const { width, height } = photoSizeForFormat(format);
+    setCardImage(
+      cardId,
+      `https://picsum.photos/seed/${cardId}-${Date.now()}/${width}/${height}`
+    );
+    setPhotoBusyId(null);
+  };
+
+  const openReplaceLink = (cardId: string) => {
+    setPhotoMenuId(null);
+    setReplaceLinkCardId(cardId);
+    setReplaceLink("");
+  };
+
+  const confirmReplaceLink = () => {
+    const url = replaceLink.trim();
+    if (!replaceLinkCardId || !/^https?:\/\//i.test(url)) return;
+    setCardImage(replaceLinkCardId, url);
+    setReplaceLinkCardId(null);
+    setReplaceLink("");
+  };
+
+  const openReplaceFile = (cardId: string) => {
+    setPhotoMenuId(null);
+    photoFileCardId.current = cardId;
+    photoFileRef.current?.click();
+  };
+
+  const handlePhotoFile = (list: FileList | null) => {
+    const file = list?.[0];
+    const cardId = photoFileCardId.current;
+    photoFileCardId.current = null;
+    if (photoFileRef.current) photoFileRef.current.value = "";
+    if (!file || !cardId) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") setCardImage(cardId, reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const startDrag = (index: number, event: ReactPointerEvent<HTMLButtonElement>) => {
     if (disabled) return;
     const bounds = event.currentTarget.parentElement?.getBoundingClientRect();
@@ -843,11 +966,35 @@ export function DesignStep() {
       {!isMeme && withPhoto.length === 0 && (
         <div className={styles.generateBar}>
           <p className={styles.generateHint}>
-            Сначала нужны фотографии карточек — затем на них ставится текст.
+            {pagePhotos.length > 0
+              ? "Можно взять фото со страницы ниже или сгенерировать новые кадры."
+              : "Сначала нужны фотографии карточек — затем на них ставится текст."}
           </p>
           <Button type="button" onClick={handleGeneratePhotos} disabled={disabled || busy}>
             {busy ? "Генерируем…" : "Сгенерировать фотографии"}
           </Button>
+        </div>
+      )}
+
+      {!isMeme && pagePhotos.length > 0 && (
+        <div className={styles.sourcePhotos}>
+          <p className={styles.sourcePhotosLabel}>Фото со страницы</p>
+          <ul className={styles.sourcePhotoList} aria-label="Фотографии из источника">
+            {pagePhotos.map((imageUrl, index) => (
+              <li key={`${imageUrl}-${index}`}>
+                <button
+                  type="button"
+                  className={styles.sourcePhoto}
+                  disabled={disabled}
+                  onClick={() => applyPagePhoto(imageUrl)}
+                  aria-label={`Фото ${index + 1} со страницы`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={imageUrl} alt="" />
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -1004,7 +1151,11 @@ export function DesignStep() {
           {(isMeme ? cards : withPhoto).length > 0 && (
           <ul className={styles.photos} aria-label="Фотографии карточек">
             {(isMeme ? cards : withPhoto).map((card, index) => (
-              <li key={card.id}>
+              <li
+                key={card.id}
+                className={styles.photoItem}
+                data-photo-menu={card.id}
+              >
                 <button
                   type="button"
                   className={`${styles.photo} ${card.id === selected?.id ? styles.photoActive : ""}`}
@@ -1024,6 +1175,53 @@ export function DesignStep() {
                   <span className={styles.photoIndex}>#{index + 1}</span>
                   {card.designDirty && <span className={styles.photoBadge}>Изменено</span>}
                 </button>
+                {!isMeme && (
+                  <button
+                    type="button"
+                    className={styles.photoMore}
+                    aria-label={`Действия с фото ${index + 1}`}
+                    aria-haspopup="menu"
+                    aria-expanded={photoMenuId === card.id}
+                    disabled={disabled || photoBusyId === card.id}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelectedId(card.id);
+                      setPhotoMenuId((current) =>
+                        current === card.id ? null : card.id
+                      );
+                    }}
+                  >
+                    <DotsThree size={18} weight="bold" />
+                  </button>
+                )}
+                {photoMenuId === card.id && (
+                  <div className={styles.photoMenu} role="menu">
+                    <button
+                      type="button"
+                      className={styles.photoMenuItem}
+                      role="menuitem"
+                      onClick={() => openReplaceLink(card.id)}
+                    >
+                      Заменить по ссылке
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.photoMenuItem}
+                      role="menuitem"
+                      onClick={() => regenerateCardPhoto(card.id)}
+                    >
+                      Перегенерировать
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.photoMenuItem}
+                      role="menuitem"
+                      onClick={() => openReplaceFile(card.id)}
+                    >
+                      Загрузить с компьютера
+                    </button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -1693,6 +1891,49 @@ export function DesignStep() {
           )}
           </aside>
       </div>
+
+      <input
+        ref={photoFileRef}
+        type="file"
+        accept="image/*"
+        className={styles.fileHidden}
+        onChange={(event) => handlePhotoFile(event.target.files)}
+      />
+
+      <Modal
+        title="Заменить фото по ссылке"
+        open={Boolean(replaceLinkCardId)}
+        onClose={() => {
+          setReplaceLinkCardId(null);
+          setReplaceLink("");
+        }}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setReplaceLinkCardId(null);
+                setReplaceLink("");
+              }}
+            >
+              Отмена
+            </Button>
+            <Button
+              onClick={confirmReplaceLink}
+              disabled={!/^https?:\/\//i.test(replaceLink.trim())}
+            >
+              Подставить
+            </Button>
+          </>
+        }
+      >
+        <Input
+          label="Ссылка на фото"
+          value={replaceLink}
+          placeholder="https://"
+          onChange={(event) => setReplaceLink(event.target.value)}
+        />
+      </Modal>
 
       <Modal
         title="Удалить пресет?"

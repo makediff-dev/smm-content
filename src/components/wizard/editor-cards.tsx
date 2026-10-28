@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowsClockwise, Sparkle } from "@phosphor-icons/react";
+import { Sparkle } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { useWizardStepDisabled } from "@/components/wizard/wizard-step-context";
 import { getMockCards, getMockCardsRegenerated } from "@/lib/mock-wizard-data";
@@ -40,9 +39,6 @@ export function EditorCards() {
   const copyright = project?.defaultCopyright ?? "Источник";
   const hasMaterial = Boolean(postText.trim() || extractedText.trim() || extractedTitle.trim());
 
-  const [refineOpen, setRefineOpen] = useState(false);
-  const [refine, setRefine] = useState("");
-
   const persist = (next: Card[]) => {
     setField("cards", next);
     if (contentId) updateContentUnit(contentId, { cards: next });
@@ -67,8 +63,6 @@ export function EditorCards() {
     setField("selectedCardId", next[0]?.id ?? null);
     setField("cardsPhase", "edit");
     setField("isGeneratingCardPhrases", false);
-    setRefineOpen(false);
-    setRefine("");
     if (contentId && currentUser) {
       addActionLog(
         contentId,
@@ -132,6 +126,25 @@ export function EditorCards() {
                   ? "Сгенерировать заново"
                   : "Сгенерировать заголовки"}
             </Button>
+            {cards.length > 0 && (
+              <button
+                type="button"
+                className={editorStyles.ghost}
+                disabled={disabled || cards.length >= MAX_CARDS_COUNT}
+                onClick={() => {
+                  const card: Card = {
+                    id: generateId("card"),
+                    shortText: "Новая карточка",
+                    copyright,
+                    status: "needs_edit",
+                    headlineOnImage: true,
+                  };
+                  persist([...cards, card]);
+                }}
+              >
+                Добавить карточку
+              </button>
+            )}
           </div>
         </div>
         {!hasMaterial && (
@@ -221,68 +234,6 @@ export function EditorCards() {
               Генерируем заголовки…
             </p>
           )}
-
-          <div className={editorStyles.bar}>
-            <div className={editorStyles.barGroup}>
-              <button
-                type="button"
-                className={editorStyles.ghost}
-                disabled={disabled || cards.length >= MAX_CARDS_COUNT}
-                onClick={() => {
-                  const card: Card = {
-                    id: generateId("card"),
-                    shortText: "Новая карточка",
-                    copyright,
-                    status: "needs_edit",
-                    headlineOnImage: true,
-                  };
-                  persist([...cards, card]);
-                }}
-              >
-                Добавить карточку
-              </button>
-              {refineOpen ? (
-                <>
-                  <input
-                    className={`${editorStyles.input} ${editorStyles.refineInput}`}
-                    value={refine}
-                    autoFocus
-                    placeholder="Уточнение: короче, другой акцент, больше цифр…"
-                    onChange={(event) => setRefine(event.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className={editorStyles.ghost}
-                    disabled={disabled || isGenerating || !hasMaterial}
-                    onClick={() => generate(Math.max(cards.length, 1), refine)}
-                  >
-                    <ArrowsClockwise size={16} aria-hidden />
-                    {isGenerating ? "Генерация…" : "Перегенерировать"}
-                  </button>
-                  <button
-                    type="button"
-                    className={editorStyles.ghost}
-                    onClick={() => {
-                      setRefineOpen(false);
-                      setRefine("");
-                    }}
-                  >
-                    Отмена
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className={editorStyles.ghost}
-                  disabled={disabled || isGenerating || !hasMaterial}
-                  onClick={() => setRefineOpen(true)}
-                >
-                  <ArrowsClockwise size={16} aria-hidden />
-                  {isGenerating ? "Генерация…" : "Перегенерировать все"}
-                </button>
-              )}
-            </div>
-          </div>
         </>
       )}
     </section>

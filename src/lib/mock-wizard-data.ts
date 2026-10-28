@@ -59,6 +59,7 @@ export function getMockExtractionDataFromFile(
   return {
     ...base,
     title: `${base.title} (${label})`,
+    images: [],
   };
 }
 

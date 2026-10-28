@@ -15,6 +15,7 @@ import {
   getMockPostText,
   getMockPostTextRegenerated,
 } from "@/lib/mock-wizard-data";
+import { extractedPagePhotoUrls } from "@/lib/workspace-generation";
 import {
   countChars,
   generateMockPostText,
@@ -70,17 +71,21 @@ export function StepText({ hideSource = false }: StepTextProps) {
 
   const handleReextract = async () => {
     const mockData = getMockExtractionData(format);
+    const images =
+      sourceType === "file"
+        ? []
+        : extractedPagePhotoUrls(mockData.images, contentId || sourceUrl, format);
     setField("isExtracting", true);
     await simulateTask(() => {}, ["queued", "in_progress"], 500);
     setField("extractedTitle", mockData.title);
     setField("extractedText", mockData.text);
-    setField("extractedImages", mockData.images);
+    setField("extractedImages", images);
     setField("isExtracting", false);
     if (contentId) {
       updateContentUnit(contentId, {
         extractedTitle: mockData.title,
         extractedText: mockData.text,
-        extractedImages: mockData.images,
+        extractedImages: images,
       });
       if (currentUser) {
         addActionLog(contentId, "Перегенерация извлечения", currentUser.name);

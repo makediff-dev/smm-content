@@ -1,4 +1,4 @@
-import type { Card, ContentFormat, ContentUnit } from "@/types";
+import type { Card, ContentFormat, ContentUnit, SourceType } from "@/types";
 import { generateId } from "@/lib/simulate-generation";
 import {
   getMockCards,
@@ -9,8 +9,44 @@ import {
 } from "@/lib/mock-wizard-data";
 import { generateMockPostText } from "@/lib/mock-text-generation";
 
+export function extractedPagePhotoUrls(
+  images: string[],
+  seed: string,
+  format?: ContentFormat
+): string[] {
+  if (images.length === 0) return [];
+  const { width, height } = photoSizeForFormat(format);
+  return images.map((image, index) =>
+    /^https?:\/\//i.test(image)
+      ? image
+      : `https://picsum.photos/seed/${seed}-page-${index}/${width}/${height}`
+  );
+}
+
+export function pagePhotosFromSource(options: {
+  sourceType?: SourceType;
+  sourceUrl?: string;
+  extractedImages?: string[];
+  seed?: string;
+  format?: ContentFormat;
+}): string[] {
+  if (options.sourceType === "file") return [];
+  if (!options.sourceUrl?.trim()) return [];
+  const images = options.extractedImages ?? [];
+  if (images.length === 0) return [];
+  return extractedPagePhotoUrls(images, options.seed ?? "source", options.format);
+}
+
 export function buildGeneratedExtraction(content: ContentUnit) {
-  return getMockExtractionData(content.format);
+  const base = getMockExtractionData(content.format);
+  return {
+    ...base,
+    images: extractedPagePhotoUrls(
+      base.images,
+      content.id || content.sourceUrl || "source",
+      content.format
+    ),
+  };
 }
 
 export function buildGeneratedPost(content: ContentUnit, extraPrompt?: string): string {
