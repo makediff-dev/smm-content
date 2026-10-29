@@ -901,10 +901,8 @@
 }
 
 .photos {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: flex-start;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   width: 100%;
   list-style: none;
@@ -912,8 +910,14 @@
 }
 
 .photos li {
-  flex: 0 0 128px;
-  width: 128px;
+  min-width: 0;
+}
+
+@media (max-width: 1199px) {
+  .photos {
+    width: min(100%, 50vw);
+    max-width: 50vw;
+  }
 }
 
 .photoItem {
@@ -997,7 +1001,7 @@
   position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 1;
+  aspect-ratio: var(--frame-aspect, 1);
   padding: 0;
   border: 2px solid transparent;
   border-radius: var(--radius);
@@ -1098,9 +1102,9 @@
     aspect-ratio: 9 / 16;
   }
 
-  .photos li {
-    flex: 0 0 128px;
-    width: 128px;
+  .photos {
+    width: min(100%, 50vw);
+    max-width: 50vw;
   }
 
   .layerEditor,
