@@ -61,6 +61,7 @@ import {
   ManagerApprove,
   ManagerPlan,
   ManagerPreview,
+  planFromSlot,
   type ManagerPlanPayload,
 } from "@/components/role-workspace/manager-stage";
 import {
@@ -316,7 +317,14 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
       ? resolvePostingSlot(planSlots, content, task.updatedAt)
       : null;
   const canEdit = canOperate;
-  const planValue = planDraft ?? getDefaultManagerPlan(content);
+  const existingPlanSlot = planSlots.find(
+    (slot) => slot.contentUnitId === contentId && !slot.archived
+  ) ?? planSlots.find((slot) => slot.contentUnitId === contentId);
+  const planValue =
+    planDraft ??
+    (existingPlanSlot
+      ? planFromSlot(existingPlanSlot)
+      : getDefaultManagerPlan(content));
   const alreadyArchived = planSlots.some(
     (slot) => slot.contentUnitId === contentId && Boolean(slot.archived)
   );
@@ -455,7 +463,7 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   };
 
   const openReturnModal = () => {
-    setReturnTarget(returnTargets[0] ?? "");
+    setReturnTarget(returnTargets[returnTargets.length - 1] ?? "");
     setReturnComment("");
     setReturnOpen(true);
   };
@@ -809,6 +817,9 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
         }
       >
         <div className={styles.modalFields}>
+          <p className={styles.note}>
+            После исправления задача вернётся вам, минуя этапы между.
+          </p>
           <Select
             label="Кому"
             value={returnTarget}

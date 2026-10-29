@@ -274,10 +274,10 @@ function VisualBoard({
           />
           <div className={styles.cardActionsGroup}>
             <Button size="small" variant="ghost" onClick={() => fileRef.current?.click()}>
-              С компьютера
+              Загрузить с компьютера
             </Button>
             <Button size="small" variant="ghost" disabled={Boolean(busy)} onClick={onGenerateOne}>
-              Сгенерировать
+              Перегенерировать
             </Button>
             <Button size="small" disabled={Boolean(busy)} onClick={onGenerateAll}>
               Сгенерировать все кадры

@@ -41,6 +41,7 @@ function makeSeedSlot(
     format: "gallery",
     scenario: dayOffset === 0 ? "news" : "scheduled",
     comment: "",
+    platforms: ["VK", "IG", "OK", "Дзен", "сторис"],
     hasText: true,
     hasZip: false,
     hasVisual: false,

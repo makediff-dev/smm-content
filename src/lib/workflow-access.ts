@@ -10,7 +10,6 @@ import {
 } from "@/types";
 import { isAdminRole, isManagementRole } from "@/lib/roles";
 import {
-  copywriterCanReturnToDesigner,
   getMoveTargetStages,
   getPreviousStages,
   stageToRole,
@@ -211,17 +210,9 @@ export function getReturnTargetStages(
     return getMoveTargetStages(task.format, task.currentStage);
   }
 
-  if (copywriterCanReturnToDesigner(task.currentStage, task.returnedByStage)) {
-    return ["designer"];
-  }
-
-  return [
-    ...new Set(
-      getPreviousStages(task.format, task.currentStage, {
-        designApproved: task.designApproved,
-      }).filter((stage) => stage !== "posting_manager")
-    ),
-  ];
+  return getPreviousStages(task.format, task.currentStage, {
+    designApproved: task.designApproved,
+  }).filter((stage) => stage !== "posting_manager");
 }
 
 export function getWizardStepForStage(

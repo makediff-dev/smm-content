@@ -809,6 +809,23 @@
   color: var(--text);
 }
 
+.planChipOn {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.planChip:disabled {
+  cursor: default;
+}
+
+.planChip:disabled:not(.planChipOn) {
+  opacity: 0.45;
+}
+
+.planChipOn:disabled {
+  opacity: 1;
+}
+
 .toolField {
   display: flex;
   flex-direction: column;
@@ -1234,8 +1251,9 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    flex: 0 0 auto;
-    width: 108px;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
     gap: 6px;
     padding: 0 8px;
     text-align: center;
@@ -1254,7 +1272,9 @@
 
   .chainGap {
     padding-bottom: 0;
-    width: 132px;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
   }
 
   .chainMark {
@@ -1352,8 +1372,9 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    flex: 0 0 auto;
-    width: 108px;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
     gap: 6px;
     padding: 0 8px;
     text-align: center;
@@ -1372,7 +1393,9 @@
 
   .chainGap {
     padding-bottom: 0;
-    width: 132px;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
   }
 
   .chainMark {
@@ -1428,6 +1451,13 @@
 }
 
 @media (max-width: 640px) {
+  .chainItem,
+  .chainGap {
+    flex: 0 0 auto;
+    width: 108px;
+    min-width: 108px;
+  }
+
   .photoGrid,
   .slideGrid {
     grid-template-columns: minmax(0, 1fr);

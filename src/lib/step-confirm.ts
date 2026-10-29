@@ -1,4 +1,9 @@
-import { getNextStage, getStageLabel, type StagePathOptions } from "@/lib/workflow";
+import {
+  getNextStage,
+  getReturnResumeStage,
+  getStageLabel,
+  type StagePathOptions,
+} from "@/lib/workflow";
 import type { ContentFormat, WizardStep, WorkflowStage } from "@/types";
 import { getWizardStepsForFormat } from "@/types";
 
@@ -106,6 +111,7 @@ export function getWorkflowStageConfirmContent(
 ): StepConfirmContent {
   const nextStage = getNextStage(format, stage, options);
   const stageLabel = getStageLabel(stage);
+  const resumeStage = getReturnResumeStage(stage, options?.returnedByStage);
   const isFinalStage = stage === "posting_manager" || !nextStage;
 
   if (stage === "project_manager" && nextStage === "editor") {
@@ -129,6 +135,15 @@ export function getWorkflowStageConfirmContent(
       description:
         "Контент будет помечен как готовый к публикации. После завершения редактирование этапов будет недоступно.",
       confirmLabel: "Завершить производство",
+      cancelLabel: "Отмена",
+    };
+  }
+
+  if (resumeStage && nextStage === resumeStage) {
+    return {
+      title: `Принять и вернуть на этап «${getStageLabel(resumeStage)}»?`,
+      description: `После правки задача сразу вернётся на этап «${getStageLabel(resumeStage)}», минуя шаги между.`,
+      confirmLabel: "Принять и вернуть",
       cancelLabel: "Отмена",
     };
   }

@@ -275,10 +275,9 @@ export const useWorkflowStore = create<WorkflowState>()(
                   currentStage: targetStage,
                   currentPathId: undefined,
                   designApproved:
-                    targetStage === "copywriter"
+                    targetStage === "editor" && task.currentStage === "designer"
                       ? false
-                      : targetStage === "designer" ||
-                          (targetStage === "editor" && task.currentStage === "designer")
+                      : targetStage === "designer"
                         ? true
                         : task.designApproved,
                   assigneeId,

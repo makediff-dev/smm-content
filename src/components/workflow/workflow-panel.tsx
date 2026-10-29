@@ -221,6 +221,9 @@ export function WorkflowPanel({ contentUnitId }: WorkflowPanelProps) {
         }
       >
         <div className={styles.modalFields}>
+          <p className={styles.hint}>
+            После исправления задача вернётся вам, минуя этапы между.
+          </p>
           <Select
             label="Этап"
             value={returnTarget}

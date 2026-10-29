@@ -1,4 +1,5 @@
 import type { ContentFormat, User, UserRole, WorkflowStage } from "@/types";
+import { getFormatPath, getFormatPathCurrentIndex } from "@/lib/format-paths";
 import { getRoleLabel, isAdminRole } from "@/lib/roles";
 
 export const WORKFLOW_STAGE_LABELS: Record<WorkflowStage, string> = {
@@ -63,11 +64,12 @@ export interface StagePathOptions {
   returnedByStage?: WorkflowStage;
 }
 
-export function copywriterCanReturnToDesigner(
+export function getReturnResumeStage(
   currentStage: WorkflowStage,
   returnedByStage?: WorkflowStage
-): boolean {
-  return currentStage === "copywriter" && returnedByStage === "designer";
+): WorkflowStage | null {
+  if (!returnedByStage || returnedByStage === currentStage) return null;
+  return returnedByStage;
 }
 
 export function formatHasEditorFinalReview(format: ContentFormat): boolean {
@@ -91,6 +93,9 @@ export function getNextStage(
   currentStage: WorkflowStage,
   options?: StagePathOptions
 ): WorkflowStage | null {
+  const resume = getReturnResumeStage(currentStage, options?.returnedByStage);
+  if (resume) return resume;
+
   if (format === "slideshow") {
     if (currentStage === "copywriter") return "editor";
     if (currentStage === "editor") return "designer";
@@ -128,42 +133,25 @@ export function getPreviousStages(
   currentStage: WorkflowStage,
   options?: StagePathOptions
 ): WorkflowStage[] {
-  if (format === "slideshow") {
-    if (currentStage === "project_manager") {
-      return ["copywriter", "editor", "designer", "video_editor"];
-    }
-    if (currentStage === "editor") return ["copywriter"];
-    if (currentStage === "designer") return ["copywriter"];
-    if (currentStage === "video_editor") {
-      return ["copywriter", "editor", "designer"];
-    }
-    return [];
-  }
+  if (currentStage === "copywriter") return [];
 
-  if (format === "video_meme") {
-    if (currentStage === "project_manager") {
-      return ["copywriter", "editor", "designer"];
-    }
-    if (currentStage === "editor") return ["copywriter"];
-    if (currentStage === "designer") return ["copywriter"];
-    return [];
-  }
+  const steps = getFormatPath(format);
+  const currentIndex =
+    currentStage === "posting_manager"
+      ? steps.length
+      : getFormatPathCurrentIndex(format, currentStage, {
+          designApproved: options?.designApproved,
+        });
 
-  if (formatHasEditorFinalReview(format)) {
-    if (currentStage === "editor" && options?.designApproved) {
-      return ["copywriter", "editor", "designer"];
-    }
-    if (currentStage === "editor") return ["copywriter"];
-    if (currentStage === "designer") return ["copywriter"];
-    if (currentStage === "project_manager") {
-      return ["copywriter", "editor", "designer", "editor"];
-    }
+  const previous: WorkflowStage[] = [];
+  for (let index = 0; index < currentIndex; index += 1) {
+    const step = steps[index];
+    if (step.kind !== "person" || !step.stage) continue;
+    if (step.stage === currentStage || step.stage === "posting_manager") continue;
+    if (previous.includes(step.stage)) continue;
+    previous.push(step.stage);
   }
-
-  const chain = getStageChain(format);
-  const index = chain.indexOf(currentStage);
-  if (index <= 0) return [];
-  return chain.slice(0, index);
+  return previous;
 }
 
 export function getPreviousStage(

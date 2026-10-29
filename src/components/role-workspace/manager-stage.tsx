@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import type { ContentUnit, ProductionTask } from "@/types";
+import type { ContentPlanSlot, ContentUnit, ProductionTask } from "@/types";
+import { toDateKey } from "@/lib/content-plan";
 import { VideoPlayerStub } from "@/components/shared/placeholder-image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,19 @@ export function getDefaultManagerPlan(content: ContentUnit): ManagerPlanPayload 
       content.format === "text"
         ? ["VK", "IG", "сторис"]
         : [...MANAGER_PLATFORM_OPTIONS],
+  };
+}
+
+export function planFromSlot(slot: ContentPlanSlot): ManagerPlanPayload {
+  const at = new Date(slot.scheduledAt);
+  return {
+    date: toDateKey(at),
+    time: `${String(at.getHours()).padStart(2, "0")}:${String(
+      at.getMinutes()
+    ).padStart(2, "0")}`,
+    platforms: slot.platforms?.length
+      ? [...slot.platforms]
+      : [...MANAGER_PLATFORM_OPTIONS],
   };
 }
 
@@ -250,7 +264,9 @@ export function ManagerPlan({
           <button
             key={name}
             type="button"
-            className={`${styles.toolChip} ${value.platforms.includes(name) ? styles.toolChipActive : ""}`}
+            className={`${styles.toolChip} ${styles.planChip} ${
+              value.platforms.includes(name) ? styles.planChipOn : ""
+            }`}
             disabled={!canOperate || alreadyDone}
             onClick={() => togglePlatform(name)}
           >
