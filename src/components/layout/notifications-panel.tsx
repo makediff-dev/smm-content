@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Bell } from "@phosphor-icons/react";
 import { useAuthStore } from "@/stores/auth-store";
@@ -37,7 +43,7 @@ export function NotificationsPanel() {
   const unreadCount = notifications.filter((item) => !item.read).length;
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: Event) => {
       if (!wrapRef.current?.contains(event.target as Node)) {
         setOpen(false);
       }
@@ -60,7 +66,7 @@ export function NotificationsPanel() {
     router.push(`/history/${contentUnitId}`);
   };
 
-  const handleMarkAllRead = (event: MouseEvent<HTMLButtonElement>) => {
+  const handleMarkAllRead = (event: ReactMouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
     if (!currentUser || unreadCount === 0) return;
