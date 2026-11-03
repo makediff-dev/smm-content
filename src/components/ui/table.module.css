@@ -53,6 +53,10 @@
   background: var(--bg-soft);
 }
 
+.trClickable {
+  cursor: pointer;
+}
+
 .actions {
   display: flex;
   gap: 8px;

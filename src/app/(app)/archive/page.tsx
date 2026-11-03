@@ -17,8 +17,14 @@ import {
   FORMAT_STRIP,
   formatArchiveSince,
   getArchivedPlanSlots,
+  resolveSlotContentId,
   toDateKey,
 } from "@/lib/content-plan";
+import { getRoleWorkspaceHref } from "@/lib/role-workspace";
+import { StepConfirmModal } from "@/components/shared/step-confirm-modal";
+import { useStepConfirmModal } from "@/hooks/use-step-confirm-modal";
+import { getDeleteArchivedSlotConfirmContent } from "@/lib/step-confirm";
+import { useProjectsStore } from "@/stores/projects-store";
 import styles from "../kp/kp.module.css";
 
 const FILTERS: { id: "all" | ContentFormat; label: string }[] = [
@@ -32,8 +38,16 @@ const FILTERS: { id: "all" | ContentFormat; label: string }[] = [
 export default function ArchivePage() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const slots = useContentPlanStore((s) => s.slots);
+  const contentUnits = useProjectsStore((s) => s.contentUnits);
   const placeSlotOnDate = useContentPlanStore((s) => s.placeSlotOnDate);
   const removeSlot = useContentPlanStore((s) => s.removeSlot);
+  const {
+    confirmContent,
+    confirmOpen,
+    requestConfirm,
+    closeConfirm,
+    confirmPending,
+  } = useStepConfirmModal();
   const [filter, setFilter] = useState<"all" | ContentFormat>("all");
   const [placing, setPlacing] = useState<ContentPlanSlot | null>(null);
   const [date, setDate] = useState(toDateKey(new Date()));
@@ -111,16 +125,31 @@ export default function ArchivePage() {
             <p className={styles.empty}>В архиве нет таких постов.</p>
           ) : (
             <ul className={styles.archiveList}>
-              {visible.map((slot) => (
+              {visible.map((slot) => {
+                const contentId = resolveSlotContentId(slot, contentUnits);
+                const href = contentId
+                  ? getRoleWorkspaceHref(slot.projectId, contentId)
+                  : null;
+                const title = (
+                  <>
+                    <span
+                      className={styles.legendDot}
+                      style={{ background: FORMAT_STRIP[slot.format] }}
+                    />
+                    {slot.title}
+                  </>
+                );
+
+                return (
                 <li key={slot.id} className={styles.archiveRow}>
-                  <div>
-                    <p className={styles.archiveTitle}>
-                      <span
-                        className={styles.legendDot}
-                        style={{ background: FORMAT_STRIP[slot.format] }}
-                      />
-                      {slot.title}
-                    </p>
+                  <div className={styles.archiveCopy}>
+                    {href ? (
+                      <Link href={href} className={styles.archiveTitleLink}>
+                        {title}
+                      </Link>
+                    ) : (
+                      <p className={styles.archiveTitle}>{title}</p>
+                    )}
                     <p className={styles.archiveMeta}>
                       {FORMAT_LABELS[slot.format]} · готово ·{" "}
                       {formatArchiveSince(slot.archivedAt)}
@@ -139,13 +168,19 @@ export default function ArchivePage() {
                       className={styles.deleteButton}
                       aria-label="Удалить"
                       title="Удалить"
-                      onClick={() => removeSlot(slot.id)}
+                      onClick={() =>
+                        requestConfirm(
+                          getDeleteArchivedSlotConfirmContent(slot.title),
+                          () => removeSlot(slot.id)
+                        )
+                      }
                     >
                       <Trash size={16} />
                     </button>
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
 
@@ -185,6 +220,13 @@ export default function ArchivePage() {
           />
         </div>
       </Modal>
+
+      <StepConfirmModal
+        open={confirmOpen}
+        content={confirmContent}
+        onClose={closeConfirm}
+        onConfirm={confirmPending}
+      />
     </AppShell>
   );
 }

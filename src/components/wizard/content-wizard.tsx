@@ -23,6 +23,7 @@ import { useWizardAccess } from "@/hooks/use-wizard-access";
 import { useStepConfirmModal } from "@/hooks/use-step-confirm-modal";
 import { getWizardStepConfirmContent } from "@/lib/step-confirm";
 import { getInitialCardsPhaseForStage } from "@/lib/workflow-access";
+import { normalizePromptIds } from "@/lib/prompt-ids";
 import { getStepOrderForFormat, type WizardStep } from "@/types";
 import bannerStyles from "./wizard-read-only-banner.module.css";
 import styles from "./wizard.module.css";
@@ -105,7 +106,8 @@ export function ContentWizard({ projectId, contentId, step }: ContentWizardProps
       sourceExtracts: content.sourceExtracts ?? {},
       cardsCount: content.cardsCount ?? 3,
       videoTransition: content.videoTransition ?? "none",
-      promptId: content.promptId,
+      promptId: normalizePromptIds(content)[0] ?? "",
+      promptIds: normalizePromptIds(content),
       additionalInstructions: content.additionalInstructions,
       extractedTitle: content.extractedTitle,
       extractedText: content.extractedText,

@@ -1,6 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/stores/auth-store";
+import { getHomeHrefForRole } from "@/lib/navigation";
 import { useSettingsStore } from "@/stores/settings-store";
 import { AppShell } from "@/components/layout/app-shell";
 import { useSearch } from "@/components/layout/search-context";
@@ -54,6 +57,15 @@ const EMPTY_SKILL_FORM = {
 };
 
 export default function PromptsPage() {
+  const router = useRouter();
+  const currentUser = useAuthStore((s) => s.currentUser);
+
+  useEffect(() => {
+    if (currentUser?.role === "posting_manager") {
+      router.replace(getHomeHrefForRole(currentUser.role));
+    }
+  }, [currentUser, router]);
+
   const prompts = useSettingsStore((s) => s.prompts);
   const skills = useSettingsStore((s) => s.skills);
   const addPrompt = useSettingsStore((s) => s.addPrompt);
@@ -92,6 +104,8 @@ export default function PromptsPage() {
       ),
     [skills, query]
   );
+
+  if (currentUser?.role === "posting_manager") return null;
 
   const showSaved = (id: string) => {
     setSavedId(id);

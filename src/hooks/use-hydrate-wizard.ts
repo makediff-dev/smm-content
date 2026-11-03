@@ -5,6 +5,7 @@ import { useWizardStore } from "@/stores/content-wizard-store";
 import { getDesignerSlides } from "@/lib/designer-slides";
 import { getInitialCardsPhaseForStage } from "@/lib/workflow-access";
 import { sourceFilesFromContent, sourceLinksFromContent } from "@/lib/source-fields";
+import { normalizePromptIds } from "@/lib/prompt-ids";
 import type { ContentUnit, WorkflowStage } from "@/types";
 
 export function useHydrateWizardFromContent(
@@ -39,7 +40,8 @@ export function useHydrateWizardFromContent(
       sourceExtracts: content.sourceExtracts ?? {},
       cardsCount: content.cardsCount ?? 3,
       videoTransition: content.videoTransition ?? "none",
-      promptId: content.promptId,
+      promptId: normalizePromptIds(content)[0] ?? "",
+      promptIds: normalizePromptIds(content),
       additionalInstructions: content.additionalInstructions,
       extractedTitle: content.extractedTitle,
       extractedText: content.extractedText,

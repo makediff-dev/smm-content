@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CaretDown, X } from "@phosphor-icons/react";
+import { CaretDown, Check, X } from "@phosphor-icons/react";
 import type { Prompt } from "@/types";
+import { uniquePromptIds } from "@/lib/prompt-ids";
 import styles from "./wizard.module.css";
 
 type Scope = "shared" | "own";
@@ -21,8 +22,8 @@ const isOwn = (prompt: Prompt) => Boolean(prompt.ownerId);
 
 interface BasePromptSelectProps {
   id?: string;
-  value: string;
-  onChange: (value: string) => void;
+  value: string[];
+  onChange: (value: string[]) => void;
   prompts: Prompt[];
   disabled?: boolean;
 }
@@ -34,18 +35,21 @@ export function BasePromptSelect({
   prompts,
   disabled,
 }: BasePromptSelectProps) {
+  const selectedIds = uniquePromptIds(value);
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<Scope>("shared");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const selected = prompts.find((prompt) => prompt.id === value);
+  const selected = selectedIds
+    .map((itemId) => prompts.find((prompt) => prompt.id === itemId))
+    .filter((prompt): prompt is Prompt => Boolean(prompt));
   const visible = prompts.filter((prompt) =>
     scope === "own" ? isOwn(prompt) : !isOwn(prompt)
   );
   const previewed =
     visible.find((prompt) => prompt.id === hoveredId) ??
-    visible.find((prompt) => prompt.id === value) ??
+    visible.find((prompt) => selectedIds.includes(prompt.id)) ??
     visible[0];
 
   const close = useCallback(() => setOpen(false), []);
@@ -70,61 +74,92 @@ export function BasePromptSelect({
     };
   }, [open, close]);
 
-  const toggle = () => {
-    if (selected) {
-      setScope(isOwn(selected) ? "own" : "shared");
+  const toggleOpen = () => {
+    const first = selected[0];
+    if (first) {
+      setScope(isOwn(first) ? "own" : "shared");
     }
     setOpen((current) => !current);
   };
 
   const clear = () => {
-    onChange("");
-    setOpen(false);
+    onChange([]);
+  };
+
+  const toggleId = (promptId: string) => {
+    onChange(
+      selectedIds.includes(promptId)
+        ? selectedIds.filter((item) => item !== promptId)
+        : [...selectedIds, promptId]
+    );
   };
 
   return (
     <div className={styles.picker} ref={rootRef}>
-      <button
+      <div
         id={id}
-        type="button"
-        className={`${styles.pickerTrigger} ${open ? styles.pickerTriggerOpen : ""}`}
-        disabled={disabled}
-        onClick={toggle}
+        role="combobox"
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled || undefined}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-multiselectable="true"
+        className={`${styles.pickerTrigger} ${open ? styles.pickerTriggerOpen : ""} ${
+          disabled ? styles.pickerTriggerDisabled : ""
+        }`}
+        onClick={() => {
+          if (!disabled) toggleOpen();
+        }}
+        onKeyDown={(event) => {
+          if (disabled) return;
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            toggleOpen();
+          }
+        }}
       >
-        <span className={selected ? undefined : styles.pickerPlaceholder}>
-          {selected ? selected.name : "Выберите промпт"}
+        <span className={styles.pickerValues}>
+          {selected.length === 0 ? (
+            <span className={styles.pickerPlaceholder}>Выберите промпты</span>
+          ) : (
+            selected.map((prompt) => (
+              <span key={prompt.id} className={styles.pickerChip}>
+                {prompt.name}
+                <button
+                  type="button"
+                  aria-label={`Убрать «${prompt.name}»`}
+                  className={styles.pickerChipRemove}
+                  disabled={disabled}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleId(prompt.id);
+                  }}
+                >
+                  <X size={10} weight="bold" />
+                </button>
+              </span>
+            ))
+          )}
         </span>
-        {selected && (
-          <span className={styles.pickerBadge}>
-            {isOwn(selected) ? "Мой" : "Базовый"}
-          </span>
-        )}
-        {selected && (
-          <span
-            role="button"
-            tabIndex={0}
-            aria-label="Убрать базовый промпт"
+        {selected.length > 0 && (
+          <button
+            type="button"
+            aria-label="Убрать все промпты"
             className={styles.pickerClear}
+            disabled={disabled}
             onClick={(event) => {
               event.stopPropagation();
               clear();
             }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                event.stopPropagation();
-                clear();
-              }
-            }}
           >
             <X size={12} weight="bold" />
-          </span>
+          </button>
         )}
         <CaretDown
           size={16}
           className={`${styles.pickerChevron} ${open ? styles.pickerChevronOpen : ""}`}
         />
-      </button>
+      </div>
 
       {open && (
         <div className={styles.pickerPanel}>
@@ -148,33 +183,43 @@ export function BasePromptSelect({
           </div>
 
           <div className={styles.pickerBody}>
-            <ul className={styles.pickerList} role="listbox">
+            <ul className={styles.pickerList} role="listbox" aria-multiselectable="true">
               {visible.length === 0 && (
                 <li className={styles.pickerEmpty}>{EMPTY_LABELS[scope]}</li>
               )}
-              {visible.map((prompt) => (
-                <li key={prompt.id}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={prompt.id === value}
-                    className={`${styles.pickerOption} ${
-                      prompt.id === value ? styles.pickerOptionSelected : ""
-                    }`}
-                    onMouseEnter={() => setHoveredId(prompt.id)}
-                    onFocus={() => setHoveredId(prompt.id)}
-                    onClick={() => {
-                      onChange(prompt.id);
-                      setOpen(false);
-                    }}
-                  >
-                    <span className={styles.pickerOptionTitle}>{prompt.name}</span>
-                    {prompt.description && (
-                      <span className={styles.pickerOptionHint}>{prompt.description}</span>
-                    )}
-                  </button>
-                </li>
-              ))}
+              {visible.map((prompt) => {
+                const checked = selectedIds.includes(prompt.id);
+                return (
+                  <li key={prompt.id}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={checked}
+                      className={`${styles.pickerOption} ${
+                        checked ? styles.pickerOptionSelected : ""
+                      }`}
+                      onMouseEnter={() => setHoveredId(prompt.id)}
+                      onFocus={() => setHoveredId(prompt.id)}
+                      onClick={() => toggleId(prompt.id)}
+                    >
+                      <span
+                        className={`${styles.pickerCheck} ${
+                          checked ? styles.pickerCheckOn : ""
+                        }`}
+                        aria-hidden
+                      >
+                        {checked ? <Check size={11} weight="bold" /> : null}
+                      </span>
+                      <span className={styles.pickerOptionCopy}>
+                        <span className={styles.pickerOptionTitle}>{prompt.name}</span>
+                        {prompt.description && (
+                          <span className={styles.pickerOptionHint}>{prompt.description}</span>
+                        )}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
 
             <div className={styles.pickerPreview}>

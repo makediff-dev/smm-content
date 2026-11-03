@@ -17,6 +17,7 @@ import {
   doneHint,
   loadingHint,
 } from "@/lib/source-fields";
+import { normalizePromptIds, promptSelectionPatch } from "@/lib/prompt-ids";
 import {
   formatUsesCards,
   MAX_SOURCE_FILES,
@@ -47,6 +48,7 @@ export function StepSource() {
   const sourceFiles = useWizardStore((s) => s.sourceFiles);
   const sourceExtracts = useWizardStore((s) => s.sourceExtracts);
   const promptId = useWizardStore((s) => s.promptId);
+  const promptIds = useWizardStore((s) => s.promptIds);
   const generationPrompt = useWizardStore((s) => s.generationPrompt);
   const isExtracting = useWizardStore((s) => s.isExtracting);
   const contentId = useWizardStore((s) => s.contentId);
@@ -440,12 +442,14 @@ export function StepSource() {
           </label>
           <BasePromptSelect
             id="base-prompt"
-            value={promptId}
+            value={normalizePromptIds({ promptId, promptIds })}
             prompts={prompts}
             disabled={stepDisabled}
             onChange={(next) => {
-              setField("promptId", next);
-              persist({ promptId: next });
+              const patch = promptSelectionPatch(next);
+              setField("promptIds", patch.promptIds);
+              setField("promptId", patch.promptId);
+              persist(patch);
             }}
           />
         </div>

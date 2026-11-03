@@ -25,9 +25,13 @@ import {
   formatWeekRange,
   getPlanItemStatus,
   getWeekStart,
+  resolveSlotContentId,
   toDateKey,
 } from "@/lib/content-plan";
 import { getRoleWorkspaceHref } from "@/lib/role-workspace";
+import { StepConfirmModal } from "@/components/shared/step-confirm-modal";
+import { useStepConfirmModal } from "@/hooks/use-step-confirm-modal";
+import { getArchiveSlotConfirmContent } from "@/lib/step-confirm";
 import { useAuthStore } from "@/stores/auth-store";
 import { canAccessProject, isAdminRole } from "@/lib/roles";
 import styles from "./kp.module.css";
@@ -75,6 +79,13 @@ export default function ContentPlanPage() {
   const slots = useContentPlanStore((s) => s.slots);
   const addSlot = useContentPlanStore((s) => s.addSlot);
   const archiveSlot = useContentPlanStore((s) => s.archiveSlot);
+  const {
+    confirmContent,
+    confirmOpen,
+    requestConfirm,
+    closeConfirm,
+    confirmPending,
+  } = useStepConfirmModal();
   const moveSlotToDate = useContentPlanStore((s) => s.moveSlotToDate);
   const currentUser = useAuthStore((s) => s.currentUser);
   const allProjects = useProjectsStore((s) => s.projects);
@@ -330,7 +341,12 @@ export default function ContentPlanPage() {
                               : undefined
                           )}
                           onDragStart={() => setDragId(slot.id)}
-                          onArchive={() => archiveSlot(slot.id)}
+                          onArchive={() =>
+                            requestConfirm(
+                              getArchiveSlotConfirmContent(slot.title),
+                              () => archiveSlot(slot.id)
+                            )
+                          }
                         />
                       ))
                     )}
@@ -440,6 +456,13 @@ export default function ContentPlanPage() {
           />
         </div>
       </Modal>
+
+      <StepConfirmModal
+        open={confirmOpen}
+        content={confirmContent}
+        onClose={closeConfirm}
+        onConfirm={confirmPending}
+      />
     </AppShell>
   );
 }
@@ -456,11 +479,7 @@ function PlanCard({
   onArchive: () => void;
 }) {
   const contentUnits = useProjectsStore((s) => s.contentUnits);
-  const contentId =
-    slot.contentUnitId ??
-    contentUnits.find(
-      (unit) => unit.projectId === slot.projectId && unit.title === slot.title
-    )?.id;
+  const contentId = resolveSlotContentId(slot, contentUnits);
   const href = contentId
     ? getRoleWorkspaceHref(slot.projectId, contentId)
     : null;

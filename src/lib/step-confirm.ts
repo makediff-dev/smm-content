@@ -7,11 +7,16 @@ import {
 import type { ContentFormat, WizardStep, WorkflowStage } from "@/types";
 import { getWizardStepsForFormat } from "@/types";
 
+export interface WorkflowConfirmOptions extends StagePathOptions {
+  recipientLabel?: string;
+}
+
 export interface StepConfirmContent {
   title: string;
   description: string;
   confirmLabel: string;
   cancelLabel?: string;
+  confirmVariant?: "primary" | "danger";
 }
 
 function getWizardStepLabel(step: WizardStep, format: ContentFormat): string {
@@ -104,15 +109,24 @@ export function getWizardStepConfirmContent(
   };
 }
 
+function sentTo(recipientLabel: string | undefined, stage: WorkflowStage) {
+  const stageLabel = getStageLabel(stage);
+  if (recipientLabel) {
+    return `Задача отправится к ${recipientLabel} на этап «${stageLabel}».`;
+  }
+  return `Задача отправится на этап «${stageLabel}».`;
+}
+
 export function getWorkflowStageConfirmContent(
   stage: WorkflowStage,
   format: ContentFormat,
-  options?: StagePathOptions
+  options?: WorkflowConfirmOptions
 ): StepConfirmContent {
   const nextStage = getNextStage(format, stage, options);
   const stageLabel = getStageLabel(stage);
   const resumeStage = getReturnResumeStage(stage, options?.returnedByStage);
   const isFinalStage = stage === "posting_manager" || !nextStage;
+  const recipient = options?.recipientLabel;
 
   if (stage === "project_manager" && nextStage === "editor") {
     return {
@@ -122,8 +136,8 @@ export function getWorkflowStageConfirmContent(
           : "Согласовать текст копирайтера?",
       description:
         format === "video_meme"
-          ? "Ролик можно брать. Подводка уйдёт редактору на вычитку."
-          : "Тема и текст копирайтера уйдут редактору на вычитку. Визуал на этом шаге ещё не проверяете.",
+          ? `Ролик можно брать. ${sentTo(recipient, nextStage)}`
+          : `${sentTo(recipient, nextStage)} Визуал на этом шаге ещё не проверяете.`,
       confirmLabel: "Согласовать",
       cancelLabel: "Отмена",
     };
@@ -141,8 +155,10 @@ export function getWorkflowStageConfirmContent(
 
   if (resumeStage && nextStage === resumeStage) {
     return {
-      title: `Принять и вернуть на этап «${getStageLabel(resumeStage)}»?`,
-      description: `После правки задача сразу вернётся на этап «${getStageLabel(resumeStage)}», минуя шаги между.`,
+      title: `Принять и вернуть ${recipient ? `к ${recipient}` : `на этап «${getStageLabel(resumeStage)}»`}?`,
+      description: recipient
+        ? `После правки задача сразу вернётся к ${recipient} на этап «${getStageLabel(resumeStage)}», минуя шаги между.`
+        : `После правки задача сразу вернётся на этап «${getStageLabel(resumeStage)}», минуя шаги между.`,
       confirmLabel: "Принять и вернуть",
       cancelLabel: "Отмена",
     };
@@ -150,9 +166,75 @@ export function getWorkflowStageConfirmContent(
 
   return {
     title: `Подтвердить этап «${stageLabel}»?`,
-    description: `Работа будет передана на этап «${getStageLabel(nextStage!)}». Убедитесь, что задачи текущего этапа выполнены.`,
+    description: `${sentTo(recipient, nextStage!)} Убедитесь, что задачи текущего этапа выполнены.`,
     confirmLabel: "Подтвердить этап",
     cancelLabel: "Отмена",
+  };
+}
+
+function formatPlanDate(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  if (!year || !month || !day) return dateKey;
+  return new Date(year, month - 1, day).toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+export function getPutInPlanConfirmContent(payload: {
+  date: string;
+  time: string;
+  platforms: string[];
+}): StepConfirmContent {
+  const dateLabel = formatPlanDate(payload.date);
+  const platforms = payload.platforms.join(", ");
+  return {
+    title: "Поставить в КП?",
+    description: `Слот появится в контент-плане: ${dateLabel} в ${payload.time}, площадки: ${platforms}. После этого задача будет в плане у менеджера постинга.`,
+    confirmLabel: "В КП",
+    cancelLabel: "Отмена",
+  };
+}
+
+export function getMarkPostedConfirmContent(): StepConfirmContent {
+  return {
+    title: "Отметить публикацию как вышедшую?",
+    description:
+      "Задача будет отмечена как вышедшая. Это подтверждает, что материалы уже размещены на площадках.",
+    confirmLabel: "Отметить «вышло»",
+    cancelLabel: "Отмена",
+  };
+}
+
+export function getArchiveFromPlanConfirmContent(): StepConfirmContent {
+  return {
+    title: "Отправить в архив?",
+    description:
+      "Публикация не попадёт в контент-план и уйдёт в архив.",
+    confirmLabel: "В архив",
+    cancelLabel: "Отмена",
+  };
+}
+
+export function getArchiveSlotConfirmContent(title: string): StepConfirmContent {
+  return {
+    title: "Убрать в архив?",
+    description: `«${title}» исчезнет из контент-плана и попадёт в архив.`,
+    confirmLabel: "В архив",
+    cancelLabel: "Отмена",
+  };
+}
+
+export function getDeleteArchivedSlotConfirmContent(
+  title: string
+): StepConfirmContent {
+  return {
+    title: "Удалить из архива?",
+    description: `«${title}» будет удалена из архива. Вернуть её в план после этого нельзя.`,
+    confirmLabel: "Удалить",
+    cancelLabel: "Отмена",
+    confirmVariant: "danger",
   };
 }
 

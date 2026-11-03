@@ -1085,7 +1085,8 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 10px 14px;
+  min-height: 44px;
+  padding: 8px 14px;
   border: none;
   border-radius: var(--radius);
   background: var(--field-bg);
@@ -1099,9 +1100,17 @@
     box-shadow 0.15s;
 }
 
-.pickerTrigger:disabled {
+.pickerTrigger:disabled,
+.pickerTriggerDisabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.pickerClear,
+.pickerChipRemove {
+  border: 0;
+  background: transparent;
+  padding: 0;
 }
 
 .pickerTriggerOpen {
@@ -1109,8 +1118,47 @@
   box-shadow: var(--field-ring-focus);
 }
 
+.pickerValues {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .pickerPlaceholder {
   color: var(--text-light);
+}
+
+.pickerChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 6px 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-muted);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.pickerChipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.pickerChipRemove:hover {
+  background: var(--bg-white);
+  color: var(--text);
 }
 
 .pickerBadge {
@@ -1225,7 +1273,9 @@
 }
 
 .pickerOption {
-  display: block;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   width: 100%;
   padding: 8px 12px;
   border: none;
@@ -1243,6 +1293,30 @@
 
 .pickerOptionSelected {
   background: var(--accent-muted);
+}
+
+.pickerCheck {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-white);
+  color: transparent;
+}
+
+.pickerCheckOn {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.pickerOptionCopy {
+  min-width: 0;
 }
 
 .pickerOptionTitle {

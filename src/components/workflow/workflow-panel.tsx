@@ -12,9 +12,11 @@ import { useProjectsStore } from "@/stores/projects-store";
 import type { ProductionTask, WorkflowStage } from "@/types";
 import {
   getAssigneeName,
+  getReturnAuthorLabel,
   getStageChain,
   getStageHint,
   getStageLabel,
+  getWorkflowRecipient,
   canUserActOnStage,
 } from "@/lib/workflow";
 import {
@@ -82,11 +84,29 @@ export function WorkflowPanel({ contentUnitId }: WorkflowPanelProps) {
     approveStage(task.id, currentUser, users, addActionLog);
   };
 
+  const recipient = getWorkflowRecipient(
+    task.format,
+    task.currentStage,
+    task.projectId,
+    users,
+    {
+      designApproved: task.designApproved,
+      returnedByStage: task.returnedByStage,
+      returnedByUserId: task.returnedByUserId,
+    }
+  );
+  const returnAuthor = getReturnAuthorLabel(
+    task.returnedByUserId,
+    task.returnedByStage,
+    users
+  );
+
   const openApproveModal = () => {
     requestConfirm(
       getWorkflowStageConfirmContent(task.currentStage, task.format, {
         designApproved: task.designApproved,
         returnedByStage: task.returnedByStage,
+        recipientLabel: recipient?.label,
       }),
       handleApprove
     );
@@ -151,7 +171,11 @@ export function WorkflowPanel({ contentUnitId }: WorkflowPanelProps) {
 
       {task.status === "returned" && task.returnComment && (
         <div className={styles.returnBox}>
-          <div className={styles.returnLabel}>Комментарий при возврате</div>
+          <div className={styles.returnLabel}>
+            {returnAuthor
+              ? `Возврат от ${returnAuthor}`
+              : "Комментарий при возврате"}
+          </div>
           <p className={styles.returnText}>{task.returnComment}</p>
         </div>
       )}

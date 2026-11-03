@@ -10,7 +10,8 @@ import { useSearch } from "@/components/layout/search-context";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { matchesSearch } from "@/lib/search";
-import { filterByProjectAccess, isManagementRole } from "@/lib/roles";
+import { getHomeHrefForRole } from "@/lib/navigation";
+import { canAccessSpendAndTracker, filterByProjectAccess } from "@/lib/roles";
 import {
   getPersonHref,
   getStuckTaskRows,
@@ -26,11 +27,13 @@ export default function StuckPage() {
   const tasks = useWorkflowStore((s) => s.tasks);
   const { query } = useSearch();
 
-  const allowed = Boolean(currentUser && isManagementRole(currentUser.role));
+  const allowed = Boolean(
+    currentUser && canAccessSpendAndTracker(currentUser.role)
+  );
 
   useEffect(() => {
-    if (currentUser && !isManagementRole(currentUser.role)) {
-      router.replace("/projects");
+    if (currentUser && !canAccessSpendAndTracker(currentUser.role)) {
+      router.replace(getHomeHrefForRole(currentUser.role));
     }
   }, [currentUser, router]);
 

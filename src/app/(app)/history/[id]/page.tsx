@@ -20,6 +20,7 @@ import { WorkflowPanel } from "@/components/workflow/workflow-panel";
 import { Modal } from "@/components/ui/modal";
 import { FORMAT_LABELS } from "@/types";
 import { formatDate } from "@/lib/simulate-generation";
+import { normalizePromptIds } from "@/lib/prompt-ids";
 import { canCreateProductionTask, isAdminRole } from "@/lib/roles";
 import { useRequireProjectAccess } from "@/hooks/use-require-project-access";
 import {
@@ -109,7 +110,8 @@ export default function HistoryPage({
       sourceUrl: content.sourceUrl,
       sourceFileName: content.sourceFileName,
       postText: content.postText,
-      promptId: content.promptId,
+      promptId: normalizePromptIds(content)[0] ?? "",
+      promptIds: normalizePromptIds(content),
       cards: content.cards,
       extractedTitle: content.extractedTitle,
       extractedText: content.extractedText,
@@ -126,7 +128,8 @@ export default function HistoryPage({
       sourceUrl: content.sourceUrl,
       sourceFileName: content.sourceFileName,
       postText: content.postText,
-      promptId: content.promptId,
+      promptId: normalizePromptIds(content)[0] ?? "",
+      promptIds: normalizePromptIds(content),
       cards: content.cards,
       isExtracted: true,
       isPostGenerated: true,

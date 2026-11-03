@@ -30,7 +30,12 @@ export function StepConfirmModal({
           <Button variant="ghost" onClick={onClose}>
             {content.cancelLabel ?? "Отмена"}
           </Button>
-          <Button onClick={onConfirm}>{content.confirmLabel}</Button>
+          <Button
+            variant={content.confirmVariant === "danger" ? "danger" : "primary"}
+            onClick={onConfirm}
+          >
+            {content.confirmLabel}
+          </Button>
         </>
       }
     >

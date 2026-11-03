@@ -16,7 +16,12 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Input } from "@/components/ui/input";
 import { Tabs } from "@/components/ui/tabs";
 import { matchesSearch } from "@/lib/search";
-import { filterByProjectAccess, isAdminRole, isManagementRole } from "@/lib/roles";
+import { getHomeHrefForRole } from "@/lib/navigation";
+import {
+  canAccessSpend,
+  filterByProjectAccess,
+  isAdminRole,
+} from "@/lib/roles";
 import {
   currentMonthKey,
   filterSpendByMonth,
@@ -53,12 +58,12 @@ export default function SpendPage() {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [roleId, setRoleId] = useState<UserRole | null>(null);
 
-  const allowed = Boolean(currentUser && isManagementRole(currentUser.role));
+  const allowed = Boolean(currentUser && canAccessSpend(currentUser.role));
   const isAdmin = Boolean(currentUser && isAdminRole(currentUser.role));
 
   useEffect(() => {
-    if (currentUser && !isManagementRole(currentUser.role)) {
-      router.replace("/projects");
+    if (currentUser && !canAccessSpend(currentUser.role)) {
+      router.replace(getHomeHrefForRole(currentUser.role));
     }
   }, [currentUser, router]);
 

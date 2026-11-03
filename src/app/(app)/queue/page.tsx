@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { DueSortHeader, type DueSort } from "@/components/queue/due-sort-header";
 import Link from "next/link";
 import { useAuthStore } from "@/stores/auth-store";
@@ -23,7 +24,8 @@ import {
   resolveTaskDueAt,
 } from "@/lib/task-deadline";
 import { matchesSearch } from "@/lib/search";
-import { canAccessProject, isAdminRole } from "@/lib/roles";
+import { getHomeHrefForRole } from "@/lib/navigation";
+import { canAccessAllTasks, canAccessProject, isAdminRole } from "@/lib/roles";
 import {
   ColumnFilters,
   matchesColumnFilter,
@@ -38,6 +40,7 @@ const WORKFLOW_STATUS_LABELS: Record<ProductionTask["status"], string> = {
 };
 
 export default function QueuePage() {
+  const router = useRouter();
   const currentUser = useAuthStore((s) => s.currentUser);
   const users = useAuthStore((s) => s.users);
   const getAllActiveTasks = useWorkflowStore((s) => s.getAllActiveTasks);
@@ -47,8 +50,16 @@ export default function QueuePage() {
   const [dueSort, setDueSort] = useState<DueSort>(null);
   const { query } = useSearch();
 
+  const allowed = Boolean(currentUser && canAccessAllTasks(currentUser.role));
   const isAdmin = Boolean(currentUser && isAdminRole(currentUser.role));
-  const workflowTasks = currentUser
+
+  useEffect(() => {
+    if (currentUser && !canAccessAllTasks(currentUser.role)) {
+      router.replace(getHomeHrefForRole(currentUser.role));
+    }
+  }, [currentUser, router]);
+
+  const workflowTasks = currentUser && allowed
     ? getAllActiveTasks().filter((task) =>
         canAccessProject(currentUser, task.projectId)
       )
@@ -104,7 +115,7 @@ export default function QueuePage() {
     });
   }, [dueSort, filteredWorkflowTasks]);
 
-  if (!currentUser) return null;
+  if (!currentUser || !allowed) return null;
 
   const workflowColumns: TableColumn<ProductionTask>[] = [
     {
@@ -287,6 +298,9 @@ export default function QueuePage() {
           columns={workflowColumns}
           data={sortedWorkflowTasks}
           keyField="id"
+          onRowClick={(row) =>
+            router.push(`/projects/${row.projectId}/content/${row.contentUnitId}`)
+          }
         />
       )}
     </AppShell>

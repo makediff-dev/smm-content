@@ -72,6 +72,38 @@ export function createCardDesign(
   };
 }
 
+export function resizeCardDesign(
+  design: CardDesign,
+  frame: { width: number; height: number }
+): CardDesign {
+  if (design.width === frame.width && design.height === frame.height) {
+    return design;
+  }
+  const scaleX = frame.width / (design.width || frame.width);
+  const scaleY = frame.height / (design.height || frame.height);
+  const overlay = resolvePhotoGradient(design);
+  return {
+    ...design,
+    width: frame.width,
+    height: frame.height,
+    overlay: {
+      ...overlay,
+      width: overlay.width * scaleX,
+      height: overlay.height * scaleY,
+      yStart: overlay.yStart * scaleY,
+      yEnd: overlay.yEnd * scaleY,
+    },
+    layers: design.layers.map((layer) => ({
+      ...layer,
+      fontSize: Math.max(8, Math.round(layer.fontSize * scaleX)),
+      left: Math.round(layer.left * scaleX),
+      top: Math.round(layer.top * scaleY),
+      width: Math.round(layer.width * scaleX),
+      strokeWidth: Math.round(layer.strokeWidth * scaleX),
+    })),
+  };
+}
+
 export function ensureCardDesign(card: Card, photo?: { width: number; height: number }): CardDesign {
   if (!card.design) {
     return createCardDesign(

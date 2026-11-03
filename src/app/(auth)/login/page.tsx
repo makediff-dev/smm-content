@@ -9,6 +9,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PrototypeDisclaimer } from "@/components/shared/prototype-disclaimer";
+import { getHomeHrefForRole } from "@/lib/navigation";
 import { getRoleLabel } from "@/lib/roles";
 import { SEED_USERS } from "@/data/seed";
 import styles from "./login.module.css";
@@ -40,7 +41,8 @@ export default function LoginPage() {
     setError("");
     const success = login(email, "demo");
     if (success) {
-      router.push("/projects");
+      const user = useAuthStore.getState().currentUser;
+      router.push(user ? getHomeHrefForRole(user.role) : "/projects");
     }
   };
 
@@ -48,7 +50,8 @@ export default function LoginPage() {
     setError("");
     const success = login(data.email, data.password);
     if (success) {
-      router.push("/projects");
+      const user = useAuthStore.getState().currentUser;
+      router.push(user ? getHomeHrefForRole(user.role) : "/projects");
     } else {
       setError("Неверный email или пароль");
     }

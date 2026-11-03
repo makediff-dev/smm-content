@@ -117,7 +117,10 @@ export const useProjectsStore = create<ProjectsState>()(
           createdAt: new Date().toISOString(),
           cards: data?.cards ?? [],
           postText: data?.postText ?? "",
-          promptId: data?.promptId ?? "prompt-post",
+          promptId: data?.promptIds?.[0] ?? data?.promptId ?? "prompt-post",
+          promptIds:
+            data?.promptIds ??
+            (data?.promptId ? [data.promptId] : ["prompt-post"]),
           extractedTitle: data?.extractedTitle ?? "",
           extractedText: data?.extractedText ?? "",
           extractedImages: data?.extractedImages ?? [],

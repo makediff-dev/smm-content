@@ -73,3 +73,18 @@ export function filterByProjectAccess<T extends { projectId: string }>(
 export function canAccessUsersAndAiModels(role: UserRole): boolean {
   return role === "admin";
 }
+
+/** Spend counter: admin, project manager and posting manager. */
+export function canAccessSpend(role: UserRole): boolean {
+  return isManagementRole(role);
+}
+
+/** Task tracker: project manager and admin only. */
+export function canAccessSpendAndTracker(role: UserRole): boolean {
+  return role === "admin" || role === "project_manager";
+}
+
+/** «Все задачи»: admin, project manager and posting manager. */
+export function canAccessAllTasks(role: UserRole): boolean {
+  return isManagementRole(role);
+}

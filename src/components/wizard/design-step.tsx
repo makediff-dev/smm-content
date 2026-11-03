@@ -34,6 +34,7 @@ import {
   DESIGN_FONTS,
   ensureCardDesign,
   fontFamily,
+  resizeCardDesign,
   photoGradientForPlacement,
   photoGradientStyle,
   resolvePhotoGradient,
@@ -80,6 +81,40 @@ const CROP_FORMATS = [
 ] as const;
 
 type CropFormatOption = (typeof CROP_FORMATS)[number];
+
+function formatSize(option: CropFormatOption) {
+  return "width" in option ? { width: option.width, height: option.height } : null;
+}
+
+function isSameFrame(
+  left: { width: number; height: number },
+  right: { width: number; height: number }
+) {
+  return left.width === right.width && left.height === right.height;
+}
+
+function cardFrameSize(
+  card: { design?: { width: number; height: number } } | undefined,
+  fallback: { width: number; height: number }
+) {
+  if (card?.design?.width && card.design.height) {
+    return { width: card.design.width, height: card.design.height };
+  }
+  return fallback;
+}
+
+function matchesFormat(
+  option: CropFormatOption,
+  frame: { width: number; height: number },
+  options: readonly CropFormatOption[]
+) {
+  const sized = formatSize(option);
+  if (sized) return isSameFrame(sized, frame);
+  return !options.some((item) => {
+    const size = formatSize(item);
+    return Boolean(size && isSameFrame(size, frame));
+  });
+}
 
 let styleClipboard: CardDesign | null = null;
 
@@ -387,19 +422,14 @@ function ColorLine({
       />
       {onOpacity ? (
         <span className={styles.opacityField}>
-          <input
+          <NumberDraftInput
             className={styles.opacityInput}
-            type="number"
             min={0}
             max={100}
             value={percent}
             disabled={disabled}
-            aria-label="Непрозрачность"
-            onChange={(event) => {
-              const next = Number(event.target.value);
-              if (Number.isNaN(next)) return;
-              onOpacity(Math.min(100, Math.max(0, next)) / 100);
-            }}
+            ariaLabel="Непрозрачность"
+            onCommit={(next) => onOpacity(next / 100)}
           />
           <span>%</span>
         </span>
@@ -414,6 +444,80 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <span className={styles.label}>{label}</span>
       {children}
     </label>
+  );
+}
+
+function NumberDraftInput({
+  value,
+  min,
+  max,
+  step,
+  disabled,
+  className,
+  ariaLabel,
+  onCommit,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  disabled?: boolean;
+  className?: string;
+  ariaLabel?: string;
+  onCommit: (value: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setDraft(String(value));
+  }, [value, focused]);
+
+  const commit = (raw: string) => {
+    const parsed = Number(raw.replace(",", "."));
+    if (!Number.isFinite(parsed) || raw.trim() === "") {
+      setDraft(String(value));
+      return;
+    }
+    const next = Math.min(max, Math.max(min, parsed));
+    setDraft(String(next));
+    if (next !== value) onCommit(next);
+  };
+
+  return (
+    <input
+      className={className}
+      type="text"
+      inputMode="decimal"
+      aria-label={ariaLabel}
+      value={draft}
+      disabled={disabled}
+      onFocus={() => setFocused(true)}
+      onBlur={() => {
+        setFocused(false);
+        commit(draft);
+      }}
+      onChange={(event) => {
+        const next = event.target.value.replace(/[^\d.,-]/g, "");
+        setDraft(next);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          commit(draft);
+          event.currentTarget.blur();
+        }
+        if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+          event.preventDefault();
+          const parsed = Number(draft.replace(",", "."));
+          const base = Number.isFinite(parsed) ? parsed : value;
+          const delta = (step ?? 1) * (event.key === "ArrowUp" ? 1 : -1);
+          const next = Math.min(max, Math.max(min, base + delta));
+          setDraft(String(next));
+          onCommit(next);
+        }
+      }}
+    />
   );
 }
 
@@ -468,17 +572,14 @@ function Range({
             onChange={(event) => onChange(Number(event.target.value))}
           />
         ) : null}
-        <input
+        <NumberDraftInput
           className={styles.rangeInput}
-          type="number"
           min={min * scale}
           max={max * scale}
           step={inputStep}
           value={inputValue}
-          aria-label={display ?? label}
-          onChange={(event) => {
-            const next = Number(event.target.value);
-            if (Number.isNaN(next)) return;
+          ariaLabel={display ?? label}
+          onCommit={(next) => {
             const unscaled = scale === 1 ? next : next / scale;
             onChange(Math.min(max, Math.max(min, unscaled)));
           }}
@@ -515,6 +616,7 @@ export function DesignStep() {
   const [frameFormat, setFrameFormat] = useState<CropFormatOption>(
     isSlideshow ? STORIES_CROP_FORMAT : CROP_FORMATS[0]
   );
+  const [perCardFormat, setPerCardFormat] = useState(false);
   const [originals, setOriginals] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [folds, setFolds] = useState<Record<FoldKey, boolean>>({
@@ -835,6 +937,7 @@ export function DesignStep() {
         ? cards
         : getMockCards(format, project?.defaultCopyright ?? "");
     replaceCards(buildGeneratedPhotos(base, contentId ?? "design", format));
+    setPerCardFormat(false);
     setBusy(false);
   };
 
@@ -1002,13 +1105,16 @@ export function DesignStep() {
 
   const keepFocus = (event: MouseEvent) => event.preventDefault();
 
-  const frameAspect = isMeme || isSlideshow
-    ? 9 / 16
-    : "width" in frameFormat
-      ? frameFormat.width / frameFormat.height
-      : stageSize.width && stageSize.height
-        ? stageSize.width / stageSize.height
-        : 1;
+  const defaultFrame =
+    isMeme || isSlideshow
+      ? { width: 1080, height: 1920 }
+      : formatSize(frameFormat) ?? stageSize;
+  const selectedFrame = cardFrameSize(selected, defaultFrame);
+  const previewFrame = perCardFormat ? selectedFrame : defaultFrame;
+  const frameAspect =
+    previewFrame.width && previewFrame.height
+      ? previewFrame.width / previewFrame.height
+      : 1;
   const isVerticalPreview = isMeme || isSlideshow || frameAspect < 0.85;
 
   return (
@@ -1109,6 +1215,10 @@ export function DesignStep() {
                   className={styles.photoImg}
                   src={selected?.imageUrl}
                   alt=""
+                  onClick={() => {
+                    setPerCardFormat(true);
+                    setFolds((current) => ({ ...current, format: true }));
+                  }}
                   onLoad={(event) => {
                     if ("width" in frameFormat) return;
                     const image = event.currentTarget;
@@ -1223,7 +1333,11 @@ export function DesignStep() {
 
           {cards.length > 0 && (
           <ul className={styles.photos} aria-label="Фотографии карточек">
-            {cards.map((card, index) => (
+            {cards.map((card, index) => {
+              const thumbFrame = perCardFormat
+                ? cardFrameSize(card, defaultFrame)
+                : defaultFrame;
+              return (
               <li
                 key={card.id}
                 className={styles.photoItem}
@@ -1237,7 +1351,16 @@ export function DesignStep() {
                   onClick={() => {
                     setSelectedId(card.id);
                     setActiveIndex(0);
+                    setPerCardFormat(true);
+                    setFolds((current) => ({ ...current, format: true }));
                   }}
+                  style={
+                    {
+                      "--frame-aspect": String(
+                        thumbFrame.width / thumbFrame.height
+                      ),
+                    } as CSSProperties
+                  }
                 >
                   {card.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -1298,7 +1421,8 @@ export function DesignStep() {
                   </div>
                 )}
               </li>
-            ))}
+            );
+            })}
           </ul>
           )}
         </div>
@@ -1317,12 +1441,24 @@ export function DesignStep() {
                   key={item.label}
                   type="button"
                   className={`${styles.formatButton} ${
-                    frameFormat.label === item.label ? styles.formatActive : ""
+                    matchesFormat(
+                      item,
+                      perCardFormat ? selectedFrame : defaultFrame,
+                      cropFormats
+                    )
+                      ? styles.formatActive
+                      : ""
                   }`}
-                  disabled={disabled || !selected?.imageUrl}
+                  disabled={disabled}
                   onClick={() => {
-                    setFrameFormat(item);
-                    setCropFormat(item);
+                    const size = formatSize(item);
+                    if (!selected?.imageUrl || !perCardFormat) {
+                      setFrameFormat(item);
+                      if (size) setStageSize(size);
+                    }
+                    if (selected?.imageUrl) {
+                      setCropFormat(item);
+                    }
                   }}
                 >
                   {item.label}
@@ -1437,17 +1573,14 @@ export function DesignStep() {
                     onChange={(event) => changeLayer({ font: event.target.value })}
                   />
                   <Field label="Размер">
-                    <input
+                    <NumberDraftInput
                       className={styles.number}
-                      type="number"
                       min={8}
                       max={600}
                       value={layer.fontSize}
                       disabled={disabled}
-                      onChange={(event) => {
-                        const fontSize = Number(event.target.value);
-                        if (fontSize >= 8) changeLayer({ fontSize });
-                      }}
+                      ariaLabel="Размер"
+                      onCommit={(fontSize) => changeLayer({ fontSize })}
                     />
                   </Field>
                 </div>
@@ -2045,11 +2178,21 @@ export function DesignStep() {
               : undefined
           }
           onCancel={() => setCropFormat(null)}
-          onApply={(url) => {
+          onApply={(url, size) => {
             if (!originals[selected.id] && selected.imageUrl) {
               setOriginals((map) => ({ ...map, [selected.id]: selected.imageUrl ?? url }));
             }
-            patchCards({ [selected.id]: { imageUrl: url, designDirty: true } });
+            const nextDesign = resizeCardDesign(
+              ensureCardDesign(selected, size),
+              size
+            );
+            patchCards({
+              [selected.id]: {
+                imageUrl: url,
+                designDirty: true,
+                design: nextDesign,
+              },
+            });
             setCropFormat(null);
           }}
         />

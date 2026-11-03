@@ -271,3 +271,39 @@ export function getAssigneeName(
   const user = users.find((item) => item.id === assigneeId);
   return user ? `${user.name} (${getRoleLabel(user.role)})` : assigneeId;
 }
+
+export function getReturnAuthorLabel(
+  returnedByUserId: string | undefined,
+  returnedByStage: WorkflowStage | undefined,
+  users: User[]
+): string | null {
+  const user = returnedByUserId
+    ? users.find((item) => item.id === returnedByUserId)
+    : undefined;
+  if (user) return user.name;
+  if (returnedByStage) return getStageLabel(returnedByStage);
+  return null;
+}
+
+export function getWorkflowRecipient(
+  format: ContentFormat,
+  currentStage: WorkflowStage,
+  projectId: string,
+  users: User[],
+  options?: StagePathOptions & { returnedByUserId?: string }
+): { stage: WorkflowStage; label: string } | null {
+  const nextStage = getNextStage(format, currentStage, options);
+  if (!nextStage) return null;
+
+  const resume = getReturnResumeStage(currentStage, options?.returnedByStage);
+  const userId =
+    resume && options?.returnedByUserId
+      ? options.returnedByUserId
+      : findAssigneeForStage(nextStage, projectId, users);
+  const user = userId ? users.find((item) => item.id === userId) : undefined;
+
+  return {
+    stage: nextStage,
+    label: user?.name ?? getStageLabel(nextStage),
+  };
+}

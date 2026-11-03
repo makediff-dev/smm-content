@@ -1,9 +1,11 @@
 import type { UserRole } from "@/types";
 import type { Icon } from "@phosphor-icons/react";
 import {
+  canAccessAllTasks,
+  canAccessSpend,
+  canAccessSpendAndTracker,
   canAccessUsersAndAiModels,
   isAdminRole,
-  isManagementRole,
 } from "@/lib/roles";
 
 export type NavIconName =
@@ -55,11 +57,24 @@ export const mainNavigation: NavItem[] = [
   },
 ];
 
+export function getHomeHrefForRole(role: UserRole): string {
+  return role === "posting_manager" ? "/queue" : "/projects";
+}
+
 export function getNavigationForRole(role: UserRole): NavItem[] {
   return mainNavigation
     .filter((item) => {
+      if (role === "posting_manager") {
+        return (
+          item.href === "/queue" ||
+          item.href === "/kp" ||
+          item.href === "/spend"
+        );
+      }
+      if (item.href === "/queue") return canAccessAllTasks(role);
       if (item.adminOnly) return canAccessUsersAndAiModels(role);
-      if (item.managersOnly) return isManagementRole(role);
+      if (item.href === "/spend") return canAccessSpend(role);
+      if (item.managersOnly) return canAccessSpendAndTracker(role);
       return true;
     })
     .map((item) =>

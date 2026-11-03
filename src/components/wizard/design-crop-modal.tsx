@@ -12,7 +12,7 @@ interface DesignCropModalProps {
   aspect?: number;
   outputSize?: { width: number; height: number };
   onCancel: () => void;
-  onApply: (url: string) => void;
+  onApply: (url: string, size: { width: number; height: number }) => void;
 }
 
 const MIN = 16;
@@ -139,9 +139,12 @@ export function DesignCropModal({
         canvas.height
       );
       const url = canvas.toDataURL("image/jpeg", 0.92);
-      onApply(url);
+      onApply(url, { width: canvas.width, height: canvas.height });
     } catch {
-      onApply(imageUrl);
+      onApply(imageUrl, outputSize ?? {
+        width: image.naturalWidth || 1080,
+        height: image.naturalHeight || 1080,
+      });
     } finally {
       setSaving(false);
     }

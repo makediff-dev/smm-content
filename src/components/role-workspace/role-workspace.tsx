@@ -14,7 +14,12 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { StepConfirmModal } from "@/components/shared/step-confirm-modal";
 import { useStepConfirmModal } from "@/hooks/use-step-confirm-modal";
-import { getWorkflowStageConfirmContent } from "@/lib/step-confirm";
+import {
+  getArchiveFromPlanConfirmContent,
+  getMarkPostedConfirmContent,
+  getPutInPlanConfirmContent,
+  getWorkflowStageConfirmContent,
+} from "@/lib/step-confirm";
 import { getReturnTargetStages } from "@/lib/workflow-access";
 import {
   getAdminPathNeighbors,
@@ -27,7 +32,9 @@ import {
 } from "@/lib/format-paths";
 import {
   formatHasEditorFinalReview,
+  getReturnAuthorLabel,
   getStageLabel,
+  getWorkflowRecipient,
 } from "@/lib/workflow";
 import { buildGeneratedPhotos } from "@/lib/workspace-generation";
 import {
@@ -302,6 +309,31 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
     );
   }
 
+  const returnAuthor = getReturnAuthorLabel(
+    task.returnedByUserId,
+    task.returnedByStage,
+    users
+  );
+  const recipient = getWorkflowRecipient(
+    task.format,
+    task.currentStage,
+    task.projectId,
+    users,
+    {
+      designApproved: task.designApproved,
+      returnedByStage: task.returnedByStage,
+      returnedByUserId: task.returnedByUserId,
+    }
+  );
+  const stageConfirm = getWorkflowStageConfirmContent(
+    task.currentStage,
+    task.format,
+    {
+      designApproved: task.designApproved,
+      returnedByStage: task.returnedByStage,
+      recipientLabel: recipient?.label,
+    }
+  );
   const stage = activeStage ?? task.currentStage;
   const canToggleVersion = hasPreviousStageVersion(content, stage);
   const viewingPrevious = isViewingPreviousVersion(content, stage);
@@ -548,7 +580,13 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
             {task.returnComment && !isPostingStage ? (
               <aside className={styles.returnNote} aria-label="Комментарий">
                 <p className={styles.kicker}>
-                  {task.status === "returned" ? "Возврат" : "Комментарий"}
+                  {task.status === "returned"
+                    ? returnAuthor
+                      ? `Возврат от ${returnAuthor}`
+                      : "Возврат"
+                    : returnAuthor
+                      ? `Комментарий от ${returnAuthor}`
+                      : "Комментарий"}
                 </p>
                 <p className={styles.returnText}>{task.returnComment}</p>
               </aside>
@@ -629,17 +667,7 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
                       task.status !== "done" ? (
                       <Button
                         onClick={() =>
-                          requestConfirm(
-                            getWorkflowStageConfirmContent(
-                              task.currentStage,
-                              task.format,
-                              {
-                                designApproved: task.designApproved,
-                                returnedByStage: task.returnedByStage,
-                              }
-                            ),
-                            handleApprove
-                          )
+                          requestConfirm(stageConfirm, handleApprove)
                         }
                       >
                         Согласовать
@@ -650,17 +678,7 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
                       task.status !== "done" && (
                         <Button
                           onClick={() =>
-                            requestConfirm(
-                              getWorkflowStageConfirmContent(
-                                task.currentStage,
-                                task.format,
-                                {
-                                  designApproved: task.designApproved,
-                                  returnedByStage: task.returnedByStage,
-                                }
-                              ),
-                              handleApprove
-                            )
+                            requestConfirm(stageConfirm, handleApprove)
                           }
                         >
                           Принять
@@ -705,7 +723,9 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
                 slot={postingSlot}
                 canOperate={canOperate && !viewingOtherStage}
                 alreadyPosted={task.status === "done"}
-                onMarkPosted={handleApprove}
+                onMarkPosted={() =>
+                  requestConfirm(getMarkPostedConfirmContent(), handleApprove)
+                }
               />
             ) : isPlanVisit ? (
               <ManagerPlan
@@ -714,8 +734,16 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
                 alreadyDone={alreadyPlanned}
                 alreadyArchived={alreadyArchived}
                 onChange={setPlanDraft}
-                onApprove={() => handleApproveToPlan(planValue)}
-                onArchive={() => handleArchiveFromPlan(planValue)}
+                onApprove={() =>
+                  requestConfirm(getPutInPlanConfirmContent(planValue), () =>
+                    handleApproveToPlan(planValue)
+                  )
+                }
+                onArchive={() =>
+                  requestConfirm(getArchiveFromPlanConfirmContent(), () =>
+                    handleArchiveFromPlan(planValue)
+                  )
+                }
               />
             ) : isManagerStage ? (
               <ManagerApprove format={content.format} />

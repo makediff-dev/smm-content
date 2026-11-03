@@ -12,9 +12,15 @@ interface TableProps<T> {
   columns: TableColumn<T>[];
   data: T[];
   keyField: keyof T & string;
+  onRowClick?: (row: T) => void;
 }
 
-export function Table<T>({ columns, data, keyField }: TableProps<T>) {
+export function Table<T>({
+  columns,
+  data,
+  keyField,
+  onRowClick,
+}: TableProps<T>) {
   return (
     <div className={styles.tableWrapper}>
       <table className={styles.table}>
@@ -29,7 +35,11 @@ export function Table<T>({ columns, data, keyField }: TableProps<T>) {
         </thead>
         <tbody>
           {data.map((row) => (
-            <tr key={String(row[keyField])} className={styles.tr}>
+            <tr
+              key={String(row[keyField])}
+              className={`${styles.tr} ${onRowClick ? styles.trClickable : ""}`}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+            >
               {columns.map((col) => (
                 <td key={col.key} className={styles.td}>
                   {col.render(row)}

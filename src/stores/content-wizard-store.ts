@@ -34,6 +34,7 @@ interface WizardState {
   cardsCount: number;
   videoTransition: string;
   promptId: string;
+  promptIds: string[];
   additionalInstructions: string;
   extractedTitle: string;
   extractedText: string;
@@ -95,6 +96,7 @@ const initialState = {
   cardsCount: 3,
   videoTransition: "none",
   promptId: "prompt-post",
+  promptIds: ["prompt-post"],
   additionalInstructions: "",
   extractedTitle: "",
   extractedText: "",

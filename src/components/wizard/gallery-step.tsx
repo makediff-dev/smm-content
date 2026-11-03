@@ -16,6 +16,7 @@ export function GalleryStep() {
   const disabled = useWizardStepDisabled();
   const currentUser = useAuthStore((s) => s.currentUser);
   const promptId = useWizardStore((s) => s.promptId);
+  const promptIds = useWizardStore((s) => s.promptIds);
   const generationPrompt = useWizardStore((s) => s.generationPrompt);
   const additionalInstructions = useWizardStore((s) => s.additionalInstructions);
   const postText = useWizardStore((s) => s.postText);
@@ -37,8 +38,14 @@ export function GalleryStep() {
       content?.actionLog.some((item) => item.action.includes("Сборка галереи"))
     );
 
-  const basePrompt = prompts.find((prompt) => prompt.id === promptId);
-  const haystack = `${generationPrompt} ${additionalInstructions} ${basePrompt?.text ?? ""}`;
+  const selectedPromptIds =
+    promptIds && promptIds.length > 0 ? promptIds : promptId ? [promptId] : [];
+  const basePrompts = selectedPromptIds
+    .map((id) => prompts.find((prompt) => prompt.id === id))
+    .filter((prompt): prompt is NonNullable<typeof prompt> => Boolean(prompt));
+  const haystack = `${generationPrompt} ${additionalInstructions} ${basePrompts
+    .map((prompt) => prompt.text)
+    .join(" ")}`;
   const calledSkills = skills.filter((skill) =>
     haystack.toLowerCase().includes(skill.name.toLowerCase())
   );
@@ -85,10 +92,16 @@ export function GalleryStep() {
         <div className={styles.choiceRows}>
           <div className={styles.choiceRow}>
             <span className={styles.choiceLabel}>Промпт:</span>
-            {basePrompt ? (
-              <Link className={styles.choiceLink} href={`/admin/prompts?id=${basePrompt.id}`}>
-                {basePrompt.name}
-              </Link>
+            {basePrompts.length > 0 ? (
+              <ul className={styles.choiceList}>
+                {basePrompts.map((prompt) => (
+                  <li key={prompt.id}>
+                    <Link className={styles.choiceLink} href={`/admin/prompts?id=${prompt.id}`}>
+                      {prompt.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             ) : (
               <span className={styles.hint}>Не выбран</span>
             )}

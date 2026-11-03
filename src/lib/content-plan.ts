@@ -88,6 +88,18 @@ export function getArchivedPlanSlots(slots: ContentPlanSlot[]): ContentPlanSlot[
   return slots.filter((slot) => slot.archived);
 }
 
+export function resolveSlotContentId(
+  slot: ContentPlanSlot,
+  contentUnits: Array<{ id: string; projectId: string; title: string }>
+): string | undefined {
+  return (
+    slot.contentUnitId ??
+    contentUnits.find(
+      (unit) => unit.projectId === slot.projectId && unit.title === slot.title
+    )?.id
+  );
+}
+
 export function formatArchiveSince(iso?: string): string {
   if (!iso) return "в архиве";
   const label = new Date(iso).toLocaleDateString("ru-RU", {

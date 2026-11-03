@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageSearchBar } from "@/components/shared/page-search-bar";
 import { matchesSearch, normalizeSearchQuery } from "@/lib/search";
+import { getHomeHrefForRole } from "@/lib/navigation";
 import {
   canCreateProductionTask,
   isAdminRole,
@@ -43,8 +44,17 @@ const URGENCY_FILTERS: { id: UrgencyFilter; label: string }[] = [
 ];
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const currentUser = useAuthStore((s) => s.currentUser);
+
+  useEffect(() => {
+    if (currentUser?.role === "posting_manager") {
+      router.replace(getHomeHrefForRole(currentUser.role));
+    }
+  }, [currentUser, router]);
+
   if (!currentUser) return null;
+  if (currentUser.role === "posting_manager") return null;
   if (isAdminRole(currentUser.role)) return <AdminProjectsHome />;
   return <RoleProjectsHome />;
 }

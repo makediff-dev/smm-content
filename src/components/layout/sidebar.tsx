@@ -8,6 +8,7 @@ import { useQueueStore } from "@/stores/queue-store";
 import { useWorkflowStore } from "@/stores/workflow-store";
 import { getNavigationForRole } from "@/lib/navigation";
 import {
+  canAccessSpendAndTracker,
   filterByProjectAccess,
   getRoleLabel,
   isManagementRole,
@@ -51,11 +52,12 @@ export function Sidebar({ open = false, onNavigate }: SidebarProps) {
   const navItems = currentUser ? getNavigationForRole(currentUser.role) : [];
   const users = useAuthStore((s) => s.users);
   const tasks = useWorkflowStore((s) => s.tasks);
-  const stuckHotCount = isManagement
-    ? getStuckTaskRows(filterByProjectAccess(currentUser, tasks), users).filter(
-        (row) => row.isHot
-      ).length
-    : 0;
+  const stuckHotCount =
+    currentUser && canAccessSpendAndTracker(currentUser.role)
+      ? getStuckTaskRows(filterByProjectAccess(currentUser, tasks), users).filter(
+          (row) => row.isHot
+        ).length
+      : 0;
   const queueBadgeCount = isManagement
     ? workflowCount + aiQueueCount
     : workflowCount;

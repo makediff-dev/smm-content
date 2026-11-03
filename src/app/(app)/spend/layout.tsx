@@ -1,11 +1,11 @@
 "use client";
 
-import { ManagementGuard } from "@/components/layout/auth-guard";
+import { SpendGuard } from "@/components/layout/auth-guard";
 
 export default function SpendLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <ManagementGuard>{children}</ManagementGuard>;
+  return <SpendGuard>{children}</SpendGuard>;
 }

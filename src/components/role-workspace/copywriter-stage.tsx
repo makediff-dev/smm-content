@@ -13,7 +13,7 @@ import type {
 import { FORMAT_DESCRIPTIONS, FORMAT_LABELS } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { BasePromptSelect } from "@/components/wizard/base-prompt-select";
 import { Textarea } from "@/components/ui/textarea";
 import { VideoPlayerStub } from "@/components/shared/placeholder-image";
 import { PreviewPhotos } from "@/components/role-workspace/preview-photos";
@@ -31,6 +31,7 @@ import {
 import { useAuthStore } from "@/stores/auth-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useSettingsStore } from "@/stores/settings-store";
+import { normalizePromptIds, promptSelectionPatch } from "@/lib/prompt-ids";
 import styles from "./role-workspace.module.css";
 
 const SOURCE_FILE_ACCEPT = ".pdf,.doc,.docx,.txt,.md,.rtf";
@@ -79,10 +80,6 @@ export function CopywriterStage({
   const [regenOpen, setRegenOpen] = useState<"post" | "titles" | null>(null);
   const [regenPrompt, setRegenPrompt] = useState("");
   const [fileError, setFileError] = useState("");
-  const promptOptions = prompts.map((prompt) => ({
-    value: prompt.id,
-    label: prompt.name,
-  }));
 
   const isMeme = content.format === "video_meme";
   const showTitles =
@@ -333,15 +330,12 @@ export function CopywriterStage({
                   />
                 )}
 
-                <Select
-                  label="Базовый промпт"
-                  options={
-                    promptOptions.length > 0
-                      ? promptOptions
-                      : [{ value: content.promptId || "prompt-post", label: "Генерация поста" }]
-                  }
-                  value={content.promptId || promptOptions[0]?.value}
-                  onChange={(event) => onChange({ promptId: event.target.value })}
+                <p className={styles.kicker}>Базовый промпт</p>
+                <BasePromptSelect
+                  value={normalizePromptIds(content)}
+                  prompts={prompts}
+                  disabled={!canEdit}
+                  onChange={(next) => onChange(promptSelectionPatch(next))}
                 />
                 <Textarea
                   label="Дополнительные указания для этой задачи"

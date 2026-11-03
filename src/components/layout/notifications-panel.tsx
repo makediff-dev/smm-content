@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Bell } from "@phosphor-icons/react";
 import { useAuthStore } from "@/stores/auth-store";
@@ -13,20 +13,27 @@ import styles from "./notifications-panel.module.css";
 export function NotificationsPanel() {
   const router = useRouter();
   const currentUser = useAuthStore((s) => s.currentUser);
-  const getNotificationsForUser = useWorkflowStore((s) => s.getNotificationsForUser);
+  const allNotifications = useWorkflowStore((s) => s.notifications);
+  const tasks = useWorkflowStore((s) => s.tasks);
   const markNotificationRead = useWorkflowStore((s) => s.markNotificationRead);
   const markAllNotificationsRead = useWorkflowStore((s) => s.markAllNotificationsRead);
-  const getTaskByContentId = useWorkflowStore((s) => s.getTaskByContentId);
 
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  const notifications = currentUser
-    ? getNotificationsForUser(currentUser.id).filter((item) => {
-        const task = getTaskByContentId(item.contentUnitId);
+  const notifications = useMemo(() => {
+    if (!currentUser) return [];
+    return allNotifications
+      .filter((item) => item.userId === currentUser.id)
+      .filter((item) => {
+        const task = tasks.find((entry) => entry.contentUnitId === item.contentUnitId);
         return !task || canAccessProject(currentUser, task.projectId);
       })
-    : [];
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+  }, [allNotifications, currentUser, tasks]);
   const unreadCount = notifications.filter((item) => !item.read).length;
 
   useEffect(() => {
@@ -45,12 +52,19 @@ export function NotificationsPanel() {
   const handleOpenNotification = (id: string, contentUnitId: string) => {
     markNotificationRead(id);
     setOpen(false);
-    const task = getTaskByContentId(contentUnitId);
+    const task = tasks.find((entry) => entry.contentUnitId === contentUnitId);
     if (task && task.status !== "done") {
       router.push(getRoleWorkspaceHref(task.projectId, contentUnitId));
       return;
     }
     router.push(`/history/${contentUnitId}`);
+  };
+
+  const handleMarkAllRead = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!currentUser || unreadCount === 0) return;
+    markAllNotificationsRead(currentUser.id);
   };
 
   return (
@@ -71,17 +85,12 @@ export function NotificationsPanel() {
         <div className={styles.panel}>
           <div className={styles.panelHeader}>
             <span>Уведомления</span>
-            {notifications.length > 0 && (
+            {unreadCount > 0 && (
               <button
                 type="button"
-                onClick={() => markAllNotificationsRead(currentUser.id)}
-                style={{
-                  border: 0,
-                  background: "transparent",
-                  color: "#2563eb",
-                  fontSize: 12,
-                  cursor: "pointer",
-                }}
+                className={styles.markAll}
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={handleMarkAllRead}
               >
                 Прочитать все
               </button>

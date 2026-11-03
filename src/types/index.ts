@@ -307,6 +307,7 @@ export interface ContentUnit {
   cards: Card[];
   postText: string;
   promptId: string;
+  promptIds?: string[];
   extractedTitle: string;
   extractedText: string;
   extractedImages: string[];

@@ -74,6 +74,37 @@ export function ManagerPreview({
   const showTitles =
     content.format === "gallery" || content.format === "slideshow";
 
+  const postCopy = (
+    <div className={styles.copy}>
+      <div className={styles.copyGroup}>
+        <h2 className={styles.kicker}>
+          {content.format === "video_meme" ? "Подводка" : "Текст поста"}
+        </h2>
+        {visit === "text" && content.format !== "video_meme" && (
+          <p className={styles.visualLabel}>{sourceLabel}</p>
+        )}
+        <p className={styles.postText}>
+          {content.postText ||
+            (content.format === "video_meme"
+              ? "Нет подводки."
+              : visit === "text"
+                ? "Нет текста для согласования."
+                : "Нет текста поста.")}
+        </p>
+      </div>
+      {visit === "text" && showTitles && (
+        <div className={styles.titleList}>
+          <p className={styles.kicker}>Заголовки слайдов</p>
+          {slides.map((slide, index) => (
+            <p key={slide.id} className={styles.postText}>
+              {index + 1}. {slide.shortText || "Без заголовка"}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   if (visit === "text") {
     return (
       <div className={styles.stackPreview}>
@@ -83,34 +114,7 @@ export function ManagerPreview({
             <p className={styles.visualLabel}>Видео на согласование</p>
           </div>
         )}
-        <div className={styles.copy}>
-          <div className={styles.copyGroup}>
-            <h2 className={styles.kicker}>
-              {content.format === "video_meme"
-                ? "Подводка копирайтера"
-                : "Текст копирайтера"}
-            </h2>
-            {content.format !== "video_meme" && (
-              <p className={styles.visualLabel}>{sourceLabel}</p>
-            )}
-            <p className={styles.postText}>
-              {content.postText ||
-                (content.format === "video_meme"
-                  ? "Нет подводки."
-                  : "Нет текста для согласования.")}
-            </p>
-          </div>
-          {showTitles && (
-            <div className={styles.titleList}>
-              <p className={styles.kicker}>Заголовки слайдов</p>
-              {slides.map((slide, index) => (
-                <p key={slide.id} className={styles.postText}>
-                  {index + 1}. {slide.shortText || "Без заголовка"}
-                </p>
-              ))}
-            </div>
-          )}
-        </div>
+        {postCopy}
       </div>
     );
   }
@@ -150,6 +154,8 @@ export function ManagerPreview({
           </p>
         </div>
       )}
+
+      {postCopy}
 
       <div className={`${styles.copy} ${styles.ttxBlock}`}>
         <div className={styles.copyGroup}>
