@@ -168,9 +168,14 @@ function ChainList({
 interface RoleWorkspaceProps {
   projectId: string;
   contentId: string;
+  requestedStage?: WorkflowStage | null;
 }
 
-export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
+export function RoleWorkspace({
+  projectId,
+  contentId,
+  requestedStage = null,
+}: RoleWorkspaceProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const users = useAuthStore((s) => s.users);
   const canOpenProject = useRequireProjectAccess(projectId);
@@ -185,6 +190,7 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   const returnStage = useWorkflowStore((s) => s.returnStage);
   const moveAlongPath = useWorkflowStore((s) => s.moveAlongPath);
   const addSlot = useContentPlanStore((s) => s.addSlot);
+  const updateSlot = useContentPlanStore((s) => s.updateSlot);
   const planSlots = useContentPlanStore((s) => s.slots);
 
   const [viewStage, setViewStage] = useState<WorkflowStage | null>(null);
@@ -212,7 +218,8 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
   const activeStage = getPinnedWorkspaceStage(
     currentUser,
     task,
-    isAdmin ? viewStage : null
+    isAdmin ? viewStage : null,
+    requestedStage
   );
   const versionView =
     content && activeStage
@@ -361,6 +368,7 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
     (slot) => slot.contentUnitId === contentId && Boolean(slot.archived)
   );
   const alreadyPlanned = task.status === "done";
+  const alreadyPosted = Boolean(postingSlot?.posted);
   const statusClass = isReturned ? styles.badgeReturned : styles.badgeStatus;
 
   const handleApprove = () => {
@@ -380,6 +388,15 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
       }
     }
     approveStage(task.id, currentUser, users, addActionLog);
+  };
+
+  const handleMarkPosted = () => {
+    if (!postingSlot || postingSlot.id.startsWith("preview-")) return;
+    updateSlot(postingSlot.id, {
+      posted: true,
+      postedAt: new Date().toISOString(),
+    });
+    addActionLog(contentId, "Отмечено как вышедшее", currentUser.name);
   };
 
   const handleSelectStage = (item: WorkspaceChainItem) => {
@@ -522,13 +539,16 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
           <span className={styles.badge}>{FORMAT_LABELS[content.format]}</span>
           <span
             className={`${styles.badge} ${
-              isPostingStage && task.status !== "done"
+              isPostingStage && !alreadyPosted
                 ? styles.badgePlan
                 : statusClass
             }`}
           >
             {isPostingStage
-              ? getPostingStatusLabel(task.status, postingSlot?.scheduledAt)
+              ? getPostingStatusLabel(
+                  alreadyPosted ? "done" : "in_progress",
+                  postingSlot?.scheduledAt
+                )
               : getWorkspaceStatusLabel(task.status, stage, { aiWorking })}
           </span>
           <span
@@ -722,9 +742,9 @@ export function RoleWorkspace({ projectId, contentId }: RoleWorkspaceProps) {
                 content={content}
                 slot={postingSlot}
                 canOperate={canOperate && !viewingOtherStage}
-                alreadyPosted={task.status === "done"}
+                alreadyPosted={alreadyPosted}
                 onMarkPosted={() =>
-                  requestConfirm(getMarkPostedConfirmContent(), handleApprove)
+                  requestConfirm(getMarkPostedConfirmContent(), handleMarkPosted)
                 }
               />
             ) : isPlanVisit ? (

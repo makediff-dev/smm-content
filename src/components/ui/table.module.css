@@ -43,6 +43,11 @@
   padding: 12px 16px;
   color: var(--text);
   vertical-align: middle;
+  background: var(--bg-white);
+}
+
+.tr:nth-child(even) .td {
+  background: var(--table-stripe);
 }
 
 .tr + .tr .td {

@@ -59,7 +59,7 @@ export function NotificationsPanel() {
     markNotificationRead(id);
     setOpen(false);
     const task = tasks.find((entry) => entry.contentUnitId === contentUnitId);
-    if (task && task.status !== "done") {
+    if (task) {
       router.push(getRoleWorkspaceHref(task.projectId, contentUnitId));
       return;
     }

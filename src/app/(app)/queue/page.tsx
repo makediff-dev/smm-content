@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DueSortHeader, type DueSort } from "@/components/queue/due-sort-header";
+import {
+  DueSortHeader,
+  type DueSort,
+} from "@/components/queue/due-sort-header";
 import Link from "next/link";
 import { useAuthStore } from "@/stores/auth-store";
 import { useWorkflowStore } from "@/stores/workflow-store";
@@ -25,8 +28,17 @@ import {
 } from "@/lib/task-deadline";
 import { matchesSearch } from "@/lib/search";
 import { getHomeHrefForRole } from "@/lib/navigation";
-import { canAccessAllTasks, canAccessProject, isAdminRole } from "@/lib/roles";
+import { getRoleWorkspaceHref } from "@/lib/role-workspace";
 import {
+  canAccessAllTasks,
+  canAccessProject,
+  canFilterAllTasks,
+  isPostingManagerRole,
+  scopesTasksToSingleProject,
+} from "@/lib/roles";
+import { useContentPlanStore } from "@/stores/content-plan-store";
+import {
+  ALL_FILTER,
   ColumnFilters,
   matchesColumnFilter,
   uniqueFilterOptions,
@@ -44,14 +56,52 @@ export default function QueuePage() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const users = useAuthStore((s) => s.users);
   const getAllActiveTasks = useWorkflowStore((s) => s.getAllActiveTasks);
+  const allWorkflowTasks = useWorkflowStore((s) => s.tasks);
+  const planSlots = useContentPlanStore((s) => s.slots);
   const projects = useProjectsStore((s) => s.projects);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>(
+    {},
+  );
   const [dueSort, setDueSort] = useState<DueSort>(null);
+  const [scopedProjectId, setScopedProjectId] = useState<string | null>(null);
   const { query } = useSearch();
 
   const allowed = Boolean(currentUser && canAccessAllTasks(currentUser.role));
-  const isAdmin = Boolean(currentUser && isAdminRole(currentUser.role));
+  const canFilter = Boolean(currentUser && canFilterAllTasks(currentUser.role));
+  const singleProject = Boolean(
+    currentUser && scopesTasksToSingleProject(currentUser.role),
+  );
+  const isPostingManager = Boolean(
+    currentUser && isPostingManagerRole(currentUser.role),
+  );
+
+  const accessibleProjects = useMemo(() => {
+    if (!currentUser) return [];
+    return projects.filter((project) =>
+      canAccessProject(currentUser, project.id),
+    );
+  }, [currentUser, projects]);
+
+  useEffect(() => {
+    if (!singleProject) return;
+    if (
+      scopedProjectId &&
+      accessibleProjects.some((project) => project.id === scopedProjectId)
+    ) {
+      return;
+    }
+    setScopedProjectId(accessibleProjects[0]?.id ?? null);
+  }, [singleProject, accessibleProjects, scopedProjectId]);
+
+  const scopedProject = accessibleProjects.find(
+    (project) => project.id === scopedProjectId,
+  );
+
+  const filterValues = useMemo(() => {
+    if (!singleProject || !scopedProject) return columnFilters;
+    return { ...columnFilters, project: scopedProject.name };
+  }, [columnFilters, scopedProject, singleProject]);
 
   useEffect(() => {
     if (currentUser && !canAccessAllTasks(currentUser.role)) {
@@ -59,11 +109,48 @@ export default function QueuePage() {
     }
   }, [currentUser, router]);
 
-  const workflowTasks = currentUser && allowed
-    ? getAllActiveTasks().filter((task) =>
-        canAccessProject(currentUser, task.projectId)
-      )
-    : [];
+  const plannedContentIds = useMemo(
+    () =>
+      new Set(
+        planSlots
+          .filter((slot) => !slot.archived && slot.contentUnitId)
+          .map((slot) => slot.contentUnitId as string),
+      ),
+    [planSlots],
+  );
+
+  const workflowTasks = useMemo(() => {
+    if (!currentUser || !allowed) return [];
+
+    const matchesScope = (task: ProductionTask) => {
+      if (!canAccessProject(currentUser, task.projectId)) return false;
+      if (singleProject) {
+        return Boolean(scopedProjectId) && task.projectId === scopedProjectId;
+      }
+      return true;
+    };
+
+    const active = getAllActiveTasks().filter(matchesScope);
+    if (!isPostingManager) return active;
+
+    const plannedDone = allWorkflowTasks.filter(
+      (task) =>
+        task.status === "done" &&
+        plannedContentIds.has(task.contentUnitId) &&
+        matchesScope(task),
+    );
+    const seen = new Set(active.map((task) => task.id));
+    return [...active, ...plannedDone.filter((task) => !seen.has(task.id))];
+  }, [
+    allWorkflowTasks,
+    allowed,
+    currentUser,
+    getAllActiveTasks,
+    isPostingManager,
+    plannedContentIds,
+    scopedProjectId,
+    singleProject,
+  ]);
 
   const filteredWorkflowTasks = useMemo(() => {
     return workflowTasks.filter((task) => {
@@ -101,7 +188,7 @@ export default function QueuePage() {
         statusLabel,
         formatLabel,
         projectName,
-        assigneeName
+        assigneeName,
       );
     });
   }, [workflowTasks, query, projects, users, columnFilters, selectedDate]);
@@ -162,7 +249,14 @@ export default function QueuePage() {
       key: "actions",
       header: "Действия",
       render: (row) => (
-        <Link href={`/projects/${row.projectId}/content/${row.contentUnitId}`}>
+        <Link
+          href={getRoleWorkspaceHref(
+            row.projectId,
+            row.contentUnitId,
+            isPostingManager ? "posting_manager" : undefined,
+          )}
+          onClick={(event) => event.stopPropagation()}
+        >
           <Button variant="muted" size="small">
             Открыть
           </Button>
@@ -176,7 +270,7 @@ export default function QueuePage() {
       workflowTasks.map((task) => ({
         createdAt: resolveTaskDueAt(task).toISOString(),
       })),
-    [workflowTasks]
+    [workflowTasks],
   );
 
   const filterGroups = useMemo(() => {
@@ -187,58 +281,65 @@ export default function QueuePage() {
           {
             key: "title",
             label: "Контент",
-            options: uniqueFilterOptions(workflowTasks.map((task) => task.title)),
+            options: uniqueFilterOptions(
+              workflowTasks.map((task) => task.title),
+            ),
           },
           {
             key: "stage",
             label: "Этап",
             options: uniqueFilterOptions(
-              workflowTasks.map((task) => getStageLabel(task.currentStage))
+              workflowTasks.map((task) => getStageLabel(task.currentStage)),
             ),
           },
           {
             key: "status",
             label: "Статус",
             options: uniqueFilterOptions(
-              workflowTasks.map((task) => WORKFLOW_STATUS_LABELS[task.status])
+              workflowTasks.map((task) => WORKFLOW_STATUS_LABELS[task.status]),
             ),
           },
           {
             key: "format",
             label: "Формат",
             options: uniqueFilterOptions(
-              workflowTasks.map((task) => FORMAT_LABELS[task.format])
+              workflowTasks.map((task) => FORMAT_LABELS[task.format]),
             ),
           },
           {
             key: "project",
             label: "Проект",
+            includeAll: !singleProject,
             options: uniqueFilterOptions(
-              workflowTasks.map(
-                (task) =>
-                  projects.find((project) => project.id === task.projectId)?.name ??
-                  task.projectId
-              )
+              singleProject
+                ? accessibleProjects.map((project) => project.name)
+                : workflowTasks.map(
+                    (task) =>
+                      projects.find((project) => project.id === task.projectId)
+                        ?.name ?? task.projectId,
+                  ),
             ),
           },
           {
             key: "assignee",
             label: "Ответственный",
             options: uniqueFilterOptions(
-              workflowTasks.map((task) => getAssigneeName(task.assigneeId, users))
+              workflowTasks.map((task) =>
+                getAssigneeName(task.assigneeId, users),
+              ),
             ),
           },
           {
             key: "dueAt",
             label: "Срок",
             options: uniqueFilterOptions(
-              workflowTasks.map((task) => formatTaskDeadlineLabel(task))
+              workflowTasks.map((task) => formatTaskDeadlineLabel(task)),
             ),
           },
         ],
       },
     ];
-  }, [projects, users, workflowTasks]);
+  }, [accessibleProjects, projects, singleProject, users, workflowTasks]);
 
   return (
     <AppShell breadcrumb="Все задачи">
@@ -246,21 +347,40 @@ export default function QueuePage() {
         <div>
           <h1 className={styles.pageTitle}>Все задачи</h1>
           <p className={styles.pageDescription}>
-            Все проекты и все роли в производстве
+            {singleProject
+              ? scopedProject
+                ? `Задачи проекта «${scopedProject.name}»`
+                : "Задачи одного проекта"
+              : "Все проекты и все роли в производстве"}
           </p>
         </div>
         <div className={styles.pageHeaderTools}>
           <PageSearchBar />
-          {isAdmin && (
+          {canFilter && (
             <ColumnFilters
               groups={filterGroups}
-              values={columnFilters}
-              onChange={(key, value) =>
-                setColumnFilters((current) => ({ ...current, [key]: value }))
-              }
+              values={filterValues}
+              onChange={(key, value) => {
+                if (singleProject && key === "project") {
+                  const next = accessibleProjects.find(
+                    (project) => project.name === value,
+                  );
+                  if (next) setScopedProjectId(next.id);
+                  return;
+                }
+                setColumnFilters((current) => {
+                  if (value === ALL_FILTER) {
+                    const next = { ...current };
+                    delete next[key];
+                    return next;
+                  }
+                  return { ...current, [key]: value };
+                });
+              }}
               onReset={() => {
                 setColumnFilters({});
                 setSelectedDate(null);
+                setDueSort(null);
               }}
               extra={
                 <TaskCalendar
@@ -299,7 +419,13 @@ export default function QueuePage() {
           data={sortedWorkflowTasks}
           keyField="id"
           onRowClick={(row) =>
-            router.push(`/projects/${row.projectId}/content/${row.contentUnitId}`)
+            router.push(
+              getRoleWorkspaceHref(
+                row.projectId,
+                row.contentUnitId,
+                isPostingManager ? "posting_manager" : undefined,
+              ),
+            )
           }
         />
       )}

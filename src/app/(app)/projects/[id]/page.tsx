@@ -26,8 +26,13 @@ import type { LogoAsset, QueueTask, ContentFormat, TaskStatus } from "@/types";
 import { FORMAT_LABELS, QUEUE_TYPE_LABELS, STATUS_LABELS } from "@/types";
 import { formatDate } from "@/lib/simulate-generation";
 import { matchesSearch, normalizeSearchQuery } from "@/lib/search";
-import { canCreateProductionTask, getRoleLabel, isAdminRole } from "@/lib/roles";
 import {
+  canCreateProductionTask,
+  canFilterAllTasks,
+  getRoleLabel,
+} from "@/lib/roles";
+import {
+  ALL_FILTER,
   ColumnFilters,
   matchesColumnFilter,
   uniqueFilterOptions,
@@ -91,7 +96,9 @@ export default function ProjectPage({
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [queueFilters, setQueueFilters] = useState<Record<string, string>>({});
   const { query } = useSearch();
-  const isAdmin = Boolean(currentUser && isAdminRole(currentUser.role));
+  const canFilterQueue = Boolean(
+    currentUser && canFilterAllTasks(currentUser.role)
+  );
 
   const [logoAssets, setLogoAssets] = useState<LogoAsset[]>(
     project?.logoAssets ?? []
@@ -353,12 +360,19 @@ export default function ProjectPage({
 
       <div className={styles.tabsRow}>
         <Tabs tabs={PROJECT_TABS} activeTab={activeTab} onChange={setActiveTab} />
-        {activeTab === "queue" && isAdmin && queueTasks.length > 0 && (
+        {activeTab === "queue" && canFilterQueue && queueTasks.length > 0 && (
           <ColumnFilters
             groups={queueFilterGroup}
             values={queueFilters}
             onChange={(key, value) =>
-              setQueueFilters((current) => ({ ...current, [key]: value }))
+              setQueueFilters((current) => {
+                if (value === ALL_FILTER) {
+                  const next = { ...current };
+                  delete next[key];
+                  return next;
+                }
+                return { ...current, [key]: value };
+              })
             }
             onReset={() => setQueueFilters({})}
           />

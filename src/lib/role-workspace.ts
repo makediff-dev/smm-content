@@ -44,11 +44,32 @@ const ROLE_FIELD_LABEL: Record<WorkflowStage, string> = {
   posting_manager: "Публикация",
 };
 
+const WORKFLOW_STAGES: WorkflowStage[] = [
+  "copywriter",
+  "designer",
+  "editor",
+  "video_editor",
+  "project_manager",
+  "posting_manager",
+];
+
+export function parseWorkflowStage(
+  value: string | string[] | null | undefined
+): WorkflowStage | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (!raw) return null;
+  return WORKFLOW_STAGES.includes(raw as WorkflowStage)
+    ? (raw as WorkflowStage)
+    : null;
+}
+
 export function getRoleWorkspaceHref(
   projectId: string,
-  contentUnitId: string
+  contentUnitId: string,
+  stage?: WorkflowStage | null
 ): string {
-  return `/projects/${projectId}/content/${contentUnitId}`;
+  const href = `/projects/${projectId}/content/${contentUnitId}`;
+  return stage ? `${href}?stage=${stage}` : href;
 }
 
 export function getVisibleStageChain(format: ContentFormat): WorkflowStage[] {
@@ -132,11 +153,19 @@ export function isWaitingForReturnedFix(
 export function getPinnedWorkspaceStage(
   user: User | null | undefined,
   task: ProductionTask | undefined,
-  adminView: WorkflowStage | null
+  adminView: WorkflowStage | null,
+  requestedStage?: WorkflowStage | null
 ): WorkflowStage | undefined {
   if (!task) return undefined;
   if (user && isAdminRole(user.role)) {
     return adminView ?? (task.status === "done" ? "project_manager" : task.currentStage);
+  }
+  if (user?.role === "posting_manager") {
+    if (requestedStage) return requestedStage;
+    if (task.status === "done" || task.currentStage === "posting_manager") {
+      return "posting_manager";
+    }
+    return task.currentStage;
   }
   if (task.status === "done") return "project_manager";
   if (canUserOperateCurrentStage(user, task)) {
@@ -155,7 +184,9 @@ export function canUserOperateCurrentStage(
 ): boolean {
   if (!user || !task) return false;
   if (isAdminRole(user.role)) return true;
-  if (task.status === "done") return false;
+  if (task.status === "done") {
+    return user.role === "posting_manager";
+  }
   if (isAiPathCurrent(task.format, task.currentStage, task.currentPathId)) {
     return false;
   }

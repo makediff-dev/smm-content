@@ -88,3 +88,21 @@ export function canAccessSpendAndTracker(role: UserRole): boolean {
 export function canAccessAllTasks(role: UserRole): boolean {
   return isManagementRole(role);
 }
+
+/** Column filters on the all-tasks page: admin, PM and posting manager. */
+export function canFilterAllTasks(role: UserRole): boolean {
+  return (
+    role === "admin" ||
+    role === "project_manager" ||
+    role === "posting_manager"
+  );
+}
+
+/** Project manager sees one project’s tasks at a time. */
+export function scopesTasksToSingleProject(role: UserRole): boolean {
+  return role === "project_manager";
+}
+
+export function isPostingManagerRole(role: UserRole): boolean {
+  return role === "posting_manager";
+}

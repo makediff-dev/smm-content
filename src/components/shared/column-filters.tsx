@@ -12,6 +12,7 @@ export interface ColumnFilterField {
   key: string;
   label: string;
   options: Array<{ value: string; label: string }>;
+  includeAll?: boolean;
 }
 
 export interface ColumnFilterGroup {
@@ -59,9 +60,24 @@ export function matchesColumnFilter(
   return selected === value;
 }
 
-export function activeFilterCount(values: Record<string, string>) {
-  return Object.values(values).filter((value) => value && value !== ALL_FILTER)
-    .length;
+function lockedFilterKeys(groups: ColumnFilterGroup[]) {
+  return new Set(
+    groups.flatMap((group) =>
+      group.fields
+        .filter((field) => field.includeAll === false)
+        .map((field) => field.key)
+    )
+  );
+}
+
+export function activeFilterCount(
+  values: Record<string, string>,
+  groups: ColumnFilterGroup[] = []
+) {
+  const locked = lockedFilterKeys(groups);
+  return Object.entries(values).filter(
+    ([key, value]) => value && value !== ALL_FILTER && !locked.has(key)
+  ).length;
 }
 
 export function ColumnFilters({
@@ -75,7 +91,7 @@ export function ColumnFilters({
 }: ColumnFiltersProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const active = activeFilterCount(values) + (extraActive ? 1 : 0);
+  const active = activeFilterCount(values, groups) + (extraActive ? 1 : 0);
 
   useEffect(() => {
     if (!open) return;
@@ -131,7 +147,9 @@ export function ColumnFilters({
                     value={filterValue(values, field.key)}
                     onChange={(event) => onChange(field.key, event.target.value)}
                     options={[
-                      { value: ALL_FILTER, label: "Все" },
+                      ...(field.includeAll === false
+                        ? []
+                        : [{ value: ALL_FILTER, label: "Все" }]),
                       ...field.options,
                     ]}
                   />

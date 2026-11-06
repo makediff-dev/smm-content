@@ -75,7 +75,7 @@ export function getPlanItemStatus(
   task?: ProductionTask
 ): PlanItemStatus {
   if (slot.archived) return "архив";
-  if (!task || task.status === "done") return "в плане";
+  if (!task || task.status === "done" || slot.posted) return "в плане";
   if (task.status === "returned") return "на доработке";
   return "ждёт проверки";
 }

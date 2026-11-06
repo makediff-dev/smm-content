@@ -35,6 +35,7 @@
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.05);
 
   --table-header-bg: #f0f0f2;
+  --table-stripe: #fafafa;
 
   --sidebar-width: clamp(220px, 17.2vw, 248px);
   --header-height: 60px;

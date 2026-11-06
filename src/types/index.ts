@@ -387,6 +387,8 @@ export interface ContentPlanSlot {
   attachmentFiles?: string[];
   archived?: boolean;
   archivedAt?: string;
+  posted?: boolean;
+  postedAt?: string;
 }
 
 export interface QueueTask {

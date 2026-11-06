@@ -912,18 +912,83 @@
   gap: 10px;
 }
 
-.packRow {
+.packItem {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 16px;
+  gap: 12px;
+  padding: 8px 8px 8px 16px;
   border-radius: var(--radius);
   background: var(--bg-muted);
 }
 
-.packRow button {
+.packRow {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.packRow:hover .packTitle {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.packAction {
   flex-shrink: 0;
+}
+
+.packPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.packPreviewHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.packSplit {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.packSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+}
+
+.packFeedGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.storyGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 140px));
+  gap: 10px;
+}
+
+.storyTile {
+  position: relative;
+  aspect-ratio: 9 / 16;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-muted);
+  outline: 1px solid rgba(0, 0, 0, 0.1);
+  outline-offset: -1px;
 }
 
 .packTitle {
@@ -1314,6 +1379,7 @@
   }
 
   .photoGrid,
+  .packFeedGrid,
   .slideGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1436,6 +1502,7 @@
   }
 
   .photoGrid,
+  .packFeedGrid,
   .slideGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1459,6 +1526,7 @@
   }
 
   .photoGrid,
+  .packFeedGrid,
   .slideGrid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1486,12 +1554,13 @@
     flex: 1 1 120px;
   }
 
-  .packRow {
+  .packItem {
     align-items: stretch;
     flex-direction: column;
+    padding: 12px 14px;
   }
 
-  .packRow button {
+  .packAction {
     width: 100%;
   }
 }

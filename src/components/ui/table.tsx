@@ -38,7 +38,17 @@ export function Table<T>({
             <tr
               key={String(row[keyField])}
               className={`${styles.tr} ${onRowClick ? styles.trClickable : ""}`}
-              onClick={onRowClick ? () => onRowClick(row) : undefined}
+              onClick={
+                onRowClick
+                  ? (event) => {
+                      const target = event.target as HTMLElement | null;
+                      if (target?.closest("a, button, input, select, textarea")) {
+                        return;
+                      }
+                      onRowClick(row);
+                    }
+                  : undefined
+              }
             >
               {columns.map((col) => (
                 <td key={col.key} className={styles.td}>
