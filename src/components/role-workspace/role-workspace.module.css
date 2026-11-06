@@ -632,12 +632,19 @@
 
 .actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 10px;
   margin-top: 16px;
   padding: 0;
   background: none;
   box-shadow: none;
+}
+
+.actions > * {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .note {
@@ -1550,8 +1557,8 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .actions > * {
-    flex: 1 1 120px;
+  .actions {
+    flex-wrap: nowrap;
   }
 
   .packItem {

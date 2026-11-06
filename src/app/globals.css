@@ -7,16 +7,16 @@
   --bg-soft: #f9f9fa;
   --bg-white: #ffffff;
 
-  --accent: #f8bf00;
-  --accent-hover: #e5b000;
-  --accent-muted: rgba(248, 191, 0, 0.14);
+  --accent: #ffcc00;
+  --accent-hover: #f0c000;
+  --accent-muted: rgba(255, 204, 0, 0.16);
   --accent-text: #1a1a1a;
 
-  --danger: #c0392b;
-  --danger-muted: #fde8e8;
+  --danger: #862a41;
+  --danger-muted: #fbe7ec;
 
-  --bg-dark: #f8bf00;
-  --bg-dark-hover: #e5b000;
+  --bg-dark: #ffcc00;
+  --bg-dark-hover: #f0c000;
 
   --text: #1a1a1a;
   --text-muted: #3f3f46;
@@ -24,7 +24,7 @@
 
   --border: rgba(0, 0, 0, 0.06);
   --border-subtle: rgba(0, 0, 0, 0.035);
-  --border-accent: rgba(248, 191, 0, 0.55);
+  --border-accent: rgba(255, 204, 0, 0.55);
   --field-bg: #ffffff;
   --field-ring: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
   --field-ring-focus: inset 0 0 0 1.5px var(--border-accent);

@@ -33,13 +33,14 @@
 }
 
 .navItem {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
   font-size: 14px;
   color: var(--text-muted);
-  border-radius: var(--radius);
+  border-radius: 14px;
   transition: color 0.15s ease, background 0.15s ease;
   margin-bottom: 2px;
 }
@@ -50,9 +51,19 @@
 }
 
 .active {
-  color: var(--accent);
-  font-weight: 500;
+  color: var(--accent-text);
+  font-weight: 600;
   background: var(--accent-muted);
+}
+
+.active:hover {
+  color: var(--accent-text);
+  background: rgba(255, 204, 0, 0.32);
+}
+
+.active .navBadge {
+  background: rgba(255, 204, 0, 0.5);
+  color: var(--accent-text);
 }
 
 .navIcon {
@@ -77,9 +88,9 @@
   padding: 0 6px;
   border-radius: var(--radius-pill);
   font-size: 11px;
-  font-weight: 600;
-  background: var(--accent);
-  color: var(--accent-text);
+  font-weight: 500;
+  background: var(--btn-muted);
+  color: var(--text-muted);
 }
 
 .account {

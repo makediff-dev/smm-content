@@ -3,11 +3,13 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 36px;
-  padding: 9px 18px;
+  min-height: 40px;
+  padding: 10px 20px;
   border-radius: var(--radius-pill);
-  font-size: 14px;
+  font-family: var(--font-heading);
+  font-size: 15px;
   font-weight: 500;
+  letter-spacing: -0.02em;
   border: none;
   transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
   white-space: nowrap;
@@ -50,23 +52,25 @@
 }
 
 .danger {
-  background: #f4dce0;
-  color: #c2414a;
+  background: var(--danger-muted);
+  color: var(--danger);
 }
 
 .danger:hover:not(:disabled) {
-  background: #edd0d4;
+  background: #f5d4dc;
 }
 
 .small {
   padding: 5px 12px;
-  font-size: 12px;
+  font-size: 13px;
+  min-height: 32px;
   border-radius: var(--radius-pill);
 }
 
 .large {
   padding: 12px 24px;
-  font-size: 15px;
+  font-size: 16px;
+  min-height: 48px;
 }
 
 .fullWidth {
