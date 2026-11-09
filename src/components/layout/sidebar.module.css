@@ -51,19 +51,31 @@
 }
 
 .active {
-  color: var(--accent-text);
+  color: var(--text);
   font-weight: 600;
-  background: var(--accent-muted);
+  background: var(--bg-muted);
+  padding-left: 16px;
 }
 
 .active:hover {
-  color: var(--accent-text);
-  background: rgba(255, 204, 0, 0.32);
+  color: var(--text);
+  background: #ececee;
+}
+
+.active::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--accent);
 }
 
 .active .navBadge {
-  background: rgba(255, 204, 0, 0.5);
-  color: var(--accent-text);
+  background: var(--bg-white);
+  color: var(--text);
 }
 
 .navIcon {
