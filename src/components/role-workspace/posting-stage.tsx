@@ -261,7 +261,7 @@ export function PostingSide({
         </ul>
       </section>
 
-      <div className={styles.actions}>
+      <div className={styles.packActions}>
         <Button onClick={handleDownloadAll}>Скачать всё</Button>
         {canOperate && !alreadyPosted ? (
           <Button variant="secondary" onClick={onMarkPosted}>

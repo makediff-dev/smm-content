@@ -6,7 +6,7 @@ import { SignOut, User } from "@phosphor-icons/react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useQueueStore } from "@/stores/queue-store";
 import { useWorkflowStore } from "@/stores/workflow-store";
-import { getNavigationForRole } from "@/lib/navigation";
+import { getNavigationForRole, isNavItemActive } from "@/lib/navigation";
 import {
   canAccessSpendAndTracker,
   filterByProjectAccess,
@@ -76,8 +76,11 @@ export function Sidebar({ open = false, onNavigate }: SidebarProps) {
 
       <nav className={styles.nav}>
         {navItems.map((item) => {
-          const isActive =
-            pathname === item.href || pathname.startsWith(item.href + "/");
+          const isActive = isNavItemActive(
+            pathname,
+            item.href,
+            currentUser?.role
+          );
           const Icon = navIconMap[item.icon];
 
           return (

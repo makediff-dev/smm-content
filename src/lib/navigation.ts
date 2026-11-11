@@ -61,6 +61,20 @@ export function getHomeHrefForRole(role: UserRole): string {
   return role === "posting_manager" ? "/queue" : "/projects";
 }
 
+export function isNavItemActive(
+  pathname: string,
+  href: string,
+  role?: UserRole | null
+): boolean {
+  if (pathname === href || pathname.startsWith(`${href}/`)) return true;
+  if (role === "posting_manager" && href === "/queue") {
+    return (
+      pathname.startsWith("/projects/") || pathname.startsWith("/history/")
+    );
+  }
+  return false;
+}
+
 export function getNavigationForRole(role: UserRole): NavItem[] {
   return mainNavigation
     .filter((item) => {
